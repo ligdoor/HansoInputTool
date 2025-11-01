@@ -32,13 +32,14 @@ namespace HansoInputTool.ViewModels
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "0.2.5";
+        private const string CurrentVersion = "0.3.0";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputToo/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputToo/releases";
         private static readonly string AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName);
         private static readonly string RatesFilePath = Path.Combine(AppDataPath, "rates.json");
         private static readonly string WorkInputFilePath = Path.Combine(AppDataPath, "Input_work.xlsx");
+        private static readonly string ColumnMapFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "column_map.json");
         private static readonly string BundledInputFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "Input.xlsx");
         private static readonly string BundledTemplateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "Template.xlsx");
         private static readonly string BundledRatesFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "rates.json");
@@ -47,6 +48,7 @@ namespace HansoInputTool.ViewModels
         #region Properties
         private ExcelHandler _excelHandler;
         public Dictionary<string, RateInfo> Rates { get; set; }
+        private ColumnMapping _columnMap;
         private List<string> _allSheetNames;
         private readonly StringBuilder _logBuilder = new();
         private string _logText;
@@ -145,7 +147,10 @@ namespace HansoInputTool.ViewModels
                 var ratesJson = await File.ReadAllTextAsync(RatesFilePath);
                 Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(ratesJson);
 
-                _excelHandler = new ExcelHandler(WorkInputFilePath);
+                var columnMapJson = await File.ReadAllTextAsync(ColumnMapFilePath);
+                _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
+
+                _excelHandler = new ExcelHandler(WorkInputFilePath, _columnMap);
                 _allSheetNames = _excelHandler.SheetNames;
 
                 PopulateSheetCombos();
@@ -202,6 +207,13 @@ namespace HansoInputTool.ViewModels
             _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, isKoryo);
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。（ファイル未保存）");
             UpdatePreview();
+        }
+
+        public void UpdateColumnMap(ColumnMapping newMap)
+        {
+            _columnMap = newMap;
+            _excelHandler = new ExcelHandler(WorkInputFilePath, _columnMap);
+            Log("列マッピング設定が更新されました。");
         }
 
         private void RegisterNormal(object obj)
@@ -278,24 +290,19 @@ namespace HansoInputTool.ViewModels
             var progressVM = new ProgressWindowViewModel();
             var progressWindow = new ProgressWindow(progressVM) { Owner = Application.Current.MainWindow };
 
-            // 進捗をUIに通知するための仕組み
             var progress = new Progress<TransferProgressReport>(report => {
-                if (!string.IsNullOrEmpty(report.Message))
-                {
-                    progressVM.AppendLog(report.Message);
-                }
-                progressVM.UpdateProgress(report.Current, report.Total, "");
+                if (!string.IsNullOrEmpty(report.Message)) { progressVM.AppendLog(report.Message); }
+                if (report.Total > 0) { progressVM.UpdateProgress(report.Current, report.Total, ""); }
             });
 
             progressWindow.Show();
 
             try
             {
-                // 先に入力ファイルを保存
                 _excelHandler.Save();
 
                 var transferService = new TransferService();
-                await transferService.ExecuteAsync(WorkInputFilePath, BundledTemplateFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, progress);
+                await transferService.ExecuteAsync(WorkInputFilePath, BundledTemplateFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
 
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
@@ -391,7 +398,7 @@ namespace HansoInputTool.ViewModels
 
         private void OpenSettings(object obj)
         {
-            var settingsVM = new SettingsWindowViewModel(Rates, RatesFilePath, this);
+            var settingsVM = new SettingsWindowViewModel(Rates, _columnMap, RatesFilePath, ColumnMapFilePath, this);
             var settingsWindow = new SettingsWindow(settingsVM) { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
         }

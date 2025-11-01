@@ -1,0 +1,28 @@
+﻿{
+  "NormalSheet": {
+    "Day": 2,
+    "HansoCount": 3,
+    "YuryoKm": 4,
+    "MuryoKm": 5,
+    "KihonFee": 6,
+    "SokoFee": 7,
+    "ShinyaFee": 8,
+    "TotalFee": 9,
+    "ShinyaMinutes": 11,
+    "IsKoryo": 12
+  },
+  "EastSheet": {
+    "Jitsudo": "E4",
+    "Hanso": "G4",
+    "YuryoKm": "H4",
+    "MuryoKm": "I4",
+    "UnsoJisseki": "K4"
+  },
+  "ShukeiSheet": {
+    "Days": "E4",
+    "Hanso": "G4",
+    "YuryoKm": "H4",
+    "MuryoKm": "I4",
+    "Total": "K4"
+  }
+}

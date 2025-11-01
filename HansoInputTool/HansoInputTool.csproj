@@ -18,6 +18,14 @@
 		<PackageReference Include="NLog.Extensions.Logging" Version="6.0.5" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Compile Update="Models\ColumnMapping.cs">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Compile>
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="data\column_map.json">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 		<None Update="data\Input.xlsx">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
