@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
+using HansoInputTool.Messaging; // Messengerを追加
 using HansoInputTool.Models;
 using HansoInputTool.Services;
 using HansoInputTool.ViewModels.Base;
@@ -25,10 +26,7 @@ namespace HansoInputTool.ViewModels
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        #region Events for View Interaction
-        public event Action RequestFocusNormalTab;
-        public event Action RequestFocusEastTab;
-        #endregion
+        // (イベント定義を削除)
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
@@ -53,10 +51,8 @@ namespace HansoInputTool.ViewModels
         private readonly StringBuilder _logBuilder = new();
         private string _logText;
         public string LogText { get => _logText; private set => SetProperty(ref _logText, value); }
-
         private int _selectedTabIndex = 0;
         public int SelectedTabIndex { get => _selectedTabIndex; set => SetProperty(ref _selectedTabIndex, value); }
-
         public ObservableCollection<string> NormalSheets { get; } = new();
         private string _selectedNormalSheet;
         public string SelectedNormalSheet { get => _selectedNormalSheet; set { if (SetProperty(ref _selectedNormalSheet, value)) { UpdatePreview(); OnPropertyChanged(nameof(IsOotsukiSheet)); } } }
@@ -75,7 +71,6 @@ namespace HansoInputTool.ViewModels
         public string NormalLateValue { get => _normalLateValue; set => SetProperty(ref _normalLateValue, value); }
         private bool _isKoryo;
         public bool IsKoryo { get => _isKoryo; set => SetProperty(ref _isKoryo, value); }
-
         public ObservableCollection<string> EastSheets { get; } = new();
         private readonly List<string> _registeredEastSheets = new();
         private string _selectedEastSheet;
@@ -94,7 +89,6 @@ namespace HansoInputTool.ViewModels
         public string EastMuryoKm { get => _eastMuryoKm; set => SetProperty(ref _eastMuryoKm, value); }
         private string _eastUnso;
         public string EastUnso { get => _eastUnso; set => SetProperty(ref _eastUnso, value); }
-
         private string _period;
         public string Period { get => _period; set => SetProperty(ref _period, value); }
         private string _month;
@@ -140,30 +134,20 @@ namespace HansoInputTool.ViewModels
             {
                 Logger.Info("アプリケーションの初期化を開始します。");
                 Directory.CreateDirectory(AppDataPath);
-
                 if (!File.Exists(RatesFilePath)) File.Copy(BundledRatesFilePath, RatesFilePath, true);
                 if (!File.Exists(WorkInputFilePath)) File.Copy(BundledInputFilePath, WorkInputFilePath, true);
-
                 var ratesJson = await File.ReadAllTextAsync(RatesFilePath);
                 Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(ratesJson);
-
                 var columnMapJson = await File.ReadAllTextAsync(ColumnMapFilePath);
                 _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
-
                 _excelHandler = new ExcelHandler(WorkInputFilePath, _columnMap);
                 _allSheetNames = _excelHandler.SheetNames;
-
                 PopulateSheetCombos();
-
                 await CheckForUpdate();
-
                 if (_excelHandler.CheckRemainingData())
                 {
                     var result = MessageBox.Show("前回のデータが残っています。\n全ての入力データをクリアして新規に開始しますか？", "データクリア確認", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        ClearInputData(true);
-                    }
+                    if (result == MessageBoxResult.Yes) { ClearInputData(true); }
                 }
                 UpdatePreview();
                 Logger.Info("アプリケーションの初期化が完了しました。");
@@ -220,14 +204,12 @@ namespace HansoInputTool.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             if (string.IsNullOrWhiteSpace(NormalDay)) { MessageBox.Show("日付は必須です。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
-
             var values = new Dictionary<string, double?>();
             if (!TryParseValue(NormalDay, "日(B)", out var dayVal)) return; values["日(B)"] = dayVal;
             if (!TryParseValue(NormalYuryoKm, "有料キロ(D)", out var yuryoKmVal)) return; values["有料キロ(D)"] = yuryoKmVal;
             if (!TryParseValue(NormalMuryoKm, "無料キロ(E)", out var muryoKmVal)) return; values["無料キロ(E)"] = muryoKmVal;
             if (IsOotsukiSheet) { if (!TryParseValue(NormalLateValue, "深夜料金(H)", out var lateVal)) return; values["深夜料金(H)"] = lateVal; }
             else { if (!TryParseValue(NormalLateValue, "深夜時間(K)", out var lateVal)) return; values["深夜時間(K)"] = lateVal; }
-
             try
             {
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, IsKoryo);
@@ -236,7 +218,7 @@ namespace HansoInputTool.ViewModels
                 NormalDay = NormalYuryoKm = NormalMuryoKm = NormalLateValue = string.Empty;
                 IsKoryo = false;
                 UpdatePreview();
-                RequestFocusNormalTab?.Invoke();
+                Messenger.Send(new FocusMessage { TargetElementName = "NormalDayTextBox" });
             }
             catch (Exception ex)
             {
@@ -248,14 +230,12 @@ namespace HansoInputTool.ViewModels
         private void RegisterEast(object obj)
         {
             if (string.IsNullOrEmpty(SelectedEastSheet)) { MessageBox.Show("東日本シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
-
             var values = new Dictionary<string, double?>();
             if (!TryParseValue(EastJitsudo, "延実働車輌数", out var jitsudo)) return; values["延実働車輌数"] = jitsudo;
             if (!TryParseValue(EastHanso, "搬送回数", out var hanso)) return; values["搬送回数"] = hanso;
             if (!TryParseValue(EastYuryoKm, "有料キロ数", out var yuryo)) return; values["有料キロ数"] = yuryo;
             if (!TryParseValue(EastMuryoKm, "無料キロ数", out var muryo)) return; values["無料キロ数"] = muryo;
             if (!TryParseValue(EastUnso, "運輸実績", out var unso)) return; values["運輸実績"] = unso;
-
             try
             {
                 _excelHandler.RegisterEastData(SelectedEastSheet, values);
@@ -263,7 +243,7 @@ namespace HansoInputTool.ViewModels
                 if (!_registeredEastSheets.Contains(SelectedEastSheet)) { _registeredEastSheets.Add(SelectedEastSheet); }
                 UpdateEastSheetStatus();
                 EastJitsudo = EastHanso = EastYuryoKm = EastMuryoKm = EastUnso = string.Empty;
-                RequestFocusEastTab?.Invoke();
+                Messenger.Send(new FocusMessage { TargetElementName = "EastJitsudoTextBox" });
             }
             catch (Exception ex)
             {
@@ -285,25 +265,16 @@ namespace HansoInputTool.ViewModels
             var dialog = new OpenFileDialog { Title = "出力先のベースフォルダを選択してください", CheckFileExists = false, CheckPathExists = true, FileName = "フォルダを選択", Filter = "Folder|.", ValidateNames = false, DereferenceLinks = true };
             if (dialog.ShowDialog() != true) { Log("フォルダ選択がキャンセルされました。"); return; }
             string outputDir = Path.GetDirectoryName(dialog.FileName);
-
             IsBusy = true;
             var progressVM = new ProgressWindowViewModel();
             var progressWindow = new ProgressWindow(progressVM) { Owner = Application.Current.MainWindow };
-
-            var progress = new Progress<TransferProgressReport>(report => {
-                if (!string.IsNullOrEmpty(report.Message)) { progressVM.AppendLog(report.Message); }
-                if (report.Total > 0) { progressVM.UpdateProgress(report.Current, report.Total, ""); }
-            });
-
+            var progress = new Progress<TransferProgressReport>(report => { if (!string.IsNullOrEmpty(report.Message)) { progressVM.AppendLog(report.Message); } if (report.Total > 0) { progressVM.UpdateProgress(report.Current, report.Total, ""); } });
             progressWindow.Show();
-
             try
             {
                 _excelHandler.Save();
-
                 var transferService = new TransferService();
                 await transferService.ExecuteAsync(WorkInputFilePath, BundledTemplateFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
-
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
                 progressVM.Complete("2つのファイルの作成が完了しました。");
@@ -314,11 +285,7 @@ namespace HansoInputTool.ViewModels
                 Log($"エラー: {ex.Message}");
                 progressVM.ErrorComplete($"エラーが発生しました: 詳細はログファイルを確認してください。");
             }
-            finally
-            {
-                IsBusy = false;
-                CommandManager.InvalidateRequerySuggested();
-            }
+            finally { IsBusy = false; CommandManager.InvalidateRequerySuggested(); }
         }
 
         private void LoadGeppoFile()
@@ -348,17 +315,8 @@ namespace HansoInputTool.ViewModels
 
         private void SaveInputFile(object obj)
         {
-            try
-            {
-                _excelHandler.Save();
-                MessageBox.Show($"作業中の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
-                Log($"--- {WorkInputFilePath} を上書き保存しました ---");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "入力内容の保存中にエラーが発生しました。");
-                MessageBox.Show($"保存に失敗しました。\n詳細はログファイルを確認してください。", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            try { _excelHandler.Save(); MessageBox.Show($"作業中の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information); Log($"--- {WorkInputFilePath} を上書き保存しました ---"); }
+            catch (Exception ex) { Logger.Error(ex, "入力内容の保存中にエラーが発生しました。"); MessageBox.Show($"保存に失敗しました。\n詳細はログファイルを確認してください。", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
         private void ClearInputData(bool showSuccessMessage)

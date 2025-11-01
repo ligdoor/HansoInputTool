@@ -4,6 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:behaviors="clr-namespace:HansoInputTool.Behaviors"
+        xmlns:messaging="clr-namespace:HansoInputTool.Messaging"
         xmlns:converters="clr-namespace:HansoInputTool.Converters"
         mc:Ignorable="d"
         Title="搬送実績入力ツール" Height="830" Width="850" MinHeight="700" MinWidth="800">
@@ -26,6 +28,11 @@
         <i:EventTrigger EventName="Closing">
             <i:InvokeCommandAction Command="{Binding OnClosingCommand}" PassEventArgsToCommand="True"/>
         </i:EventTrigger>
+
+        <!-- ViewModelからのFocusMessageを購読し、フォーカスを当てる -->
+        <messaging:MessageTrigger MessageType="{x:Type messaging:FocusMessage}">
+            <messaging:FocusAction/>
+        </messaging:MessageTrigger>
     </i:Interaction.Triggers>
 
     <Grid Background="{StaticResource BgBrush}">
@@ -38,7 +45,7 @@
             </Grid.RowDefinitions>
             <DockPanel Grid.Row="0" Margin="0,0,0,10">
                 <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button DockPanel.Dock="Right" Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" Style="{StaticResource NormalButton}" Background="Transparent" Foreground="{StaticResource SubTextBrush}" Width="60" Margin="620,0,0,0"/>
+                <Button DockPanel.Dock="Right" Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" Style="{StaticResource NormalButton}" Background="Transparent" Foreground="{StaticResource SubTextBrush}" Width="57" Margin="630,0,0,0"/>
             </DockPanel>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
@@ -47,7 +54,11 @@
                         <StackPanel Orientation="Horizontal" Margin="8,6">
                             <Label Content="期" Padding="0" VerticalAlignment="Center"/>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="PeriodTextBox" Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}" Width="50" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                <TextBox x:Name="PeriodTextBox" Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}" Width="50" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                    <i:Interaction.Behaviors>
+                                        <behaviors:EnterKeyTraversalBehavior/>
+                                    </i:Interaction.Behaviors>
+                                </TextBox>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -69,7 +80,11 @@
                         <StackPanel Orientation="Horizontal" Margin="8,6">
                             <Label Content="月" Padding="0" VerticalAlignment="Center"/>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="MonthTextBox" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                <TextBox x:Name="MonthTextBox" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                    <i:Interaction.Behaviors>
+                                        <behaviors:EnterKeyTraversalBehavior/>
+                                    </i:Interaction.Behaviors>
+                                </TextBox>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -91,7 +106,11 @@
                         <StackPanel Orientation="Horizontal" Margin="8,6">
                             <Label Content="R" Padding="0" VerticalAlignment="Center"/>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                    <i:Interaction.Behaviors>
+                                        <behaviors:EnterKeyTraversalBehavior/>
+                                    </i:Interaction.Behaviors>
+                                </TextBox>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -117,14 +136,17 @@
                 </Grid.ColumnDefinitions>
                 <TabControl Grid.Column="0" Margin="0,0,10,0" SelectedIndex="{Binding SelectedTabIndex}">
                     <TabItem Header="通常シート">
-                        <!-- ↓↓↓ ここが復元された通常シートの中身 ↓↓↓ -->
                         <StackPanel Margin="10">
                             <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10"/>
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
                                 <StackPanel Margin="5">
                                     <Label Content="日(B)" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="NormalDayTextBox" Text="{Binding NormalDay, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="NormalDayTextBox" Text="{Binding NormalDay, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -136,8 +158,7 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </TextBlock.Style></TextBlock>
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -145,7 +166,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="有料キロ(D)" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding NormalYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding NormalYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -157,8 +182,7 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </TextBlock.Style></TextBlock>
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -166,7 +190,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="無料キロ(E)" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding NormalMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding NormalMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -178,8 +206,7 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </TextBlock.Style></TextBlock>
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -188,7 +215,11 @@
                                     <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
                                     <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                                     <Grid>
-                                        <TextBox x:Name="NormalLateValueTextBox" Text="{Binding NormalLateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
+                                        <TextBox x:Name="NormalLateValueTextBox" Text="{Binding NormalLateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyAndRegisterBehavior Command="{Binding RegisterNormalCommand}"/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -200,8 +231,7 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </TextBlock.Style></TextBlock>
                                         <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -213,15 +243,13 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </TextBlock.Style></TextBlock>
                                     </Grid>
                                 </StackPanel>
                             </Border>
                             <CheckBox Content="行旅死亡人（基本料半額）" IsChecked="{Binding IsKoryo}" Margin="5,10"/>
-                            <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Right" Style="{StaticResource NormalButton}" Width="39" Height="23" Margin="0,0,10,0"/>
+                            <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Right" Style="{StaticResource NormalButton}" Height="25" Width="36"/>
                         </StackPanel>
-                        <!-- ↑↑↑ ここまでが復元された通常シートの中身 ↑↑↑ -->
                     </TabItem>
                     <TabItem Header="東日本シート">
                         <StackPanel Margin="10">
@@ -230,7 +258,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="延実働車輌数" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="EastJitsudoTextBox" Text="{Binding EastJitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="EastJitsudoTextBox" Text="{Binding EastJitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -250,7 +282,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="搬送回数" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="EastHansoTextBox" Text="{Binding EastHanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="EastHansoTextBox" Text="{Binding EastHanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -270,7 +306,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="有料キロ数" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding EastYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding EastYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -290,7 +330,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="無料キロ数" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding EastMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                        <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding EastMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyTraversalBehavior/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -310,7 +354,11 @@
                                 <StackPanel Margin="5">
                                     <Label Content="運輸実績" Padding="0,0,0,2"/>
                                     <Grid>
-                                        <TextBox x:Name="EastUnsoTextBox" Text="{Binding EastUnso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown"/>
+                                        <TextBox x:Name="EastUnsoTextBox" Text="{Binding EastUnso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent">
+                                            <i:Interaction.Behaviors>
+                                                <behaviors:EnterKeyAndRegisterBehavior Command="{Binding RegisterEastCommand}"/>
+                                            </i:Interaction.Behaviors>
+                                        </TextBox>
                                         <TextBlock>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -337,8 +385,7 @@
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                    </TextBlock.Style></TextBlock>
                                 <Button Content="登録" Command="{Binding RegisterEastCommand}" HorizontalAlignment="Right" Style="{StaticResource NormalButton}"/>
                             </DockPanel>
                         </StackPanel>
@@ -374,8 +421,8 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                        <Button Content="選択行を編集" Command="{Binding EditRowCommand}" Margin="0,0,5,0" Style="{StaticResource NormalButton}" Height="23"/>
-                        <Button Content="選択行を削除" Command="{Binding DeleteRowCommand}" Background="{StaticResource RedBrush}" Style="{StaticResource NormalButton}"/>
+                        <Button Content="選択行を編集" Command="{Binding EditRowCommand}" Margin="0,0,5,0" Style="{StaticResource NormalButton}"/>
+                        <Button Content="選択行を削除" Command="{Binding DeleteRowCommand}" Background="{StaticResource RedBrush}" Style="{StaticResource NormalButton}" Height="27"/>
                     </StackPanel>
                 </Grid>
             </Grid>
@@ -386,10 +433,10 @@
                 </Grid.RowDefinitions>
                 <TextBox Grid.Row="0" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" MinHeight="100" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Background="{StaticResource PanelBackgroundBrush}"/>
                 <DockPanel Grid.Row="1" Margin="0,10,0,0">
-                    <Button Content="転記実行" DockPanel.Dock="Right" Background="{StaticResource GreenBrush}" Command="{Binding TransferCommand}" Style="{StaticResource NormalButton}" Width="60" Height="25"/>
+                    <Button Content="転記実行" DockPanel.Dock="Right" Background="{StaticResource GreenBrush}" Command="{Binding TransferCommand}" Style="{StaticResource NormalButton}" Height="27" Width="73"/>
                     <StackPanel Orientation="Horizontal">
-                        <Button Content="実績月報を読み込む" Background="#4f46e5" Command="{Binding LoadGeppoFileCommand}" Style="{StaticResource NormalButton}"/>
-                        <Button Content="入力内容を保存" Background="{StaticResource ButtonSecondaryBgBrush}" Command="{Binding SaveInputCommand}" Margin="5,0,0,0" Style="{StaticResource NormalButton}"/>
+                        <Button Content="実績月報を読み込む" Background="#4f46e5" Command="{Binding LoadGeppoFileCommand}" Style="{StaticResource NormalButton}" Width="105"/>
+                        <Button Content="入力内容を保存" Background="{StaticResource ButtonSecondaryBgBrush}" Command="{Binding SaveInputCommand}" Margin="5,0,0,0" Style="{StaticResource NormalButton}" Width="85"/>
                     </StackPanel>
                 </DockPanel>
             </Grid>
