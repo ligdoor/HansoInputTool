@@ -26,10 +26,6 @@ namespace HansoInputTool.ViewModels
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        #region Events for View Interaction
-        public event Action RequestFocusNormalTab;
-        public event Action RequestFocusEastTab;
-        #endregion
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
