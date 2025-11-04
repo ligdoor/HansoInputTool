@@ -60,8 +60,8 @@ namespace HansoInputTool.Services
                     RowIndex = rowIndex,
                     B_Day = GetNullableInt(ws.Cells[rowIndex, map.Day].Value),
                     C_Hanso = GetNullableInt(ws.Cells[rowIndex, map.HansoCount].Value),
-                    D_YuryoKm = GetNullableDouble(ws.Cells[rowIndex, map.YuryoKm].Value),
-                    E_MuryoKm = GetNullableDouble(ws.Cells[rowIndex, map.MuryoKm].Value),
+                    D_YuryoKm = GetNullableInt(ws.Cells[rowIndex, map.YuryoKm].Value), // intとして読み込む
+                    E_MuryoKm = GetNullableInt(ws.Cells[rowIndex, map.MuryoKm].Value), // intとして読み込む
                     H_LateFeeOotsuki = GetNullableInt(ws.Cells[rowIndex, map.ShinyaFee].Value),
                     K_LateMinutes = GetNullableInt(ws.Cells[rowIndex, map.ShinyaMinutes].Value),
                     L_IsKoryo = GetNullableInt(ws.Cells[rowIndex, map.IsKoryo].Value)
@@ -214,7 +214,7 @@ namespace HansoInputTool.Services
             return (totalRowIndex, "空き行がないため、合計行の上に新しい行を挿入します。");
         }
 
-        private static int? GetNullableInt(object val) => val == null ? null : Convert.ToInt32(val);
+        private static int? GetNullableInt(object val) => val == null ? null : Convert.ToInt32(Convert.ToDouble(val)); // doubleを経由して安全にintへ
         private static double? GetNullableDouble(object val) => val == null ? null : Convert.ToDouble(val);
     }
 }

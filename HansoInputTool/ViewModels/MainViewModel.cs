@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
-using HansoInputTool.Messaging; // Messengerを追加
+using HansoInputTool.Messaging;
 using HansoInputTool.Models;
 using HansoInputTool.Services;
 using HansoInputTool.ViewModels.Base;
@@ -26,11 +26,14 @@ namespace HansoInputTool.ViewModels
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        // (イベント定義を削除)
+        #region Events for View Interaction
+        public event Action RequestFocusNormalTab;
+        public event Action RequestFocusEastTab;
+        #endregion
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "0.3.0";
+        private const string CurrentVersion = "0.2.5";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputToo/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputToo/releases";
@@ -200,14 +203,16 @@ namespace HansoInputTool.ViewModels
             Log("列マッピング設定が更新されました。");
         }
 
-        private void RegisterNormal(object obj)
+        private async void RegisterNormal(object obj)
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             if (string.IsNullOrWhiteSpace(NormalDay)) { MessageBox.Show("日付は必須です。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             var values = new Dictionary<string, double?>();
             if (!TryParseValue(NormalDay, "日(B)", out var dayVal)) return; values["日(B)"] = dayVal;
-            if (!TryParseValue(NormalYuryoKm, "有料キロ(D)", out var yuryoKmVal)) return; values["有料キロ(D)"] = yuryoKmVal;
-            if (!TryParseValue(NormalMuryoKm, "無料キロ(E)", out var muryoKmVal)) return; values["無料キロ(E)"] = muryoKmVal;
+            if (!TryParseValue(NormalYuryoKm, "有料キロ(D)", out var yuryoKmVal)) return;
+            values["有料キロ(D)"] = yuryoKmVal.HasValue ? Math.Round(yuryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
+            if (!TryParseValue(NormalMuryoKm, "無料キロ(E)", out var muryoKmVal)) return;
+            values["無料キロ(E)"] = muryoKmVal.HasValue ? Math.Round(muryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
             if (IsOotsukiSheet) { if (!TryParseValue(NormalLateValue, "深夜料金(H)", out var lateVal)) return; values["深夜料金(H)"] = lateVal; }
             else { if (!TryParseValue(NormalLateValue, "深夜時間(K)", out var lateVal)) return; values["深夜時間(K)"] = lateVal; }
             try
@@ -218,6 +223,7 @@ namespace HansoInputTool.ViewModels
                 NormalDay = NormalYuryoKm = NormalMuryoKm = NormalLateValue = string.Empty;
                 IsKoryo = false;
                 UpdatePreview();
+                await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "NormalDayTextBox" });
             }
             catch (Exception ex)
@@ -227,7 +233,7 @@ namespace HansoInputTool.ViewModels
             }
         }
 
-        private void RegisterEast(object obj)
+        private async void RegisterEast(object obj)
         {
             if (string.IsNullOrEmpty(SelectedEastSheet)) { MessageBox.Show("東日本シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             var values = new Dictionary<string, double?>();
@@ -243,6 +249,7 @@ namespace HansoInputTool.ViewModels
                 if (!_registeredEastSheets.Contains(SelectedEastSheet)) { _registeredEastSheets.Add(SelectedEastSheet); }
                 UpdateEastSheetStatus();
                 EastJitsudo = EastHanso = EastYuryoKm = EastMuryoKm = EastUnso = string.Empty;
+                await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "EastJitsudoTextBox" });
             }
             catch (Exception ex)
@@ -278,6 +285,7 @@ namespace HansoInputTool.ViewModels
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
                 progressVM.Complete("2つのファイルの作成が完了しました。");
+                ClearInputData(false);
             }
             catch (Exception ex)
             {
@@ -327,6 +335,7 @@ namespace HansoInputTool.ViewModels
             _registeredEastSheets.Clear();
             UpdateEastSheetStatus();
             SaveInputFile(null);
+            _excelHandler.Load();
             UpdatePreview();
             if (showSuccessMessage) { MessageBox.Show("Input.xlsx の入力データをクリアし、保存しました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information); }
         }
