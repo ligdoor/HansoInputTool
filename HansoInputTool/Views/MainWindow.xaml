@@ -38,7 +38,7 @@
             </Grid.RowDefinitions>
             <DockPanel Grid.Row="0" Margin="0,0,0,10">
                 <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button DockPanel.Dock="Right" Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" Style="{StaticResource NormalButton}" Background="Transparent" Foreground="{StaticResource SubTextBrush}"/>
+                <Button DockPanel.Dock="Right" Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" Style="{StaticResource NormalButton}" Background="Transparent" Foreground="{StaticResource SubTextBrush}" Width="53" Margin="630,0,0,0"/>
             </DockPanel>
 
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
