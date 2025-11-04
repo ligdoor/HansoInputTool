@@ -29,7 +29,7 @@ namespace HansoInputTool.ViewModels
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "0.2.5";
+        private const string CurrentVersion = "0.3.2";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputToo/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputToo/releases";
