@@ -26,10 +26,9 @@ namespace HansoInputTool.ViewModels
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "0.3.2";
+        private const string CurrentVersion = "1.3.3";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputToo/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputToo/releases";
@@ -37,6 +36,7 @@ namespace HansoInputTool.ViewModels
         private static readonly string RatesFilePath = Path.Combine(AppDataPath, "rates.json");
         private static readonly string WorkInputFilePath = Path.Combine(AppDataPath, "Input_work.xlsx");
         private static readonly string ColumnMapFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "column_map.json");
+        private static readonly string HelpFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "readme.pdf");
         private static readonly string BundledInputFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "Input.xlsx");
         private static readonly string BundledTemplateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "Template.xlsx");
         private static readonly string BundledRatesFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "rates.json");
@@ -100,6 +100,7 @@ namespace HansoInputTool.ViewModels
 
         #region Commands
         public ICommand OpenSettingsCommand { get; }
+        public ICommand OpenHelpCommand { get; }
         public ICommand RegisterNormalCommand { get; }
         public ICommand RegisterEastCommand { get; }
         public ICommand EditRowCommand { get; }
@@ -114,6 +115,7 @@ namespace HansoInputTool.ViewModels
         public MainViewModel()
         {
             OpenSettingsCommand = new RelayCommand(OpenSettings, _ => !IsBusy);
+            OpenHelpCommand = new RelayCommand(OpenHelp, _ => !IsBusy);
             RegisterNormalCommand = new RelayCommand(RegisterNormal, _ => !IsBusy);
             RegisterEastCommand = new RelayCommand(RegisterEast, _ => !IsBusy);
             EditRowCommand = new RelayCommand(OpenEditWindow, _ => SelectedRow != null && !IsBusy);
@@ -364,6 +366,28 @@ namespace HansoInputTool.ViewModels
             var settingsVM = new SettingsWindowViewModel(Rates, _columnMap, RatesFilePath, ColumnMapFilePath, this);
             var settingsWindow = new SettingsWindow(settingsVM) { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
+        }
+
+        private void OpenHelp(object obj)
+        {
+            try
+            {
+                if (File.Exists(HelpFilePath))
+                {
+                    Process.Start(new ProcessStartInfo(HelpFilePath) { UseShellExecute = true });
+                    Log("ヘルプファイルを開きました。");
+                }
+                else
+                {
+                    MessageBox.Show("ヘルプファイル (readme.pdf) が見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    Logger.Warn("ヘルプファイルが見つかりませんでした: " + HelpFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("ヘルプファイルを開けませんでした。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                Logger.Error(ex, "ヘルプファイルのオープン中にエラーが発生しました。");
+            }
         }
 
         private void OpenEditWindow(object obj)

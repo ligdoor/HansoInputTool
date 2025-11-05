@@ -32,6 +32,9 @@
 		<None Update="data\rates.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
+		<None Update="data\readme.pdf">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 		<None Update="data\Template.xlsx">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
