@@ -46,17 +46,6 @@ namespace HansoInputTool.ViewModels
             private set => SetProperty(ref _vehicleTypeName, value);
         }
 
-        // ↓↓↓ 不足していた料金プロパティをすべて追加 ↓↓↓
-        private int _baseFee;
-        public int BaseFee { get => _baseFee; set => SetProperty(ref _baseFee, value); }
-        private int _mileageFee;
-        public int MileageFee { get => _mileageFee; set => SetProperty(ref _mileageFee, value); }
-        private int _lateNightFixedFee;
-        public int LateNightFixedFee { get => _lateNightFixedFee; set => SetProperty(ref _lateNightFixedFee, value); }
-        private int _lateNightUnitFee;
-        public int LateNightUnitFee { get => _lateNightUnitFee; set => SetProperty(ref _lateNightUnitFee, value); }
-        // ↑↑↑ ここまで追加 ↑↑↑
-
         public bool Is車種Visible => Selected事業所カテゴリ != "東日本セレモニー";
 
         public VehicleSheetViewModel()
@@ -76,10 +65,26 @@ namespace HansoInputTool.ViewModels
         private void UpdateVehicleTypeName()
         {
             var parts = new List<string>();
-            if (Selected事業所カテゴリ != "CH富士吉田") parts.Add(Selected事業所カテゴリ);
-            if (Is車種Visible) parts.Add(Selected車種);
-            if (!string.IsNullOrWhiteSpace(IndividualName)) parts.Add(IndividualName);
-            if (!string.IsNullOrWhiteSpace(Number)) parts.Add(Number);
+
+            // ↓↓↓ ここが修正箇所 ↓↓↓
+            if (Selected事業所カテゴリ != "CH富士吉田" && Selected事業所カテゴリ != "通常") // "通常"も念のため残す
+            {
+                parts.Add(Selected事業所カテゴリ);
+            }
+            // ↑↑↑ "CH富士吉田"の場合は、シート名に含めないようにする ↑↑↑
+
+            if (Is車種Visible)
+            {
+                parts.Add(Selected車種);
+            }
+            if (!string.IsNullOrWhiteSpace(IndividualName))
+            {
+                parts.Add(IndividualName);
+            }
+            if (!string.IsNullOrWhiteSpace(Number))
+            {
+                parts.Add(Number);
+            }
             VehicleTypeName = string.Join(" ", parts);
         }
 
@@ -87,6 +92,7 @@ namespace HansoInputTool.ViewModels
         {
             var parts = sheetName.Split(' ').ToList();
 
+            // "通常"の代わりが"CH富士吉田"なので、どちらも含まない場合はデフォルトを"CH富士吉田"にする
             Selected事業所カテゴリ = 事業所カテゴリリスト.FirstOrDefault(c => sheetName.Contains(c) && c != "CH富士吉田") ?? "CH富士吉田";
             if (Selected事業所カテゴリ != "CH富士吉田") parts.Remove(Selected事業所カテゴリ);
 
