@@ -28,13 +28,14 @@ namespace HansoInputTool.ViewModels
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.3.3";
+        private const string CurrentVersion = "1.4.0";
         private const string GithubToken = "";
-        private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputToo/refs/heads/master/version.json";
-        private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputToo/releases";
+        private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
+        private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
         private static readonly string AppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName);
         private static readonly string RatesFilePath = Path.Combine(AppDataPath, "rates.json");
         private static readonly string WorkInputFilePath = Path.Combine(AppDataPath, "Input_work.xlsx");
+        private static readonly string TemplateWorkFilePath = Path.Combine(AppDataPath, "Template_work.xlsx");
         private static readonly string ColumnMapFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "column_map.json");
         private static readonly string HelpFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "readme.pdf");
         private static readonly string BundledInputFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "Input.xlsx");
@@ -114,17 +115,17 @@ namespace HansoInputTool.ViewModels
 
         public MainViewModel()
         {
-            OpenSettingsCommand = new RelayCommand(OpenSettings, _ => !IsBusy);
-            OpenHelpCommand = new RelayCommand(OpenHelp, _ => !IsBusy);
-            RegisterNormalCommand = new RelayCommand(RegisterNormal, _ => !IsBusy);
-            RegisterEastCommand = new RelayCommand(RegisterEast, _ => !IsBusy);
-            EditRowCommand = new RelayCommand(OpenEditWindow, _ => SelectedRow != null && !IsBusy);
-            DeleteRowCommand = new RelayCommand(DeleteSelectedRow, _ => SelectedRow != null && !IsBusy);
-            LoadGeppoFileCommand = new RelayCommand(_ => LoadGeppoFile(), _ => !IsBusy);
-            SaveInputCommand = new RelayCommand(SaveInputFile, _ => !IsBusy);
-            TransferCommand = new RelayCommand(async _ => await StartTransfer(), _ => !IsBusy);
-            OnLoadedCommand = new RelayCommand(async _ => await OnWindowLoaded());
-            OnClosingCommand = new RelayCommand(OnWindowClosing);
+            OpenSettingsCommand = new RelayCommand(p => OpenSettings(), p => !IsBusy);
+            OpenHelpCommand = new RelayCommand(p => OpenHelp(), p => !IsBusy);
+            RegisterNormalCommand = new RelayCommand(async p => await RegisterNormal(p), p => !IsBusy);
+            RegisterEastCommand = new RelayCommand(async p => await RegisterEast(p), p => !IsBusy);
+            EditRowCommand = new RelayCommand(p => OpenEditWindow(), p => SelectedRow != null && !IsBusy);
+            DeleteRowCommand = new RelayCommand(p => DeleteSelectedRow(), p => SelectedRow != null && !IsBusy);
+            LoadGeppoFileCommand = new RelayCommand(p => LoadGeppoFile(), p => !IsBusy);
+            SaveInputCommand = new RelayCommand(p => SaveInputFile(), p => !IsBusy);
+            TransferCommand = new RelayCommand(async p => await StartTransfer(), p => !IsBusy);
+            OnLoadedCommand = new RelayCommand(async p => await OnWindowLoaded());
+            OnClosingCommand = new RelayCommand(p => OnWindowClosing(p));
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
@@ -137,20 +138,24 @@ namespace HansoInputTool.ViewModels
                 Directory.CreateDirectory(AppDataPath);
                 if (!File.Exists(RatesFilePath)) File.Copy(BundledRatesFilePath, RatesFilePath, true);
                 if (!File.Exists(WorkInputFilePath)) File.Copy(BundledInputFilePath, WorkInputFilePath, true);
+                if (!File.Exists(TemplateWorkFilePath)) File.Copy(BundledTemplateFilePath, TemplateWorkFilePath, true);
+                else { File.Copy(BundledTemplateFilePath, TemplateWorkFilePath, true); }
+
                 var ratesJson = await File.ReadAllTextAsync(RatesFilePath);
                 Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(ratesJson);
                 var columnMapJson = await File.ReadAllTextAsync(ColumnMapFilePath);
                 _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
-                _excelHandler = new ExcelHandler(WorkInputFilePath, _columnMap);
-                _allSheetNames = _excelHandler.SheetNames;
-                PopulateSheetCombos();
+
+                _excelHandler = new ExcelHandler(WorkInputFilePath, TemplateWorkFilePath, _columnMap);
+
+                ReloadAllData();
                 await CheckForUpdate();
+
                 if (_excelHandler.CheckRemainingData())
                 {
                     var result = MessageBox.Show("前回のデータが残っています。\n全ての入力データをクリアして新規に開始しますか？", "データクリア確認", MessageBoxButton.YesNo, MessageBoxImage.Question);
                     if (result == MessageBoxResult.Yes) { ClearInputData(true); }
                 }
-                UpdatePreview();
                 Logger.Info("アプリケーションの初期化が完了しました。");
             }
             catch (Exception ex)
@@ -166,14 +171,28 @@ namespace HansoInputTool.ViewModels
             if (parameter is not CancelEventArgs e) return;
             if (IsBusy) { MessageBox.Show("転記処理が実行中です。終了できません。", "処理中", MessageBoxButton.OK, MessageBoxImage.Warning); e.Cancel = true; return; }
             var result = MessageBox.Show("入力中のデータはファイルに保存されません。\nツールを終了しますか？", "終了確認", MessageBoxButton.OKCancel, MessageBoxImage.Question);
-            if (result == MessageBoxResult.Cancel) { e.Cancel = true; } else { if (File.Exists(WorkInputFilePath)) { try { File.Delete(WorkInputFilePath); } catch (Exception ex) { Logger.Warn(ex, "作業ファイルの削除に失敗しました。"); } } }
+            if (result == MessageBoxResult.Cancel) { e.Cancel = true; }
+            else
+            {
+                if (File.Exists(WorkInputFilePath)) { try { File.Delete(WorkInputFilePath); } catch (Exception ex) { Logger.Warn(ex, "作業ファイルの削除に失敗しました。"); } }
+                if (File.Exists(TemplateWorkFilePath)) { try { File.Delete(TemplateWorkFilePath); } catch (Exception ex) { Logger.Warn(ex, "テンプレート作業ファイルの削除に失敗しました。"); } }
+            }
+        }
+
+        private void ReloadAllData()
+        {
+            _excelHandler.Load();
+            _allSheetNames = _excelHandler.SheetNames;
+            PopulateSheetCombos();
+            UpdatePreview();
         }
 
         private void PopulateSheetCombos()
         {
+            var vehicleSheets = _excelHandler.GetVehicleSheetNames();
             NormalSheets.Clear();
             EastSheets.Clear();
-            _allSheetNames?.ForEach(s => { if (s.Contains("寝台車") || s.Contains("霊柩車")) NormalSheets.Add(s); if (s.Contains("東日本")) EastSheets.Add(s); });
+            vehicleSheets.ForEach(s => { if (s.Contains("東日本")) EastSheets.Add(s); else NormalSheets.Add(s); });
             SelectedNormalSheet = NormalSheets.FirstOrDefault();
             SelectedEastSheet = EastSheets.FirstOrDefault();
         }
@@ -194,14 +213,14 @@ namespace HansoInputTool.ViewModels
             UpdatePreview();
         }
 
-        public void UpdateColumnMap(ColumnMapping newMap)
+        public void UpdateRatesAndReload(Dictionary<string, RateInfo> newRates)
         {
-            _columnMap = newMap;
-            _excelHandler = new ExcelHandler(WorkInputFilePath, _columnMap);
-            Log("列マッピング設定が更新されました。");
+            Rates = newRates;
+            ReloadAllData();
+            Log("設定が更新されました。");
         }
 
-        private async void RegisterNormal(object obj)
+        private async Task RegisterNormal(object obj)
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             if (string.IsNullOrWhiteSpace(NormalDay)) { MessageBox.Show("日付は必須です。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
@@ -231,7 +250,7 @@ namespace HansoInputTool.ViewModels
             }
         }
 
-        private async void RegisterEast(object obj)
+        private async Task RegisterEast(object obj)
         {
             if (string.IsNullOrEmpty(SelectedEastSheet)) { MessageBox.Show("東日本シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             var values = new Dictionary<string, double?>();
@@ -279,7 +298,7 @@ namespace HansoInputTool.ViewModels
             {
                 _excelHandler.Save();
                 var transferService = new TransferService();
-                await transferService.ExecuteAsync(WorkInputFilePath, BundledTemplateFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
+                await transferService.ExecuteAsync(WorkInputFilePath, TemplateWorkFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
                 progressVM.Complete("2つのファイルの作成が完了しました。");
@@ -304,10 +323,7 @@ namespace HansoInputTool.ViewModels
                 try
                 {
                     File.Copy(openFileDialog.FileName, WorkInputFilePath, true);
-                    _excelHandler.Load();
-                    _allSheetNames = _excelHandler.SheetNames;
-                    PopulateSheetCombos();
-                    UpdatePreview();
+                    ReloadAllData();
                     Log($"実績月報 '{Path.GetFileName(openFileDialog.FileName)}' を読み込みました。");
                     MessageBox.Show("実績月報のデータを読み込みました。", "読み込み完了", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -319,9 +335,9 @@ namespace HansoInputTool.ViewModels
             }
         }
 
-        private void SaveInputFile(object obj)
+        private void SaveInputFile()
         {
-            try { _excelHandler.Save(); MessageBox.Show($"作業中の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information); Log($"--- {WorkInputFilePath} を上書き保存しました ---"); }
+            try { _excelHandler.Save(); MessageBox.Show($"作業中の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information); Log($"--- {WorkInputFilePath} と {TemplateWorkFilePath} を上書き保存しました ---"); }
             catch (Exception ex) { Logger.Error(ex, "入力内容の保存中にエラーが発生しました。"); MessageBox.Show($"保存に失敗しました。\n詳細はログファイルを確認してください。", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error); }
         }
 
@@ -332,7 +348,7 @@ namespace HansoInputTool.ViewModels
             foreach (var msg in logMessages) Log(msg);
             _registeredEastSheets.Clear();
             UpdateEastSheetStatus();
-            SaveInputFile(null);
+            SaveInputFile();
             _excelHandler.Load();
             UpdatePreview();
             if (showSuccessMessage) { MessageBox.Show("Input.xlsx の入力データをクリアし、保存しました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information); }
@@ -361,14 +377,14 @@ namespace HansoInputTool.ViewModels
             return false;
         }
 
-        private void OpenSettings(object obj)
+        private void OpenSettings()
         {
-            var settingsVM = new SettingsWindowViewModel(Rates, _columnMap, RatesFilePath, ColumnMapFilePath, this);
+            var settingsVM = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this);
             var settingsWindow = new SettingsWindow(settingsVM) { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
         }
 
-        private void OpenHelp(object obj)
+        private void OpenHelp()
         {
             try
             {
@@ -390,7 +406,7 @@ namespace HansoInputTool.ViewModels
             }
         }
 
-        private void OpenEditWindow(object obj)
+        private void OpenEditWindow()
         {
             if (SelectedRow == null) return;
             var editVM = new EditWindowViewModel(this, SelectedNormalSheet, SelectedRow);
@@ -398,7 +414,7 @@ namespace HansoInputTool.ViewModels
             editWindow.ShowDialog();
         }
 
-        private void DeleteSelectedRow(object obj)
+        private void DeleteSelectedRow()
         {
             if (SelectedRow == null) return;
             var result = MessageBox.Show($"選択した行({SelectedRow.RowIndex}行目)を削除しますか？\nこの操作は元に戻せません。", "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Warning);

@@ -1,14 +1,14 @@
 {
   "寝台車": {
-    "基本料金": 14113,
-    "走行料金": 4510,
-    "深夜固定": 3091,
-    "深夜単価": 1584
+    "BaseFee": 14113,
+    "MileageFee": 4510,
+    "LateNightFixedFee": 3091,
+    "LateNightUnitFee": 1584
   },
   "霊柩車": {
-    "基本料金": 20570,
-    "走行料金": 7590,
-    "深夜固定": 0,
-    "深夜単価": 0
+    "BaseFee": 20570,
+    "MileageFee": 7590,
+    "LateNightFixedFee": 0,
+    "LateNightUnitFee": 0
   }
 }

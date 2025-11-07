@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HansoInputTool.Models;
 using NLog;
@@ -20,7 +21,6 @@ namespace HansoInputTool.Services
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        // ↓↓↓ ColumnMapping を受け取るように変更 ↓↓↓
         public async Task ExecuteAsync(
             string workInputFile,
             string bundledTemplateFile,
@@ -30,7 +30,7 @@ namespace HansoInputTool.Services
             int rNum,
             List<string> allSheetNames,
             Dictionary<string, RateInfo> rates,
-            ColumnMapping columnMap, // 引数に追加
+            ColumnMapping columnMap,
             IProgress<TransferProgressReport> progress)
         {
             await Task.Run(() =>
@@ -38,12 +38,10 @@ namespace HansoInputTool.Services
                 string folderName = $"{period}期 {month}月 R{rNum} アルス搬送・霊柩車　実績月報";
                 string finalOutputDir = Path.Combine(outputDir, folderName);
                 Directory.CreateDirectory(finalOutputDir);
-
                 string geppoFilename = $"{period}期 {month}月 R{rNum} アルス搬送・霊柩車　実績月報.xlsx";
                 string geppoFilepath = Path.Combine(finalOutputDir, geppoFilename);
                 File.Copy(workInputFile, geppoFilepath, true);
                 Logger.Info($"実績月報ファイルをコピーしました: {geppoFilepath}");
-
                 string shukeiFilename = $"{period}期 {month}月 R{rNum} アルス搬送・霊柩車　実績月報集計.xlsx";
                 string shukeiFilepath = Path.Combine(finalOutputDir, shukeiFilename);
                 File.Copy(bundledTemplateFile, shukeiFilepath, true);
@@ -55,16 +53,13 @@ namespace HansoInputTool.Services
 
                 progress.Report(new TransferProgressReport { Message = "--- 全シートの転記処理を開始 ---" });
                 Logger.Info("--- 全シートの転記処理を開始 ---");
-
                 var sheetsToProcess = allSheetNames?.Where(s => !s.Contains("登録")).ToList() ?? new List<string>();
                 int totalSheets = sheetsToProcess.Count;
                 int processedCount = 0;
-
                 foreach (var sheetName in sheetsToProcess)
                 {
                     progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = $"処理中: {sheetName} ..." });
-
-                    if (sheetName.Contains("寝台車") || sheetName.Contains("霊柩車"))
+                    if (sheetName.Contains("寝台車") || sheetName.Contains("霊柩車") || sheetName.Contains("CH"))
                     {
                         ProcessNormalSheet(wbInput, wbGeppo, wbShukei, sheetName, rates, columnMap);
                     }
@@ -72,13 +67,11 @@ namespace HansoInputTool.Services
                     {
                         ProcessEastSheet(wbInput, wbShukei, sheetName, columnMap);
                     }
-
                     processedCount++;
                     Logger.Info($"[{sheetName}] の処理が完了しました。");
                 }
 
                 progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = "最終処理中..." });
-
                 if (wbShukei.Workbook.Worksheets.Any(ws => ws.Name == "寝台車 29"))
                 {
                     var wsOut29 = wbShukei.Workbook.Worksheets["寝台車 29"];
@@ -91,7 +84,6 @@ namespace HansoInputTool.Services
                     wsGeppo29.Cells["A1"].Value = $"R{rNum}";
                     wsGeppo29.Cells["B1"].Value = month;
                 }
-
                 wbShukei.Save();
                 wbGeppo.Save();
             });
@@ -107,33 +99,23 @@ namespace HansoInputTool.Services
             var normalMap = columnMap.NormalSheet;
             var shukeiMap = columnMap.ShukeiSheet;
 
-            string vehicleType = rates.Keys.FirstOrDefault(vt => sheetName.Contains(vt)) ?? "寝台車";
-            var ratesForSheet = rates.GetValueOrDefault(vehicleType, rates["寝台車"]);
-            bool isOotsuki = sheetName.Contains("大月");
+            string rateCategory = sheetName.Contains("霊柩車") ? "霊柩車" : "寝台車";
+            var ratesForSheet = rates[rateCategory];
 
+            bool isOotsuki = sheetName.Contains("大月");
             double totalKihon = 0, totalSoko = 0, totalShinya = 0, totalSum = 0;
 
             for (int row = 3; row < totalRowIdx; row++)
             {
                 int hansoVal = GetInt(wsIn.Cells[row, normalMap.HansoCount].Value);
                 double rowKihon = 0, rowSoko = 0, rowShinya = 0;
-
                 if (hansoVal > 0)
                 {
                     double yuryoKmVal = GetDouble(wsIn.Cells[row, normalMap.YuryoKm].Value);
                     bool isKoryo = GetInt(wsIn.Cells[row, normalMap.IsKoryo].Value) == 1;
-
                     rowKihon = isKoryo ? Math.Floor((double)ratesForSheet.BaseFee / 2) : ratesForSheet.BaseFee;
-
-                    if (yuryoKmVal > 0)
-                    {
-                        rowSoko = (Math.Floor(yuryoKmVal / 10) + 1) * ratesForSheet.MileageFee;
-                    }
-
-                    if (isOotsuki)
-                    {
-                        rowShinya = GetDouble(wsIn.Cells[row, normalMap.ShinyaFee].Value);
-                    }
+                    if (yuryoKmVal > 0) { rowSoko = (Math.Floor(yuryoKmVal / 10) + 1) * ratesForSheet.MileageFee; }
+                    if (isOotsuki) { rowShinya = GetDouble(wsIn.Cells[row, normalMap.ShinyaFee].Value); }
                     else
                     {
                         double shinyaMin = GetDouble(wsIn.Cells[row, normalMap.ShinyaMinutes].Value);
@@ -151,13 +133,8 @@ namespace HansoInputTool.Services
                 wsGeppo.Cells[row, normalMap.ShinyaFee].Value = rowShinya > 0 ? rowShinya : null;
                 double rowTotal = rowKihon + rowSoko + rowShinya;
                 wsGeppo.Cells[row, normalMap.TotalFee].Value = rowTotal > 0 ? rowTotal : null;
-
-                totalKihon += rowKihon;
-                totalSoko += rowSoko;
-                totalShinya += rowShinya;
-                totalSum += rowTotal;
+                totalKihon += rowKihon; totalSoko += rowSoko; totalShinya += rowShinya; totalSum += rowTotal;
             }
-
             wsGeppo.Cells[totalRowIdx, normalMap.KihonFee].Value = totalKihon > 0 ? totalKihon : null;
             wsGeppo.Cells[totalRowIdx, normalMap.SokoFee].Value = totalSoko > 0 ? totalSoko : null;
             wsGeppo.Cells[totalRowIdx, normalMap.ShinyaFee].Value = totalShinya > 0 ? totalShinya : null;
@@ -179,7 +156,6 @@ namespace HansoInputTool.Services
         {
             int totalDays = 0, totalHanso = 0;
             double totalYuryoKm = 0, totalMuryoKm = 0;
-
             for (int row = 3; row < totalRowIdx; row++)
             {
                 if (ws.Cells[row, map.Day].Value != null) totalDays++;
@@ -193,11 +169,9 @@ namespace HansoInputTool.Services
         private void ProcessEastSheet(ExcelPackage wbInput, ExcelPackage wbShukei, string sheetName, ColumnMapping columnMap)
         {
             if (wbShukei.Workbook.Worksheets.All(ws => ws.Name != sheetName)) return;
-
             var wsIn = wbInput.Workbook.Worksheets[sheetName];
             var wsShukei = wbShukei.Workbook.Worksheets[sheetName];
             var shukeiMap = columnMap.ShukeiSheet;
-
             wsShukei.Cells[shukeiMap.Days].Value = wsIn.Cells[shukeiMap.Days].Value;
             wsShukei.Cells[shukeiMap.Hanso].Value = wsIn.Cells[shukeiMap.Hanso].Value;
             wsShukei.Cells[shukeiMap.YuryoKm].Value = wsIn.Cells[shukeiMap.YuryoKm].Value;
@@ -209,14 +183,11 @@ namespace HansoInputTool.Services
         private int FindTotalRow(ExcelWorksheet ws)
         {
             if (ws?.Dimension == null) return -1;
-            for (int row = ws.Dimension.End.Row; row >= 3; row--)
-            {
-                if (ws.Cells[row, 1].Value?.ToString()?.Contains("合計") == true) return row;
-            }
+            for (int row = ws.Dimension.End.Row; row >= 3; row--) { if (ws.Cells[row, 1].Value?.ToString()?.Contains("合計") == true) return row; }
             return -1;
         }
 
-        private int GetInt(object val) => val == null ? 0 : Convert.ToInt32(val);
+        private int GetInt(object val) => val == null ? 0 : (int)Convert.ToDouble(val);
         private double GetDouble(object val) => val == null ? 0.0 : Convert.ToDouble(val);
     }
 }

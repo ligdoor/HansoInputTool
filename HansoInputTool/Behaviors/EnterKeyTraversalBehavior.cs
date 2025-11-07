@@ -5,7 +5,6 @@ using System.Windows.Input;
 
 namespace HansoInputTool.Behaviors
 {
-    // Enterキーで次のコントロールにフォーカスを移すビヘイビア
     public class EnterKeyTraversalBehavior : Behavior<Control>
     {
         protected override void OnAttached()
@@ -37,7 +36,6 @@ namespace HansoInputTool.Behaviors
         }
     }
 
-    // 最後の入力欄でEnterキーを押したらコマンドを実行するビヘイビア
     public class EnterKeyAndRegisterBehavior : Behavior<Control>
     {
         public static readonly DependencyProperty CommandProperty =
@@ -74,6 +72,58 @@ namespace HansoInputTool.Behaviors
                 Command.Execute(null);
                 e.Handled = true;
             }
+        }
+    }
+
+    public class NumericInputBehavior : Behavior<TextBox>
+    {
+        protected override void OnAttached()
+        {
+            base.OnAttached();
+            if (AssociatedObject != null)
+            {
+                AssociatedObject.PreviewTextInput += OnPreviewTextInput;
+                DataObject.AddPastingHandler(AssociatedObject, OnPasting);
+            }
+        }
+
+        protected override void OnDetaching()
+        {
+            if (AssociatedObject != null)
+            {
+                AssociatedObject.PreviewTextInput -= OnPreviewTextInput;
+                DataObject.RemovePastingHandler(AssociatedObject, OnPasting);
+            }
+            base.OnDetaching();
+        }
+
+        private void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            if (!char.IsDigit(e.Text, e.Text.Length - 1))
+            {
+                e.Handled = true;
+            }
+        }
+
+        private void OnPasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(typeof(string)))
+            {
+                string text = (string)e.DataObject.GetData(typeof(string));
+                if (!IsTextAllowed(text))
+                {
+                    e.CancelCommand();
+                }
+            }
+            else
+            {
+                e.CancelCommand();
+            }
+        }
+
+        private static bool IsTextAllowed(string text)
+        {
+            return new System.Text.RegularExpressions.Regex("^[0-9]+$").IsMatch(text);
         }
     }
 }

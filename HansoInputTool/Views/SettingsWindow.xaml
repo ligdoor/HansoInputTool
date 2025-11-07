@@ -3,255 +3,131 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converters="clr-namespace:HansoInputTool.Converters"
+        xmlns:behaviors="clr-namespace:HansoInputTool.Behaviors"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
-        Title="設定" Width="400" SizeToContent="Height"
+        Title="設定" Width="600" Height="520"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
-
+    <Window.Resources>
+        <converters:IsNotNullConverter x:Key="IsNotNullConverter"/>
+        <converters:BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converters:StringToBoolConverter x:Key="StringToBoolConverter"/>
+    </Window.Resources>
     <Grid Background="{StaticResource BgBrush}">
-        <StackPanel Margin="15">
+        <DockPanel Margin="15">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button Content="キャンセル" Background="{StaticResource ButtonSecondaryBgBrush}" Command="{Binding CancelCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource NormalButton}"/>
+                <Button Content="保存" Background="{StaticResource GreenBrush}" Command="{Binding SaveCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" Margin="10,0,0,0" Style="{StaticResource NormalButton}"/>
+            </StackPanel>
+
             <TabControl>
-                <!-- 料金設定タブ -->
-                <TabItem Header="料金設定">
-                    <StackPanel Margin="10">
-                        <ItemsControl ItemsSource="{Binding Rates}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <GroupBox Header="{Binding Key}" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,5">
-                                        <StackPanel Margin="10">
-                                            <Grid Margin="0,3">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="基本料金" VerticalAlignment="Center"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Value.BaseFee, UpdateSourceTrigger=PropertyChanged}" MinWidth="150"/>
-                                            </Grid>
-                                            <Grid Margin="0,3">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="走行料金" VerticalAlignment="Center"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Value.MileageFee, UpdateSourceTrigger=PropertyChanged}" MinWidth="150"/>
-                                            </Grid>
-                                            <Grid Margin="0,3">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="深夜固定" VerticalAlignment="Center"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Value.LateNightFixedFee, UpdateSourceTrigger=PropertyChanged}" MinWidth="150"/>
-                                            </Grid>
-                                            <Grid Margin="0,3">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="深夜単価" VerticalAlignment="Center"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Value.LateNightUnitFee, UpdateSourceTrigger=PropertyChanged}" MinWidth="150"/>
-                                            </Grid>
+                <!-- 車両シート管理タブ -->
+                <TabItem Header="車両シート管理">
+                    <Grid Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                <Button Content="追加 (+)" Command="{Binding AddVehicleCommand}" Style="{StaticResource NormalButton}" MinWidth="80"/>
+                                <Button Content="削除 (-)" Command="{Binding DeleteVehicleCommand}" Background="{StaticResource RedBrush}" Margin="10,0,0,0" Style="{StaticResource NormalButton}" MinWidth="80"/>
+                            </StackPanel>
+                            <Label DockPanel.Dock="Top" Content="車両リスト" FontWeight="Bold"/>
+                            <ListView ItemsSource="{Binding VehicleSheetList}" 
+                                      SelectedItem="{Binding SelectedVehicle}"
+                                      Background="{StaticResource PanelBackgroundBrush}"
+                                      BorderThickness="1"
+                                      BorderBrush="{StaticResource InputBorderBrush}"
+                                      DisplayMemberPath="VehicleTypeName"/>
+                        </DockPanel>
+
+                        <!-- 右側: 詳細エリア -->
+                        <Grid Grid.Column="1">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedVehicle}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel DataContext="{Binding SelectedVehicle}">
+                                    <Label Content="車両詳細" FontWeight="Bold"/>
+                                    <GroupBox Header="車両情報" Foreground="{StaticResource TextBrush}" Margin="0,5,0,0">
+                                        <StackPanel Margin="5">
+                                            <Label Content="営業所"/>
+                                            <ComboBox ItemsSource="{Binding 事業所カテゴリリスト}" SelectedItem="{Binding Selected事業所カテゴリ}"/>
+
+                                            <Label Content="車種" Margin="0,5,0,0" Visibility="{Binding Is車種Visible, Converter={StaticResource BoolToVis}}"/>
+                                            <StackPanel Orientation="Horizontal" Visibility="{Binding Is車種Visible, Converter={StaticResource BoolToVis}}">
+                                                <RadioButton Content="寝台車" GroupName="ShashuGroup" IsChecked="{Binding Selected車種, Converter={StaticResource StringToBoolConverter}, ConverterParameter=寝台車}"/>
+                                                <RadioButton Content="霊柩車" GroupName="ShashuGroup" IsChecked="{Binding Selected車種, Converter={StaticResource StringToBoolConverter}, ConverterParameter=霊柩車}" Margin="10,0,0,0"/>
+                                            </StackPanel>
+
+                                            <Label Content="車種名" Margin="0,5,0,0"/>
+                                            <TextBox Text="{Binding IndividualName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                            <Label Content="番号" Margin="0,5,0,0"/>
+                                            <TextBox Text="{Binding Number, UpdateSourceTrigger=PropertyChanged}">
+                                                <i:Interaction.Behaviors>
+                                                    <behaviors:NumericInputBehavior/>
+                                                </i:Interaction.Behaviors>
+                                            </TextBox>
                                         </StackPanel>
                                     </GroupBox>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
                 </TabItem>
 
-                <!-- 列マッピング設定タブ -->
-                <TabItem Header="列マッピング設定">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
-                        <StackPanel Margin="10">
-                            <!-- 通常シート -->
-                            <GroupBox Header="通常シート（列番号）" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,5">
-                                <StackPanel DataContext="{Binding ColumnMap.NormalSheet}" Margin="10">
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="日" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="搬送回数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding HansoCount, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="有料キロ" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="無料キロ" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="基本料" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding KihonFee, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="走行料" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding SokoFee, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="深夜料" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding ShinyaFee, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="合計" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding TotalFee, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="深夜時間" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="行旅" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding IsKoryo, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <!-- 東日本シート -->
-                            <GroupBox Header="東日本シート（セル番地）" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,5">
-                                <StackPanel DataContext="{Binding ColumnMap.EastSheet}" Margin="10">
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="延実働車輌数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="搬送回数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="有料キロ数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="無料キロ数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="運輸実績" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding UnsoJisseki, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <!-- 集計シート -->
-                            <GroupBox Header="集計シート（セル番地）" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,5">
-                                <StackPanel DataContext="{Binding ColumnMap.ShukeiSheet}" Margin="10">
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="稼働日数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Days, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="搬送回数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="有料キロ数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="無料キロ数" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                    <Grid Margin="0,3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="合計金額" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" Text="{Binding Total, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </Grid>
-                                </StackPanel>
-                            </GroupBox>
+                <!-- 料金カテゴリ設定タブ -->
+                <TabItem Header="料金カテゴリ設定">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="5">
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Rates}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <GroupBox Header="{Binding Key}" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,5">
+                                            <StackPanel DataContext="{Binding Value}" Margin="10">
+                                                <Label Content="基本料金"/>
+                                                <TextBox Text="{Binding BaseFee, UpdateSourceTrigger=PropertyChanged}">
+                                                    <i:Interaction.Behaviors>
+                                                        <behaviors:NumericInputBehavior/>
+                                                    </i:Interaction.Behaviors>
+                                                </TextBox>
+                                                <Label Content="走行料金" Margin="0,5,0,0"/>
+                                                <TextBox Text="{Binding MileageFee, UpdateSourceTrigger=PropertyChanged}">
+                                                    <i:Interaction.Behaviors>
+                                                        <behaviors:NumericInputBehavior/>
+                                                    </i:Interaction.Behaviors>
+                                                </TextBox>
+                                                <Label Content="深夜固定" Margin="0,5,0,0"/>
+                                                <TextBox Text="{Binding LateNightFixedFee, UpdateSourceTrigger=PropertyChanged}">
+                                                    <i:Interaction.Behaviors>
+                                                        <behaviors:NumericInputBehavior/>
+                                                    </i:Interaction.Behaviors>
+                                                </TextBox>
+                                                <Label Content="深夜単価" Margin="0,5,0,0"/>
+                                                <TextBox Text="{Binding LateNightUnitFee, UpdateSourceTrigger=PropertyChanged}">
+                                                    <i:Interaction.Behaviors>
+                                                        <behaviors:NumericInputBehavior/>
+                                                    </i:Interaction.Behaviors>
+                                                </TextBox>
+                                            </StackPanel>
+                                        </GroupBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
             </TabControl>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                <Button Content="キャンセル" Background="{StaticResource ButtonSecondaryBgBrush}"
-                        Command="{Binding CancelCommand}"
-                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,0,10,0" Style="{StaticResource NormalButton}"/>
-                <Button Content="保存" Background="{StaticResource GreenBrush}" 
-                        Command="{Binding SaveCommand}"
-                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource NormalButton}"/>
-            </StackPanel>
-        </StackPanel>
+        </DockPanel>
     </Grid>
 </Window>
