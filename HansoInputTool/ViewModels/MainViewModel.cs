@@ -28,7 +28,7 @@ namespace HansoInputTool.ViewModels
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.4.0";
+        private const string CurrentVersion = "1.4.2";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
@@ -136,10 +136,12 @@ namespace HansoInputTool.ViewModels
             {
                 Logger.Info("アプリケーションの初期化を開始します。");
                 Directory.CreateDirectory(AppDataPath);
+
                 if (!File.Exists(RatesFilePath)) File.Copy(BundledRatesFilePath, RatesFilePath, true);
-                if (!File.Exists(WorkInputFilePath)) File.Copy(BundledInputFilePath, WorkInputFilePath, true);
-                if (!File.Exists(TemplateWorkFilePath)) File.Copy(BundledTemplateFilePath, TemplateWorkFilePath, true);
-                else { File.Copy(BundledTemplateFilePath, TemplateWorkFilePath, true); }
+
+                // アプリケーション起動時は常にBundled (dataフォルダ) のInput/Templateを読み込む
+                File.Copy(BundledInputFilePath, WorkInputFilePath, true);
+                File.Copy(BundledTemplateFilePath, TemplateWorkFilePath, true);
 
                 var ratesJson = await File.ReadAllTextAsync(RatesFilePath);
                 Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(ratesJson);
@@ -170,7 +172,8 @@ namespace HansoInputTool.ViewModels
         {
             if (parameter is not CancelEventArgs e) return;
             if (IsBusy) { MessageBox.Show("転記処理が実行中です。終了できません。", "処理中", MessageBoxButton.OK, MessageBoxImage.Warning); e.Cancel = true; return; }
-            var result = MessageBox.Show("入力中のデータはファイルに保存されません。\nツールを終了しますか？", "終了確認", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+
+            var result = MessageBox.Show("入力中のデータは保存されません (「入力内容を保存」で保存してください)。\nツールを終了しますか？", "終了確認", MessageBoxButton.OKCancel, MessageBoxImage.Question);
             if (result == MessageBoxResult.Cancel) { e.Cancel = true; }
             else
             {
@@ -193,8 +196,10 @@ namespace HansoInputTool.ViewModels
             NormalSheets.Clear();
             EastSheets.Clear();
             vehicleSheets.ForEach(s => { if (s.Contains("東日本")) EastSheets.Add(s); else NormalSheets.Add(s); });
-            SelectedNormalSheet = NormalSheets.FirstOrDefault();
-            SelectedEastSheet = EastSheets.FirstOrDefault();
+            var oldSelectedNormal = SelectedNormalSheet;
+            var oldSelectedEast = SelectedEastSheet;
+            SelectedNormalSheet = NormalSheets.Contains(oldSelectedNormal) ? oldSelectedNormal : NormalSheets.FirstOrDefault();
+            SelectedEastSheet = EastSheets.Contains(oldSelectedEast) ? oldSelectedEast : EastSheets.FirstOrDefault();
         }
 
         private void UpdatePreview()
@@ -296,6 +301,7 @@ namespace HansoInputTool.ViewModels
             progressWindow.Show();
             try
             {
+                // 転記前に現在の作業内容を保存
                 _excelHandler.Save();
                 var transferService = new TransferService();
                 await transferService.ExecuteAsync(WorkInputFilePath, TemplateWorkFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
@@ -322,6 +328,7 @@ namespace HansoInputTool.ViewModels
                 if (result == MessageBoxResult.Cancel) return;
                 try
                 {
+                    // 読み込んだファイルを作業用コピーとして使用
                     File.Copy(openFileDialog.FileName, WorkInputFilePath, true);
                     ReloadAllData();
                     Log($"実績月報 '{Path.GetFileName(openFileDialog.FileName)}' を読み込みました。");
@@ -337,21 +344,32 @@ namespace HansoInputTool.ViewModels
 
         private void SaveInputFile()
         {
-            try { _excelHandler.Save(); MessageBox.Show($"作業中の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information); Log($"--- {WorkInputFilePath} と {TemplateWorkFilePath} を上書き保存しました ---"); }
-            catch (Exception ex) { Logger.Error(ex, "入力内容の保存中にエラーが発生しました。"); MessageBox.Show($"保存に失敗しました。\n詳細はログファイルを確認してください。", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error); }
+            try
+            {
+                _excelHandler.Save();
+                // 作業用コピーを永続的な保存場所にコピーする
+                File.Copy(WorkInputFilePath, BundledInputFilePath, true);
+                File.Copy(TemplateWorkFilePath, BundledTemplateFilePath, true);
+                MessageBox.Show($"入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
+                Log($"--- 入力内容を保存しました ---");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "入力内容の保存中にエラーが発生しました。");
+                MessageBox.Show($"保存に失敗しました。\n詳細はログファイルを確認してください。", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void ClearInputData(bool showSuccessMessage)
         {
-            Log("--- Input.xlsx のデータクリア処理を開始 ---");
+            Log("--- 入力データをクリアします ---");
             var logMessages = _excelHandler.ClearData();
             foreach (var msg in logMessages) Log(msg);
             _registeredEastSheets.Clear();
             UpdateEastSheetStatus();
-            SaveInputFile();
-            _excelHandler.Load();
+            _excelHandler.Save();
             UpdatePreview();
-            if (showSuccessMessage) { MessageBox.Show("Input.xlsx の入力データをクリアし、保存しました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information); }
+            if (showSuccessMessage) { MessageBox.Show("入力データをクリアしました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information); }
         }
 
         private async Task CheckForUpdate()
@@ -388,16 +406,8 @@ namespace HansoInputTool.ViewModels
         {
             try
             {
-                if (File.Exists(HelpFilePath))
-                {
-                    Process.Start(new ProcessStartInfo(HelpFilePath) { UseShellExecute = true });
-                    Log("ヘルプファイルを開きました。");
-                }
-                else
-                {
-                    MessageBox.Show("ヘルプファイル (readme.pdf) が見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                    Logger.Warn("ヘルプファイルが見つかりませんでした: " + HelpFilePath);
-                }
+                if (File.Exists(HelpFilePath)) { Process.Start(new ProcessStartInfo(HelpFilePath) { UseShellExecute = true }); Log("ヘルプファイルを開きました。"); }
+                else { MessageBox.Show("ヘルプファイル (readme.pdf) が見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error); Logger.Warn("ヘルプファイルが見つかりませんでした: " + HelpFilePath); }
             }
             catch (Exception ex)
             {
