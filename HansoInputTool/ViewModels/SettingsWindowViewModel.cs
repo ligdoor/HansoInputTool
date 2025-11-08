@@ -42,11 +42,12 @@ namespace HansoInputTool.ViewModels
             _ratesFilePath = ratesFilePath;
             _mainViewModel = mainViewModel;
 
-            Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
+            Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(
+                JsonConvert.SerializeObject(currentRates));
+
             var currentSheets = _excelHandler.GetVehicleSheetNames();
             VehicleSheetList = new ObservableCollection<VehicleSheetViewModel>(
-                currentSheets.Select(s => new VehicleSheetViewModel(s))
-            );
+                currentSheets.Select(s => new VehicleSheetViewModel(s)));
 
             AddVehicleCommand = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
@@ -64,8 +65,17 @@ namespace HansoInputTool.ViewModels
         private void DeleteVehicle()
         {
             if (SelectedVehicle == null) return;
-            var sheetName = SelectedVehicle.OriginalSheetName ?? "新しい車両";
-            var result = MessageBox.Show($"車両 '{sheetName}' をリストから削除しますか？\n（実際のファイルからの削除は「保存」ボタンを押した時に実行されます）", "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            var sheetName = !string.IsNullOrEmpty(SelectedVehicle.VehicleTypeName)
+                ? SelectedVehicle.VehicleTypeName
+                : "新しい車両";
+
+            var result = MessageBox.Show(
+                $"車両 '{sheetName}' を削除しますか？\nExcelシートも同時に削除されます。",
+                "削除確認",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
             if (result == MessageBoxResult.Yes)
             {
                 VehicleSheetList.Remove(SelectedVehicle);
@@ -77,54 +87,52 @@ namespace HansoInputTool.ViewModels
         {
             if (VehicleSheetList.Any(v => string.IsNullOrWhiteSpace(v.VehicleTypeName)))
             {
-                MessageBox.Show("車両名が空の項目があります。\nカテゴリ、個別名、番号などを入力してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("車両名が空の項目があります。\nカテゴリ、個別名、番号などを入力してください。",
+                    "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             var duplicate = VehicleSheetList.GroupBy(v => v.VehicleTypeName)
-                                        .FirstOrDefault(g => g.Count() > 1);
+                .FirstOrDefault(g => g.Count() > 1);
             if (duplicate != null)
             {
-                MessageBox.Show($"車両名 '{duplicate.Key}' が重複しています。\n個別名や番号を変更してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"車両名 '{duplicate.Key}' が重複しています。\n個別名や番号を変更してください。",
+                    "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             try
             {
-                // ExcelHandlerに、現在の状態と最終的な状態を渡して、差分処理を「丸投げ」する
                 var originalSheetNames = _excelHandler.GetVehicleSheetNames();
                 var finalSheetVMs = VehicleSheetList.ToList();
 
-                // 1. 削除されたシートを特定
-                var finalOriginalNames = finalSheetVMs.Where(vm => vm.OriginalSheetName != null).Select(vm => vm.OriginalSheetName).ToList();
-                var sheetsToDelete = originalSheetNames.Except(finalOriginalNames).ToList();
-
-                // 2. 名前が変更されたシートを特定
-                var renamedVMs = finalSheetVMs
-                    .Where(vm => vm.OriginalSheetName != null && vm.OriginalSheetName != vm.VehicleTypeName)
+                var deletedSheetNames = originalSheetNames
+                    .Where(origName => !finalSheetVMs.Any(vm => vm.OriginalSheetName == origName))
                     .ToList();
-                var renameMap = renamedVMs.ToDictionary(vm => vm.OriginalSheetName, vm => vm.VehicleTypeName);
 
-                // 3. 新規追加されたシートを特定
-                var addedVMs = finalSheetVMs.Where(vm => vm.OriginalSheetName == null).ToList();
-                var sheetsToAdd = addedVMs.Select(vm => {
-                    string template = FindTemplateSheetName(vm.Selected事業所カテゴリ, vm.Selected車種);
-                    return (vm.VehicleTypeName, template);
-                }).ToList();
+                var renameMap = finalSheetVMs
+                    .Where(vm => vm.OriginalSheetName != null && vm.OriginalSheetName != vm.VehicleTypeName)
+                    .ToDictionary(vm => vm.OriginalSheetName, vm => vm.VehicleTypeName);
 
-                // 4. ExcelHandlerの新しいメソッドを呼び出して、すべての変更を一度に実行
-                _excelHandler.SyncAllVehicleSheets(sheetsToDelete, renameMap, sheetsToAdd);
+                var addedSheets = new List<(string newName, string templateName)>();
+                foreach (var vm in finalSheetVMs.Where(vm => vm.OriginalSheetName == null))
+                {
+                    string templateSheetName = FindTemplateSheetName(vm.Selected事業所カテゴリ, vm.Selected車種);
+                    if (string.IsNullOrEmpty(templateSheetName) || !_excelHandler.SheetNames.Contains(templateSheetName))
+                    {
+                        MessageBox.Show($"カテゴリ '{vm.Selected事業所カテゴリ}' のテンプレートシート '{templateSheetName}' が見つかりません。",
+                            "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                    addedSheets.Add((vm.VehicleTypeName, templateSheetName));
+                }
 
-                // 5. すべての変更をファイルに書き込む
-                _excelHandler.Save();
+                _excelHandler.SyncAllVehicleSheets(deletedSheetNames, renameMap, addedSheets);
 
-                // 6. rates.json の保存
-                string json = JsonConvert.SerializeObject(Rates, Formatting.Indented);
-                File.WriteAllText(_ratesFilePath, json);
+                string ratesJson = JsonConvert.SerializeObject(Rates, Formatting.Indented);
+                File.WriteAllText(_ratesFilePath, ratesJson);
 
-                // 7. MainViewModelの更新
                 _mainViewModel.UpdateRatesAndReload(Rates);
-
                 MessageBox.Show("設定を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 if (parameter is Window window)
@@ -134,9 +142,8 @@ namespace HansoInputTool.ViewModels
             }
             catch (System.Exception ex)
             {
-                MessageBox.Show($"設定の保存中にエラーが発生しました。\n{ex.Message}", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                // 変更を破棄してリロード
-                _excelHandler.Load();
+                MessageBox.Show($"設定の保存中にエラーが発生しました。\n{ex.Message}",
+                    "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -144,9 +151,14 @@ namespace HansoInputTool.ViewModels
         {
             var sheetNames = _excelHandler.GetVehicleSheetNames();
 
-            if (category == "CH大月") return sheetNames.FirstOrDefault(s => s.Contains("CH大月")) ?? "寝台車 30";
-            if (category == "CH東富士") return sheetNames.FirstOrDefault(s => s.Contains("CH東富士")) ?? "寝台車 30";
-            if (category == "東日本セレモニー") return "東日本セレモニー 1961";
+            if (category == "CH大月")
+                return sheetNames.FirstOrDefault(s => s.Contains("CH大月")) ?? "寝台車 30";
+
+            if (category == "CH東富士")
+                return sheetNames.FirstOrDefault(s => s.Contains("CH東富士")) ?? "寝台車 30";
+
+            if (category == "東日本セレモニー")
+                return "東日本セレモニー 1961";
 
             if (category == "CH富士吉田" || category == "通常")
             {
