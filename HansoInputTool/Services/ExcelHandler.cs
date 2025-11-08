@@ -45,125 +45,125 @@ namespace HansoInputTool.Services
             _templatePackage?.Save();
         }
 
-        public List<string> GetVehicleSheetNames()
+        public void SyncAllVehicleSheets(List<string> sheetsToDelete, Dictionary<string, string> renameMap, List<(string newName, string templateName)> sheetsToAdd)
         {
-            return SheetNames.Where(s => !s.Contains("登録")).ToList();
+            SyncPackageSheets(_inputPackage, "Input.xlsx", sheetsToDelete, renameMap, sheetsToAdd, true);
+            SyncPackageSheets(_templatePackage, "Template.xlsx", sheetsToDelete, renameMap, sheetsToAdd, false);
+            UpdateMonthlySummarySheetIfNeeded(_templatePackage);
         }
 
+        private void SyncPackageSheets(ExcelPackage package, string fileName, List<string> sheetsToDelete, Dictionary<string, string> renameMap, List<(string newName, string templateName)> sheetsToAdd, bool isInputFile)
+        {
+            Logger.Info($"{fileName} のシート同期処理を開始します。");
+
+            foreach (var sheetName in sheetsToDelete)
+            {
+                var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
+                if (ws != null) { package.Workbook.Worksheets.Delete(ws); Logger.Info($"{fileName}: シート削除 -> {sheetName}"); }
+            }
+
+            // 名前の変更は、元のシート名を持つシートの Name プロパティを直接変更する
+            foreach (var kvp in renameMap)
+            {
+                var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == kvp.Key);
+                if (ws != null)
+                {
+                    ws.Name = kvp.Value;
+                    if (isInputFile) UpdateSheetCells(ws);
+                    Logger.Info($"{fileName}: シート名変更 -> {kvp.Key} から {kvp.Value}");
+                }
+            }
+
+            foreach (var (newName, templateName) in sheetsToAdd)
+            {
+                var templateWs = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                if (templateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateName}' が{fileName}に見つかりません。");
+
+                int insertIndex = GetInsertIndex(package, templateName);
+                var newWs = package.Workbook.Worksheets.Copy(templateWs.Name, newName);
+
+                // .Position ではなく .Index を使用する
+                if (package.Workbook.Worksheets.Count > 1)
+                {
+                    package.Workbook.Worksheets.MoveAfter(newWs.Index, insertIndex);
+                }
+
+                if (isInputFile) UpdateSheetCells(newWs);
+                Logger.Info($"{fileName}: シート追加 -> {newName} (テンプレート: {templateName})");
+            }
+        }
+
+        private void UpdateMonthlySummarySheetIfNeeded(ExcelPackage package)
+        {
+            var summarySheet = package.Workbook.Worksheets["月間集計"];
+            if (summarySheet == null) return;
+
+            Logger.Info("月間集計シートの同期処理を開始します。");
+
+            var allVehicleSheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) != "その他" && ws.Name != "月間集計").Select(ws => ws.Name).ToList();
+
+            int totalRow = (summarySheet.Dimension?.End.Row ?? 3);
+            while (totalRow >= 4 && (summarySheet.Cells[totalRow, 2].Value == null || string.IsNullOrWhiteSpace(summarySheet.Cells[totalRow, 2].Text)))
+            {
+                totalRow--;
+            }
+
+            if (totalRow >= 4) { summarySheet.DeleteRow(4, totalRow - 3); }
+
+            int currentRow = 4;
+            foreach (var sheetName in allVehicleSheets.OrderBy(s => GetCategoryOrder(s)).ThenBy(s => s))
+            {
+                summarySheet.InsertRow(currentRow, 1, currentRow > 4 ? currentRow - 1 : 3);
+
+                var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
+                summarySheet.Cells[currentRow, 1].Value = $"No.{currentRow - 3}";
+                summarySheet.Cells[currentRow, 2].Value = branch;
+                summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
+                currentRow++;
+            }
+        }
+
+        public List<string> GetVehicleSheetNames()
+        {
+            return _inputPackage.Workbook.Worksheets
+                .Where(s => !s.Name.Contains("登録"))
+                .Select(s => s.Name)
+                .ToList();
+        }
+
+        // (以下のメソッドは旧バージョンとの互換性のために残すが、基本的には使われない)
         public void AddVehicleSheet(string newSheetName, string templateSheetName)
         {
             Logger.Info($"シート追加処理を開始: {newSheetName} (テンプレート: {templateSheetName})");
-
             var inputTemplateWs = _inputPackage.Workbook.Worksheets[templateSheetName];
             if (inputTemplateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateSheetName}' がInput.xlsxに見つかりません。");
             int inputIndex = GetInsertIndex(_inputPackage, templateSheetName);
             var newInputWs = _inputPackage.Workbook.Worksheets.Copy(inputTemplateWs.Name, newSheetName);
-            _inputPackage.Workbook.Worksheets.MoveAfter(newInputWs.Index, inputIndex);
+            if (_inputPackage.Workbook.Worksheets.Count > 1) _inputPackage.Workbook.Worksheets.MoveAfter(newInputWs.Index, inputIndex);
             UpdateSheetCells(newInputWs);
-
             var templateTemplateWs = _templatePackage.Workbook.Worksheets[templateSheetName];
             if (templateTemplateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateSheetName}' がTemplate.xlsxに見つかりません。");
             int templateIndex = GetInsertIndex(_templatePackage, templateSheetName);
             var newTemplateWs = _templatePackage.Workbook.Worksheets.Copy(templateTemplateWs.Name, newSheetName);
-            _templatePackage.Workbook.Worksheets.MoveAfter(newTemplateWs.Index, templateIndex);
+            if (_templatePackage.Workbook.Worksheets.Count > 1) _templatePackage.Workbook.Worksheets.MoveAfter(newTemplateWs.Index, templateIndex);
         }
 
         public void DeleteVehicleSheet(string sheetName)
         {
             Logger.Info($"シート削除処理を開始: {sheetName}");
-            var inputWs = _inputPackage.Workbook.Worksheets[sheetName];
+            var inputWs = _inputPackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
             if (inputWs != null) _inputPackage.Workbook.Worksheets.Delete(inputWs);
-
-            var templateWs = _templatePackage.Workbook.Worksheets[sheetName];
+            var templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
             if (templateWs != null) _templatePackage.Workbook.Worksheets.Delete(templateWs);
         }
 
         public void RenameVehicleSheet(string oldSheetName, string newSheetName)
         {
             Logger.Info($"シート名変更処理を開始: {oldSheetName} -> {newSheetName}");
-            var inputWs = _inputPackage.Workbook.Worksheets[oldSheetName];
-            if (inputWs != null)
-            {
-                inputWs.Name = newSheetName;
-                UpdateSheetCells(inputWs);
-            }
-
-            var templateWs = _templatePackage.Workbook.Worksheets[oldSheetName];
-            if (templateWs != null) templateWs.Name = newSheetName;
-        }
-
-        public void UpdateMonthlySummarySheet(List<string> updatedSheetNames)
-        {
-            Logger.Info("月間集計シートの同期処理を開始します。");
-            var summarySheet = _templatePackage.Workbook.Worksheets["月間集計"];
-            if (summarySheet == null)
-            {
-                Logger.Warn("Template.xlsxに '月間集計' シートが見つかりませんでした。");
-                return;
-            }
-
-            var totalRow = FindTotalRow(summarySheet);
-            if (totalRow == -1)
-            {
-                Logger.Warn("'月間集計' シートに合計行が見つかりませんでした。");
-                return;
-            }
-
-            var currentVehicles = new Dictionary<string, (string Branch, string Number)>();
-            for (int row = 4; row < totalRow; row++)
-            {
-                var branch = summarySheet.Cells[row, 2].Text;
-                var number = summarySheet.Cells[row, 3].Text;
-                if (!string.IsNullOrEmpty(branch))
-                {
-                    currentVehicles[BuildSheetName(branch, number)] = (branch, number);
-                }
-            }
-
-            var sheetsToDelete = currentVehicles.Keys.Except(updatedSheetNames).ToList();
-            if (sheetsToDelete.Any())
-            {
-                for (int row = totalRow - 1; row >= 4; row--)
-                {
-                    var branch = summarySheet.Cells[row, 2].Text;
-                    var number = summarySheet.Cells[row, 3].Text;
-                    var sheetName = BuildSheetName(branch, number);
-                    if (sheetsToDelete.Contains(sheetName))
-                    {
-                        summarySheet.DeleteRow(row, 1);
-                        Logger.Info($"月間集計シートから行を削除: {sheetName}");
-                    }
-                }
-            }
-
-            var sheetsToAdd = updatedSheetNames.Except(currentVehicles.Keys).ToList();
-            foreach (var sheetName in sheetsToAdd)
-            {
-                var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
-                string categoryKey = GetCategoryKey(sheetName);
-
-                int lastRowOfCategory = 3;
-                for (int row = 4; row < FindTotalRow(summarySheet); row++)
-                {
-                    var existingBranch = summarySheet.Cells[row, 2].Text;
-                    if (GetCategoryKey(existingBranch) == categoryKey)
-                    {
-                        lastRowOfCategory = row;
-                    }
-                }
-
-                int insertRow = lastRowOfCategory + 1;
-                summarySheet.InsertRow(insertRow, 1, lastRowOfCategory);
-                summarySheet.Cells[insertRow, 2].Value = branch;
-                summarySheet.Cells[insertRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
-                Logger.Info($"月間集計シートに行を挿入: {sheetName} at row {insertRow}");
-            }
-
-            totalRow = FindTotalRow(summarySheet);
-            for (int row = 4; row < totalRow; row++)
-            {
-                summarySheet.Cells[row, 1].Value = $"No.{row - 3}";
-            }
+            var inputWs = _inputPackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == oldSheetName);
+            if (inputWs != null) { inputWs.Name = newSheetName; UpdateSheetCells(inputWs); }
+            var templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == oldSheetName);
+            if (templateWs != null) { templateWs.Name = newSheetName; }
         }
 
         private (string Branch, string Number) ParseSheetNameToBranchAndNumber(string sheetName)
@@ -173,14 +173,6 @@ namespace HansoInputTool.Services
                 var numberMatch = Regex.Match(sheetName, @"\d+$");
                 return ("東日本", numberMatch.Success ? numberMatch.Value : "");
             }
-            if (sheetName.Contains("CH"))
-            {
-                var lastSpaceIndex = sheetName.LastIndexOf(' ');
-                if (lastSpaceIndex > -1 && int.TryParse(sheetName.Substring(lastSpaceIndex + 1), out _))
-                {
-                    return (sheetName.Substring(0, lastSpaceIndex), sheetName.Substring(lastSpaceIndex + 1));
-                }
-            }
             var parts = sheetName.Split(' ');
             if (parts.Length > 1 && int.TryParse(parts.Last(), out _))
             {
@@ -189,19 +181,15 @@ namespace HansoInputTool.Services
             return (sheetName, "");
         }
 
-        private string BuildSheetName(string branch, string number)
+        private int GetCategoryOrder(string sheetName)
         {
-            if (branch == "東日本") { return $"東日本セレモニー {number}"; }
-            if (!string.IsNullOrEmpty(number)) { return $"{branch} {number}"; }
-            return branch;
-        }
-
-        private int GetInsertIndex(ExcelPackage package, string baseSheetName)
-        {
-            string categoryKey = GetCategoryKey(baseSheetName);
-            var categorySheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) == categoryKey).ToList();
-            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); }
-            return package.Workbook.Worksheets.Count;
+            if (sheetName.Contains("CH富士吉田")) return 1;
+            if (sheetName.Contains("CH大月")) return 2;
+            if (sheetName.Contains("CH東富士")) return 3;
+            if (sheetName.Contains("霊柩車")) return 4;
+            if (sheetName.Contains("寝台車")) return 5;
+            if (sheetName.Contains("東日本")) return 6;
+            return 99;
         }
 
         private string GetCategoryKey(string sheetName)
@@ -212,6 +200,16 @@ namespace HansoInputTool.Services
             if (sheetName.Contains("霊柩車")) return "霊柩車";
             if (sheetName.Contains("寝台車")) return "寝台車";
             return "その他";
+        }
+
+        private int GetInsertIndex(ExcelPackage package, string baseSheetName)
+        {
+            string categoryKey = GetCategoryKey(baseSheetName);
+            var categorySheets = package.Workbook.Worksheets
+                .Where(ws => GetCategoryKey(ws.Name) == categoryKey)
+                .ToList();
+            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); }
+            return package.Workbook.Worksheets.Count;
         }
 
         private void UpdateSheetCells(ExcelWorksheet ws)
@@ -230,11 +228,7 @@ namespace HansoInputTool.Services
                     ws.Cells["D1"].Value = sheetName.Substring(0, lastSpaceIndex).Trim();
                     ws.Cells["H1"].Value = number;
                 }
-                else
-                {
-                    ws.Cells["D1"].Value = sheetName;
-                    ws.Cells["H1"].Value = null;
-                }
+                else { ws.Cells["D1"].Value = sheetName; ws.Cells["H1"].Value = null; }
             }
         }
 
@@ -287,17 +281,12 @@ namespace HansoInputTool.Services
             _dataCache.Remove(sheetName);
         }
 
-        // ↓↓↓ 不足していた DeleteRows メソッドを復活 ↓↓↓
         public void DeleteRows(string sheetName, List<int> rowIndices)
         {
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
-            foreach (var rowIndex in rowIndices.OrderByDescending(r => r))
-            {
-                ws.DeleteRow(rowIndex);
-            }
+            foreach (var rowIndex in rowIndices.OrderByDescending(r => r)) { ws.DeleteRow(rowIndex); }
             _dataCache.Remove(sheetName);
         }
-        // ↑↑↑ ここまでが復活させたメソッド ↑↑↑
 
         private void UpdateRowInternal(ExcelWorksheet ws, int rowIndex, Dictionary<string, double?> values, bool isKoryo)
         {

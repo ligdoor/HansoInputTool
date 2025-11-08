@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using HansoInputTool.ViewModels.Base;
 
@@ -6,7 +7,7 @@ namespace HansoInputTool.ViewModels
 {
     public class VehicleSheetViewModel : ObservableObject
     {
-        public string OriginalSheetName { get; }
+        public string OriginalSheetName { get; private set; }
 
         public List<string> 事業所カテゴリリスト { get; } = new() { "CH富士吉田", "CH大月", "CH東富士", "東日本セレモニー" };
         public List<string> 車種リスト { get; } = new() { "寝台車", "霊柩車" };
@@ -65,49 +66,33 @@ namespace HansoInputTool.ViewModels
         private void UpdateVehicleTypeName()
         {
             var parts = new List<string>();
-
-            // ↓↓↓ ここが修正箇所 ↓↓↓
-            if (Selected事業所カテゴリ != "CH富士吉田" && Selected事業所カテゴリ != "通常") // "通常"も念のため残す
-            {
-                parts.Add(Selected事業所カテゴリ);
-            }
-            // ↑↑↑ "CH富士吉田"の場合は、シート名に含めないようにする ↑↑↑
-
-            if (Is車種Visible)
-            {
-                parts.Add(Selected車種);
-            }
-            if (!string.IsNullOrWhiteSpace(IndividualName))
-            {
-                parts.Add(IndividualName);
-            }
-            if (!string.IsNullOrWhiteSpace(Number))
-            {
-                parts.Add(Number);
-            }
+            if (Selected事業所カテゴリ != "CH富士吉田") parts.Add(Selected事業所カテゴリ);
+            if (Is車種Visible) parts.Add(Selected車種);
+            if (!string.IsNullOrWhiteSpace(IndividualName)) parts.Add(IndividualName);
+            if (!string.IsNullOrWhiteSpace(Number)) parts.Add(Number);
             VehicleTypeName = string.Join(" ", parts);
+        }
+
+        public void SetOriginalSheetName(string name)
+        {
+            OriginalSheetName = name;
         }
 
         private void ParseSheetName(string sheetName)
         {
             var parts = sheetName.Split(' ').ToList();
-
-            // "通常"の代わりが"CH富士吉田"なので、どちらも含まない場合はデフォルトを"CH富士吉田"にする
             Selected事業所カテゴリ = 事業所カテゴリリスト.FirstOrDefault(c => sheetName.Contains(c) && c != "CH富士吉田") ?? "CH富士吉田";
             if (Selected事業所カテゴリ != "CH富士吉田") parts.Remove(Selected事業所カテゴリ);
-
             if (Is車種Visible)
             {
                 Selected車種 = 車種リスト.FirstOrDefault(s => parts.Contains(s)) ?? 車種リスト.First();
                 parts.Remove(Selected車種);
             }
-
             if (parts.Any() && int.TryParse(parts.Last(), out _))
             {
                 Number = parts.Last();
                 parts.RemoveAt(parts.Count - 1);
             }
-
             IndividualName = string.Join(" ", parts);
         }
     }
