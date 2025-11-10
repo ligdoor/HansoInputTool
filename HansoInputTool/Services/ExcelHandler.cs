@@ -7,6 +7,7 @@ using HansoInputTool.Models;
 using NLog;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
+using OfficeOpenXml.Table;
 
 namespace HansoInputTool.Services
 {
@@ -98,48 +99,78 @@ namespace HansoInputTool.Services
 
             Logger.Info("月間集計シートの同期処理を開始します。");
 
-            var allVehicleSheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) != "その他" && ws.Name != "月間集計").Select(ws => ws.Name).ToList();
-
-            int totalRow = (summarySheet.Dimension?.End.Row ?? 3);
-            while (totalRow >= 4 && (summarySheet.Cells[totalRow, 2].Value == null || string.IsNullOrWhiteSpace(summarySheet.Cells[totalRow, 2].Text)))
+            var excelTable = summarySheet.Tables.FirstOrDefault();
+            if (excelTable == null)
             {
-                totalRow--;
+                Logger.Warn("'月間集計' シートにExcelテーブルが見つかりませんでした。");
+                return;
             }
 
-            if (totalRow >= 4) { summarySheet.DeleteRow(4, totalRow - 3); }
+            var allVehicleSheets = package.Workbook.Worksheets
+                .Where(ws => GetCategoryKey(ws.Name) != "その他" && ws.Name != "月間集計")
+                .Select(ws => ws.Name)
+                .OrderBy(s => GetCategoryOrder(s))
+                .ThenBy(s => s)
+                .ToList();
 
-            int currentRow = 4;
-            foreach (var sheetName in allVehicleSheets.OrderBy(s => GetCategoryOrder(s)).ThenBy(s => s))
+            var headerRows = excelTable.ShowHeader ? 1 : 0;
+            var startRow = excelTable.Address.Start.Row;
+            var dataStartRow = startRow + headerRows;
+
+            if (excelTable.Address.Rows > headerRows)
             {
-                summarySheet.InsertRow(currentRow, 1, currentRow > 4 ? currentRow - 1 : 3);
-
-                var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
-                summarySheet.Cells[currentRow, 1].Value = $"No.{currentRow - 3}";
-                summarySheet.Cells[currentRow, 2].Value = branch;
-                summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
-                currentRow++;
+                summarySheet.DeleteRow(dataStartRow, excelTable.Address.Rows - headerRows);
             }
+
+            if (allVehicleSheets.Any())
+            {
+                // 先に行を追加してから値を設定する
+                if (allVehicleSheets.Count > 1)
+                {
+                    summarySheet.InsertRow(dataStartRow + 1, allVehicleSheets.Count - 1);
+                }
+
+                for (int i = 0; i < allVehicleSheets.Count; i++)
+                {
+                    var sheetName = allVehicleSheets[i];
+                    var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
+                    int currentRow = dataStartRow + i;
+
+                    summarySheet.Cells[currentRow, 1].Value = $"No.{i + 1}";
+                    summarySheet.Cells[currentRow, 2].Value = branch;
+                    summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
+
+                    // 数式を再設定
+                    summarySheet.Cells[currentRow, 4].Formula = $"VLOOKUP(C{currentRow},'{sheetName}'!$A:$D,4,FALSE)";
+                    summarySheet.Cells[currentRow, 5].Formula = $"SUM('{sheetName}'!$C$3:$C$33)";
+                    if (summarySheet.Cells[currentRow, 5].Value is double val && val > 0)
+                        summarySheet.Cells[currentRow, 6].Formula = $"F{currentRow}/E{currentRow}";
+                    else
+                        summarySheet.Cells[currentRow, 6].Value = 0;
+
+                    summarySheet.Cells[currentRow, 7].Formula = $"SUM('{sheetName}'!$F$3:$F$33)";
+                    summarySheet.Cells[currentRow, 8].Formula = $"SUM('{sheetName}'!$G$3:$G$33)";
+                    summarySheet.Cells[currentRow, 9].Formula = $"SUM('{sheetName}'!$H$3:$H$33)";
+                    summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
+                    summarySheet.Cells[currentRow, 11].Formula = $"SUM('{sheetName}'!$I$3:$I$33)";
+                }
+
+                var newAddress = new ExcelAddress(startRow, excelTable.Address.Start.Column, startRow + headerRows + allVehicleSheets.Count - 1, excelTable.Address.End.Column);
+                var tableName = excelTable.Name;
+                var tableStyle = excelTable.TableStyle;
+                summarySheet.Tables.Delete(excelTable.Name);
+                var newTable = summarySheet.Tables.Add(newAddress, tableName);
+                newTable.ShowHeader = true;
+                newTable.ShowTotal = true;
+                newTable.TableStyle = tableStyle;
+            }
+
+            package.Workbook.CalcMode = ExcelCalcMode.Automatic;
         }
 
         public List<string> GetVehicleSheetNames()
         {
-            return _inputPackage.Workbook.Worksheets
-                .Where(s => !s.Name.Contains("登録"))
-                .Select(s => s.Name)
-                .ToList();
-        }
-
-        public void AddVehicleSheet(string newSheetName, string templateSheetName)
-        {
-            // SyncAllVehicleSheetsに統合
-        }
-        public void DeleteVehicleSheet(string sheetName)
-        {
-            // SyncAllVehicleSheetsに統合
-        }
-        public void RenameVehicleSheet(string oldSheetName, string newSheetName)
-        {
-            // SyncAllVehicleSheetsに統合
+            return _inputPackage.Workbook.Worksheets.Where(s => !s.Name.Contains("登録")).Select(s => s.Name).ToList();
         }
 
         private (string Branch, string Number) ParseSheetNameToBranchAndNumber(string sheetName)
@@ -181,10 +212,8 @@ namespace HansoInputTool.Services
         private int GetInsertIndex(ExcelPackage package, string baseSheetName)
         {
             string categoryKey = GetCategoryKey(baseSheetName);
-            var categorySheets = package.Workbook.Worksheets
-                .Where(ws => GetCategoryKey(ws.Name) == categoryKey)
-                .ToList();
-            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); } // Position -> Index
+            var categorySheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) == categoryKey).ToList();
+            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); }
             return package.Workbook.Worksheets.Count;
         }
 
