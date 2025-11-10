@@ -62,7 +62,6 @@ namespace HansoInputTool.Services
                 if (ws != null) { package.Workbook.Worksheets.Delete(ws); Logger.Info($"{fileName}: シート削除 -> {sheetName}"); }
             }
 
-            // 名前の変更は、元のシート名を持つシートの Name プロパティを直接変更する
             foreach (var kvp in renameMap)
             {
                 var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == kvp.Key);
@@ -82,7 +81,6 @@ namespace HansoInputTool.Services
                 int insertIndex = GetInsertIndex(package, templateName);
                 var newWs = package.Workbook.Worksheets.Copy(templateWs.Name, newName);
 
-                // .Position ではなく .Index を使用する
                 if (package.Workbook.Worksheets.Count > 1)
                 {
                     package.Workbook.Worksheets.MoveAfter(newWs.Index, insertIndex);
@@ -131,39 +129,17 @@ namespace HansoInputTool.Services
                 .ToList();
         }
 
-        // (以下のメソッドは旧バージョンとの互換性のために残すが、基本的には使われない)
         public void AddVehicleSheet(string newSheetName, string templateSheetName)
         {
-            Logger.Info($"シート追加処理を開始: {newSheetName} (テンプレート: {templateSheetName})");
-            var inputTemplateWs = _inputPackage.Workbook.Worksheets[templateSheetName];
-            if (inputTemplateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateSheetName}' がInput.xlsxに見つかりません。");
-            int inputIndex = GetInsertIndex(_inputPackage, templateSheetName);
-            var newInputWs = _inputPackage.Workbook.Worksheets.Copy(inputTemplateWs.Name, newSheetName);
-            if (_inputPackage.Workbook.Worksheets.Count > 1) _inputPackage.Workbook.Worksheets.MoveAfter(newInputWs.Index, inputIndex);
-            UpdateSheetCells(newInputWs);
-            var templateTemplateWs = _templatePackage.Workbook.Worksheets[templateSheetName];
-            if (templateTemplateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateSheetName}' がTemplate.xlsxに見つかりません。");
-            int templateIndex = GetInsertIndex(_templatePackage, templateSheetName);
-            var newTemplateWs = _templatePackage.Workbook.Worksheets.Copy(templateTemplateWs.Name, newSheetName);
-            if (_templatePackage.Workbook.Worksheets.Count > 1) _templatePackage.Workbook.Worksheets.MoveAfter(newTemplateWs.Index, templateIndex);
+            // SyncAllVehicleSheetsに統合
         }
-
         public void DeleteVehicleSheet(string sheetName)
         {
-            Logger.Info($"シート削除処理を開始: {sheetName}");
-            var inputWs = _inputPackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
-            if (inputWs != null) _inputPackage.Workbook.Worksheets.Delete(inputWs);
-            var templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
-            if (templateWs != null) _templatePackage.Workbook.Worksheets.Delete(templateWs);
+            // SyncAllVehicleSheetsに統合
         }
-
         public void RenameVehicleSheet(string oldSheetName, string newSheetName)
         {
-            Logger.Info($"シート名変更処理を開始: {oldSheetName} -> {newSheetName}");
-            var inputWs = _inputPackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == oldSheetName);
-            if (inputWs != null) { inputWs.Name = newSheetName; UpdateSheetCells(inputWs); }
-            var templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == oldSheetName);
-            if (templateWs != null) { templateWs.Name = newSheetName; }
+            // SyncAllVehicleSheetsに統合
         }
 
         private (string Branch, string Number) ParseSheetNameToBranchAndNumber(string sheetName)
@@ -208,7 +184,7 @@ namespace HansoInputTool.Services
             var categorySheets = package.Workbook.Worksheets
                 .Where(ws => GetCategoryKey(ws.Name) == categoryKey)
                 .ToList();
-            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); }
+            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); } // Position -> Index
             return package.Workbook.Worksheets.Count;
         }
 
@@ -270,7 +246,6 @@ namespace HansoInputTool.Services
             if (totalRowIndex == -1) throw new Exception($"シート '{sheetName}' に '合計' 行が見つかりません。");
             var (targetRow, insertInfo) = FindTargetRow(ws, totalRowIndex);
             UpdateRowInternal(ws, targetRow, values, isKoryo);
-            _dataCache.Remove(sheetName);
             return (targetRow, insertInfo);
         }
 
@@ -278,14 +253,12 @@ namespace HansoInputTool.Services
         {
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
             UpdateRowInternal(ws, rowIndex, values, isKoryo);
-            _dataCache.Remove(sheetName);
         }
 
         public void DeleteRows(string sheetName, List<int> rowIndices)
         {
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
             foreach (var rowIndex in rowIndices.OrderByDescending(r => r)) { ws.DeleteRow(rowIndex); }
-            _dataCache.Remove(sheetName);
         }
 
         private void UpdateRowInternal(ExcelWorksheet ws, int rowIndex, Dictionary<string, double?> values, bool isKoryo)
