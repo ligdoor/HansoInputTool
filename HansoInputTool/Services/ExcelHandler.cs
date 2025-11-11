@@ -92,6 +92,8 @@ namespace HansoInputTool.Services
             }
         }
 
+        // Services/ExcelHandler.cs の中
+
         private void UpdateMonthlySummarySheetIfNeeded(ExcelPackage package)
         {
             var summarySheet = package.Workbook.Worksheets["月間集計"];
@@ -99,78 +101,77 @@ namespace HansoInputTool.Services
 
             Logger.Info("月間集計シートの同期処理を開始します。");
 
-            var excelTable = summarySheet.Tables.FirstOrDefault();
-            if (excelTable == null)
+            var table = summarySheet.Tables.FirstOrDefault();
+            if (table == null)
             {
-                Logger.Warn("'月間集計' シートにExcelテーブルが見つかりませんでした。");
+                Logger.Warn("'月間集計' シートにExcelテーブルが見つかりません。");
                 return;
             }
 
-            var allVehicleSheets = package.Workbook.Worksheets
-                .Where(ws => GetCategoryKey(ws.Name) != "その他" && ws.Name != "月間集計")
+            int headerRow = table.Address.Start.Row;
+            int dataStartRow = headerRow + 1;
+            int startCol = table.Address.Start.Column;
+            int endCol = table.Address.End.Column;
+
+            // 対象シート一覧（車両）
+            var vehicleSheets = package.Workbook.Worksheets
+                .Where(ws => ws.Name != "月間集計" && GetCategoryKey(ws.Name) != "その他")
                 .Select(ws => ws.Name)
                 .OrderBy(s => GetCategoryOrder(s))
                 .ThenBy(s => s)
                 .ToList();
 
-            var headerRows = excelTable.ShowHeader ? 1 : 0;
-            var startRow = excelTable.Address.Start.Row;
-            var dataStartRow = startRow + headerRows;
+            // 既存データの削除（ヘッダー以外）
+            int oldDataCount = table.Address.End.Row - dataStartRow + 1;
+            if (oldDataCount > 0)
+                summarySheet.DeleteRow(dataStartRow, oldDataCount);
 
-            if (excelTable.Address.Rows > headerRows)
+            // 新しいデータの挿入
+            for (int i = 0; i < vehicleSheets.Count; i++)
             {
-                summarySheet.DeleteRow(dataStartRow, excelTable.Address.Rows - headerRows);
+                int row = dataStartRow + i;
+                summarySheet.InsertRow(row, 1);
+
+                var sheetName = vehicleSheets[i];
+                var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
+
+                summarySheet.Cells[row, startCol + 0].Value = $"No.{i + 1}";
+                summarySheet.Cells[row, startCol + 1].Value = branch;
+                summarySheet.Cells[row, startCol + 2].Value = int.TryParse(number, out int num) ? num : (object)number;
+
+                summarySheet.Cells[row, startCol + 3].Formula = $"'{sheetName}'!E4";
+                summarySheet.Cells[row, startCol + 4].Formula = $"SUM('{sheetName}'!$C$3:$C$33)";
+                summarySheet.Cells[row, startCol + 5].Formula = $"IF(E{row}>0, D{row}/E{row}, 0)";
+                summarySheet.Cells[row, startCol + 6].Formula = $"SUM('{sheetName}'!$F$3:$F$33)";
+                summarySheet.Cells[row, startCol + 7].Formula = $"SUM('{sheetName}'!$G$3:$G$33)";
+                summarySheet.Cells[row, startCol + 8].Formula = $"SUM('{sheetName}'!$H$3:$H$33)";
+                summarySheet.Cells[row, startCol + 9].Formula = $"H{row}+I{row}";
+                summarySheet.Cells[row, startCol + 10].Formula = $"SUM('{sheetName}'!$I$3:$I$33)";
             }
 
-            if (allVehicleSheets.Any())
-            {
-                // 先に行を追加してから値を設定する
-                if (allVehicleSheets.Count > 1)
-                {
-                    summarySheet.InsertRow(dataStartRow + 1, allVehicleSheets.Count - 1);
-                }
+            // テーブルの範囲をリセット（再作成しない）
+            int newEndRow = dataStartRow + vehicleSheets.Count - 1;
+            var newRange = summarySheet.Cells[headerRow, startCol, newEndRow, endCol];
+            summarySheet.Tables.Delete(table.Name);
+            var newTable = summarySheet.Tables.Add(newRange, table.Name);
 
-                for (int i = 0; i < allVehicleSheets.Count; i++)
-                {
-                    var sheetName = allVehicleSheets[i];
-                    var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
-                    int currentRow = dataStartRow + i;
+            // フィルター非表示
+            newTable.ShowFilter = false;
 
-                    summarySheet.Cells[currentRow, 1].Value = $"No.{i + 1}";
-                    summarySheet.Cells[currentRow, 2].Value = branch;
-                    summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
-
-                    // 数式を再設定
-                    summarySheet.Cells[currentRow, 4].Formula = $"VLOOKUP(C{currentRow},'{sheetName}'!$A:$D,4,FALSE)";
-                    summarySheet.Cells[currentRow, 5].Formula = $"SUM('{sheetName}'!$C$3:$C$33)";
-                    if (summarySheet.Cells[currentRow, 5].Value is double val && val > 0)
-                        summarySheet.Cells[currentRow, 6].Formula = $"F{currentRow}/E{currentRow}";
-                    else
-                        summarySheet.Cells[currentRow, 6].Value = 0;
-
-                    summarySheet.Cells[currentRow, 7].Formula = $"SUM('{sheetName}'!$F$3:$F$33)";
-                    summarySheet.Cells[currentRow, 8].Formula = $"SUM('{sheetName}'!$G$3:$G$33)";
-                    summarySheet.Cells[currentRow, 9].Formula = $"SUM('{sheetName}'!$H$3:$H$33)";
-                    summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
-                    summarySheet.Cells[currentRow, 11].Formula = $"SUM('{sheetName}'!$I$3:$I$33)";
-                }
-
-                var newAddress = new ExcelAddress(startRow, excelTable.Address.Start.Column, startRow + headerRows + allVehicleSheets.Count - 1, excelTable.Address.End.Column);
-                var tableName = excelTable.Name;
-                var tableStyle = excelTable.TableStyle;
-                summarySheet.Tables.Delete(excelTable.Name);
-                var newTable = summarySheet.Tables.Add(newAddress, tableName);
-                newTable.ShowHeader = true;
-                newTable.ShowTotal = true;
-                newTable.TableStyle = tableStyle;
-            }
-
-            package.Workbook.CalcMode = ExcelCalcMode.Automatic;
+            Logger.Info("月間集計シートの同期処理が完了しました。");
         }
+
+
+
+
+
 
         public List<string> GetVehicleSheetNames()
         {
-            return _inputPackage.Workbook.Worksheets.Where(s => !s.Name.Contains("登録")).Select(s => s.Name).ToList();
+            return _inputPackage.Workbook.Worksheets
+                .Where(s => !s.Name.Contains("登録"))
+                .Select(s => s.Name)
+                .ToList();
         }
 
         private (string Branch, string Number) ParseSheetNameToBranchAndNumber(string sheetName)
@@ -213,7 +214,7 @@ namespace HansoInputTool.Services
         {
             string categoryKey = GetCategoryKey(baseSheetName);
             var categorySheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) == categoryKey).ToList();
-            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); }
+            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); } // Position -> Index
             return package.Workbook.Worksheets.Count;
         }
 
