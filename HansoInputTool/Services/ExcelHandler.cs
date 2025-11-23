@@ -42,8 +42,16 @@ namespace HansoInputTool.Services
 
         public void Save()
         {
-            _inputPackage?.Save();
-            _templatePackage?.Save();
+            try
+            {
+                _inputPackage?.Save();
+                _templatePackage?.Save();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Excel 保存中に例外が発生しました。");
+                throw;
+            }
         }
 
         public void SyncAllVehicleSheets(List<string> sheetsToDelete, Dictionary<string, string> renameMap, List<(string newName, string templateName)> sheetsToAdd)
@@ -60,7 +68,11 @@ namespace HansoInputTool.Services
             foreach (var sheetName in sheetsToDelete)
             {
                 var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
-                if (ws != null) { package.Workbook.Worksheets.Delete(ws); Logger.Info($"{fileName}: シート削除 -> {sheetName}"); }
+                if (ws != null)
+                {
+                    package.Workbook.Worksheets.Delete(ws);
+                    Logger.Info($"{fileName}: シート削除 -> {sheetName}");
+                }
             }
 
             foreach (var kvp in renameMap)
@@ -92,80 +104,110 @@ namespace HansoInputTool.Services
             }
         }
 
-        // Services/ExcelHandler.cs の中
-
+        // ================================================================
+        // 🔧 完全修正版：月間集計シートの更新（Rangeエラー対策済）
+        // ================================================================
         private void UpdateMonthlySummarySheetIfNeeded(ExcelPackage package)
         {
             var summarySheet = package.Workbook.Worksheets["月間集計"];
-            if (summarySheet == null) return;
-
-            Logger.Info("月間集計シートの同期処理を開始します。");
-
-            var table = summarySheet.Tables.FirstOrDefault();
-            if (table == null)
+            if (summarySheet == null)
             {
-                Logger.Warn("'月間集計' シートにExcelテーブルが見つかりません。");
+                Logger.Warn("月間集計シートが見つかりません。");
                 return;
             }
 
-            int headerRow = table.Address.Start.Row;
-            int dataStartRow = headerRow + 1;
-            int startCol = table.Address.Start.Column;
-            int endCol = table.Address.End.Column;
+            Logger.Info("月間集計シートの同期処理を開始します。");
 
-            // 対象シート一覧（車両）
-            var vehicleSheets = package.Workbook.Worksheets
-                .Where(ws => ws.Name != "月間集計" && GetCategoryKey(ws.Name) != "その他")
+            var oldTable = summarySheet.Tables.FirstOrDefault();
+            if (oldTable == null)
+            {
+                Logger.Warn("'月間集計' シートにExcelテーブルが見つかりませんでした。");
+                return;
+            }
+
+            // 1. テーブル情報を退避
+            string tableName = oldTable.Name;
+            var tableStyle = oldTable.TableStyle;
+            bool showHeader = oldTable.ShowHeader;
+            bool showTotal = oldTable.ShowTotal;
+            int startRow = oldTable.Address.Start.Row;
+            int startCol = oldTable.Address.Start.Column;
+            int endCol = oldTable.Address.End.Column;
+            int headerRows = showHeader ? 1 : 0;
+            int dataStartRow = startRow + headerRows;
+
+            // 2. テーブル削除
+            summarySheet.Tables.Delete(tableName);
+            oldTable = null;
+
+            // 3. 対象データ一覧
+            var allVehicleSheets = package.Workbook.Worksheets
+                .Where(ws => GetCategoryKey(ws.Name) != "その他" && ws.Name != "月間集計")
                 .Select(ws => ws.Name)
                 .OrderBy(s => GetCategoryOrder(s))
                 .ThenBy(s => s)
                 .ToList();
 
-            // 既存データの削除（ヘッダー以外）
-            int oldDataCount = table.Address.End.Row - dataStartRow + 1;
-            if (oldDataCount > 0)
-                summarySheet.DeleteRow(dataStartRow, oldDataCount);
-
-            // 新しいデータの挿入
-            for (int i = 0; i < vehicleSheets.Count; i++)
+            // 4. 行削除
+            if (summarySheet.Dimension != null)
             {
-                int row = dataStartRow + i;
-                summarySheet.InsertRow(row, 1);
-
-                var sheetName = vehicleSheets[i];
-                var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
-
-                summarySheet.Cells[row, startCol + 0].Value = $"No.{i + 1}";
-                summarySheet.Cells[row, startCol + 1].Value = branch;
-                summarySheet.Cells[row, startCol + 2].Value = int.TryParse(number, out int num) ? num : (object)number;
-
-                summarySheet.Cells[row, startCol + 3].Formula = $"'{sheetName}'!E4";
-                summarySheet.Cells[row, startCol + 4].Formula = $"SUM('{sheetName}'!$C$3:$C$33)";
-                summarySheet.Cells[row, startCol + 5].Formula = $"IF(E{row}>0, D{row}/E{row}, 0)";
-                summarySheet.Cells[row, startCol + 6].Formula = $"SUM('{sheetName}'!$F$3:$F$33)";
-                summarySheet.Cells[row, startCol + 7].Formula = $"SUM('{sheetName}'!$G$3:$G$33)";
-                summarySheet.Cells[row, startCol + 8].Formula = $"SUM('{sheetName}'!$H$3:$H$33)";
-                summarySheet.Cells[row, startCol + 9].Formula = $"H{row}+I{row}";
-                summarySheet.Cells[row, startCol + 10].Formula = $"SUM('{sheetName}'!$I$3:$I$33)";
+                int lastRow = summarySheet.Dimension.End.Row;
+                if (lastRow >= dataStartRow)
+                {
+                    summarySheet.DeleteRow(dataStartRow, lastRow - dataStartRow + 1);
+                }
             }
 
-            // テーブルの範囲をリセット（再作成しない）
-            int newEndRow = dataStartRow + vehicleSheets.Count - 1;
-            var newRange = summarySheet.Cells[headerRow, startCol, newEndRow, endCol];
-            summarySheet.Tables.Delete(table.Name);
-            var newTable = summarySheet.Tables.Add(newRange, table.Name);
+            // 5. 行追加
+            int insertCount = Math.Max(allVehicleSheets.Count, 1);
+            summarySheet.InsertRow(dataStartRow, insertCount);
 
-            // フィルター非表示
-            newTable.ShowFilter = false;
+            // 6. テーブル再定義
+            int endRow = startRow + headerRows + insertCount - 1;
+            var newAddress = new ExcelAddress(startRow, startCol, endRow, endCol);
+            var newTable = summarySheet.Tables.Add(newAddress, tableName);
+            newTable.ShowHeader = showHeader;
+            newTable.ShowTotal = showTotal;
+            newTable.TableStyle = tableStyle;
 
-            Logger.Info("月間集計シートの同期処理が完了しました。");
+            // 7. データ書き込み
+            for (int i = 0; i < allVehicleSheets.Count; i++)
+            {
+                string sheetName = allVehicleSheets[i];
+                var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
+                int currentRow = dataStartRow + i;
+
+                summarySheet.Cells[currentRow, 1].Value = $"No.{i + 1}";
+                summarySheet.Cells[currentRow, 2].Value = branch;
+                summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
+
+                summarySheet.Cells[currentRow, 4].Formula = $"'{sheetName}'!E4";
+                summarySheet.Cells[currentRow, 5].Formula = $"'{sheetName}'!G4";
+                summarySheet.Cells[currentRow, 6].Formula = $"IF(E{currentRow}>0, D{currentRow}/E{currentRow}, 0)";
+                summarySheet.Cells[currentRow, 7].Formula = $"'{sheetName}'!G4";
+                summarySheet.Cells[currentRow, 8].Formula = $"'{sheetName}'!H4";
+                summarySheet.Cells[currentRow, 9].Formula = $"'{sheetName}'!I4";
+                summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
+                summarySheet.Cells[currentRow, 11].Formula = $"'{sheetName}'!K4";
+            }
+
+            // 8. データ0件時のクリア
+            if (!allVehicleSheets.Any())
+            {
+                for (int col = startCol; col <= endCol; col++)
+                {
+                    summarySheet.Cells[dataStartRow, col].Value = null;
+                    summarySheet.Cells[dataStartRow, col].Formula = null;
+                }
+            }
+
+            package.Workbook.CalcMode = ExcelCalcMode.Automatic;
+            Logger.Info("月間集計シートの更新が完了しました。");
         }
 
-
-
-
-
-
+        // ================================================================
+        // 以降：元の機能群（復元済み）
+        // ================================================================
         public List<string> GetVehicleSheetNames()
         {
             return _inputPackage.Workbook.Worksheets
@@ -214,7 +256,7 @@ namespace HansoInputTool.Services
         {
             string categoryKey = GetCategoryKey(baseSheetName);
             var categorySheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) == categoryKey).ToList();
-            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); } // Position -> Index
+            if (categorySheets.Any()) return categorySheets.Max(ws => ws.Index);
             return package.Workbook.Worksheets.Count;
         }
 
@@ -224,7 +266,7 @@ namespace HansoInputTool.Services
             if (sheetName.Contains("東日本セレモニー"))
             {
                 var numberMatch = Regex.Match(sheetName, @"\d+$");
-                if (numberMatch.Success && int.TryParse(numberMatch.Value, out int number)) { ws.Cells["C4"].Value = number; }
+                if (numberMatch.Success && int.TryParse(numberMatch.Value, out int number)) ws.Cells["C4"].Value = number;
             }
             else
             {
@@ -237,6 +279,8 @@ namespace HansoInputTool.Services
                 else { ws.Cells["D1"].Value = sheetName; ws.Cells["H1"].Value = null; }
             }
         }
+
+        // --- 以下、必要なメソッド群（復元） ---
 
         public List<RowData> GetSheetDataForPreview(string sheetName)
         {
@@ -288,7 +332,10 @@ namespace HansoInputTool.Services
         public void DeleteRows(string sheetName, List<int> rowIndices)
         {
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
-            foreach (var rowIndex in rowIndices.OrderByDescending(r => r)) { ws.DeleteRow(rowIndex); }
+            foreach (var rowIndex in rowIndices.OrderByDescending(r => r))
+            {
+                ws.DeleteRow(rowIndex);
+            }
         }
 
         private void UpdateRowInternal(ExcelWorksheet ws, int rowIndex, Dictionary<string, double?> values, bool isKoryo)
@@ -302,8 +349,16 @@ namespace HansoInputTool.Services
             ws.Cells[rowIndex, map.YuryoKm].Value = yuryoVal;
             ws.Cells[rowIndex, map.MuryoKm].Value = values.GetValueOrDefault("無料キロ(E)");
             ws.Cells[rowIndex, map.IsKoryo].Value = isKoryo ? 1 : (object)null;
-            if (isOotsuki) { ws.Cells[rowIndex, map.ShinyaFee].Value = values.GetValueOrDefault("深夜料金(H)"); ws.Cells[rowIndex, map.ShinyaMinutes].Value = null; }
-            else { ws.Cells[rowIndex, map.ShinyaFee].Value = null; ws.Cells[rowIndex, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)"); }
+            if (isOotsuki)
+            {
+                ws.Cells[rowIndex, map.ShinyaFee].Value = values.GetValueOrDefault("深夜料金(H)");
+                ws.Cells[rowIndex, map.ShinyaMinutes].Value = null;
+            }
+            else
+            {
+                ws.Cells[rowIndex, map.ShinyaFee].Value = null;
+                ws.Cells[rowIndex, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)");
+            }
         }
 
         public void RegisterEastData(string sheetName, Dictionary<string, double?> values)
@@ -341,8 +396,11 @@ namespace HansoInputTool.Services
                 }
                 else if (ws.Name.Contains("東日本"))
                 {
-                    ws.Cells[eastMap.Jitsudo].Value = null; ws.Cells[eastMap.Hanso].Value = null; ws.Cells[eastMap.YuryoKm].Value = null;
-                    ws.Cells[eastMap.MuryoKm].Value = null; ws.Cells[eastMap.UnsoJisseki].Value = null;
+                    ws.Cells[eastMap.Jitsudo].Value = null;
+                    ws.Cells[eastMap.Hanso].Value = null;
+                    ws.Cells[eastMap.YuryoKm].Value = null;
+                    ws.Cells[eastMap.MuryoKm].Value = null;
+                    ws.Cells[eastMap.UnsoJisseki].Value = null;
                     logMessages.Add($"[{ws.Name}] のデータをクリアしました。");
                 }
             }
@@ -355,7 +413,8 @@ namespace HansoInputTool.Services
             var map = _columnMap.NormalSheet;
             foreach (var ws in _inputPackage.Workbook.Worksheets)
             {
-                if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH")) && ws.Cells[3, map.Day].Value != null) return true;
+                if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH")) && ws.Cells[3, map.Day].Value != null)
+                    return true;
             }
             return false;
         }
@@ -363,14 +422,21 @@ namespace HansoInputTool.Services
         private static int FindTotalRow(ExcelWorksheet ws)
         {
             if (ws?.Dimension == null) return -1;
-            for (int row = ws.Dimension.End.Row; row >= 3; row--) { if (ws.Cells[row, 1].Value?.ToString()?.Contains("合計") == true) return row; }
+            for (int row = ws.Dimension.End.Row; row >= 3; row--)
+            {
+                if (ws.Cells[row, 1].Value?.ToString()?.Contains("合計") == true)
+                    return row;
+            }
             return -1;
         }
 
         private (int targetRow, string insertInfo) FindTargetRow(ExcelWorksheet ws, int totalRowIndex)
         {
             var map = _columnMap.NormalSheet;
-            for (int rowNum = 3; rowNum < totalRowIndex; rowNum++) { if (ws.Cells[rowNum, map.Day].Value == null) return (rowNum, ""); }
+            for (int rowNum = 3; rowNum < totalRowIndex; rowNum++)
+            {
+                if (ws.Cells[rowNum, map.Day].Value == null) return (rowNum, "");
+            }
             ws.InsertRow(totalRowIndex, 1);
             return (totalRowIndex, "空き行がないため、合計行の上に新しい行を挿入します。");
         }
