@@ -32,6 +32,7 @@ namespace HansoInputTool.ViewModels
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
+
         private static readonly string BaseDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
         private static readonly string RatesFilePath = Path.Combine(BaseDataPath, "rates.json");
         private static readonly string InputFilePath = Path.Combine(BaseDataPath, "Input.xlsx");
@@ -184,7 +185,6 @@ namespace HansoInputTool.ViewModels
         private void UpdatePreview()
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { PreviewData.Clear(); return; }
-            ;
             PreviewData.Clear();
             var data = _excelHandler.GetSheetDataForPreview(SelectedNormalSheet);
             foreach (var item in data) { PreviewData.Add(item); }
@@ -193,9 +193,9 @@ namespace HansoInputTool.ViewModels
         public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, bool isKoryo)
         {
             _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, isKoryo);
+            UpdatePreview();
             _excelHandler.Save();
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。");
-            UpdatePreview();
         }
 
         public void UpdateRatesAndReload(Dictionary<string, RateInfo> newRates)
@@ -222,12 +222,12 @@ namespace HansoInputTool.ViewModels
             try
             {
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, IsKoryo);
+                UpdatePreview();
                 _excelHandler.Save();
                 if (!string.IsNullOrEmpty(insertInfo)) Log($"[{SelectedNormalSheet}] {insertInfo}");
                 Log($"[{SelectedNormalSheet}] の {targetRow}行目にデータを登録しました。");
                 NormalDay = NormalYuryoKm = NormalMuryoKm = NormalLateValue = string.Empty;
                 IsKoryo = false;
-                UpdatePreview();
                 await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "NormalDayTextBox" });
             }
@@ -397,13 +397,18 @@ namespace HansoInputTool.ViewModels
         private void DeleteSelectedRow()
         {
             if (SelectedRow == null) return;
-            var result = MessageBox.Show($"選択した行({SelectedRow.RowIndex}行目)を削除しますか？\nこの操作は元に戻せません。", "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            // 参照をキャプチャ
+            var sheet = SelectedNormalSheet;
+            var rowIndex = SelectedRow.RowIndex;
+
+            var result = MessageBox.Show($"選択した行({rowIndex}行目)を削除しますか？\nこの操作は元に戻せません。", "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (result == MessageBoxResult.Yes)
             {
-                _excelHandler.DeleteRows(SelectedNormalSheet, new List<int> { SelectedRow.RowIndex });
-                _excelHandler.Save();
-                Log($"[{SelectedNormalSheet}] から {SelectedRow.RowIndex}行目のデータを削除しました。");
+                _excelHandler.DeleteRows(sheet, new List<int> { rowIndex });
                 UpdatePreview();
+                _excelHandler.Save();
+                Log($"[{sheet}] から {rowIndex}行目のデータを削除しました。");
             }
         }
     }
