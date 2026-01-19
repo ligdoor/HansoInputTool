@@ -624,17 +624,40 @@ namespace HansoInputTool.Services
         private void UpdateSheetCells(ExcelWorksheet ws)
         {
             string sheetName = ws.Name;
+
+            // 東日本セレモニーの場合のみ特殊処理（C4に番号）
             if (sheetName.Contains("東日本セレモニー"))
             {
                 var numberMatch = Regex.Match(sheetName, @"\d+$");
-                if (numberMatch.Success && int.TryParse(numberMatch.Value, out int number)) { ws.Cells["C4"].Value = number; }
+                if (numberMatch.Success && int.TryParse(numberMatch.Value, out int number))
+                {
+                    ws.Cells["C4"].Value = number;
+                }
+                return;
             }
-            else
+
+            // その他の車両はすべてD1とH1に設定
+
+            // 番号を抽出
+            var numberMatch2 = Regex.Match(sheetName, @"\d+");
+            int? vehicleNumber = null;
+            if (numberMatch2.Success && int.TryParse(numberMatch2.Value, out int num))
             {
-                var (branch, number) = ParseSheetNameToBranchAndNumberForNormalSheet(sheetName);
-                ws.Cells["B4"].Value = branch;
-                ws.Cells["C4"].Value = int.TryParse(number, out int numValue) ? numValue : (object)null;
+                vehicleNumber = num;
             }
+
+            // D1に営業所名+車種名を設定（番号以外の部分）
+            string d1Value = sheetName;
+            if (vehicleNumber.HasValue)
+            {
+                // 最後の数字を削除
+                d1Value = Regex.Replace(sheetName, @"\s*\d+$", "").Trim();
+            }
+
+            ws.Cells["D1"].Value = d1Value;
+
+            // H1に番号を設定
+            ws.Cells["H1"].Value = vehicleNumber;
         }
 
         // 通常シート登録（行挿入含む）: (targetRow, insertInfo) を返す

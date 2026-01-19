@@ -71,12 +71,15 @@ namespace HansoInputTool.ViewModels
         {
             if (VehicleSheetList.Any(v => string.IsNullOrWhiteSpace(v.VehicleTypeName)))
             {
-                MessageBox.Show("車両名が空の項目があります。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return;
+                MessageBox.Show("車両名が空の項目があります。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
+
             var duplicate = VehicleSheetList.GroupBy(v => v.VehicleTypeName).FirstOrDefault(g => g.Count() > 1);
             if (duplicate != null)
             {
-                MessageBox.Show($"車両名 '{duplicate.Key}' が重複しています。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return;
+                MessageBox.Show($"車両名 '{duplicate.Key}' が重複しています。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
 
             try
@@ -92,19 +95,26 @@ namespace HansoInputTool.ViewModels
 
                 var addedVMs = finalSheetVMs.Where(vm => vm.OriginalSheetName == null).ToList();
                 var sheetsToAdd = new List<(string newName, string templateName)>();
+
                 foreach (var vehicleVM in addedVMs)
                 {
-                    string templateSheetName = "Template";
+                    // 東日本セレモニーの場合はTemplate2、それ以外はTemplate1を使用
+                    // Input.xlsxからコピーするのでTemplateSheetExistsは使わない
+                    string templateSheetName = vehicleVM.Selected事業所カテゴリ == "東日本セレモニー"
+                        ? "Template2"
+                        : "Template1";
 
-                    if (!_excelHandler.TemplateSheetExists(templateSheetName))
+                    // Input.xlsxにテンプレートシートが存在するか確認
+                    if (!_excelHandler.SheetNames.Contains(templateSheetName))
                     {
-                        MessageBox.Show($"コピー元となるテンプレートシート '{templateSheetName}' が見つかりません。\nTemplate.xlsxに'Template'という名前のシートを作成してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show($"コピー元となるテンプレートシート '{templateSheetName}' が見つかりません。\nInput.xlsxに'{templateSheetName}'という名前のシートを作成してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                         _excelHandler.Load();
                         return;
                     }
 
                     sheetsToAdd.Add((vehicleVM.VehicleTypeName, templateSheetName));
                 }
+
                 _excelHandler.SyncAllVehicleSheets(sheetsToDelete, renameMap, sheetsToAdd);
                 _excelHandler.Save();
 
@@ -114,7 +124,10 @@ namespace HansoInputTool.ViewModels
                 _mainViewModel.UpdateRatesAndReload(Rates);
 
                 MessageBox.Show("設定を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
-                if (parameter is Window window) { window.Close(); }
+                if (parameter is Window window)
+                {
+                    window.Close();
+                }
             }
             catch (Exception ex)
             {
