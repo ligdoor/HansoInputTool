@@ -86,21 +86,25 @@ namespace HansoInputTool.ViewModels
 
                 var finalOriginalNames = finalSheetVMs.Where(vm => vm.OriginalSheetName != null).Select(vm => vm.OriginalSheetName).ToList();
                 var sheetsToDelete = originalSheetNames.Except(finalOriginalNames).ToList();
+
                 var renamedVMs = finalSheetVMs.Where(vm => vm.OriginalSheetName != null && vm.OriginalSheetName != vm.VehicleTypeName).ToList();
                 var renameMap = renamedVMs.ToDictionary(vm => vm.OriginalSheetName, vm => vm.VehicleTypeName);
+
                 var addedVMs = finalSheetVMs.Where(vm => vm.OriginalSheetName == null).ToList();
                 var sheetsToAdd = new List<(string newName, string templateName)>();
                 foreach (var vehicleVM in addedVMs)
                 {
-                    string templateSheetName = FindTemplateSheetName(vehicleVM.Selected事業所カテゴリ, vehicleVM.Selected車種);
-                    if (string.IsNullOrEmpty(templateSheetName) || !_excelHandler.SheetNames.Contains(templateSheetName))
+                    string templateSheetName = "Template";
+
+                    if (!_excelHandler.TemplateSheetExists(templateSheetName))
                     {
-                        MessageBox.Show($"コピー元となるテンプレートシート '{templateSheetName}' が見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                        _excelHandler.Load(); return;
+                        MessageBox.Show($"コピー元となるテンプレートシート '{templateSheetName}' が見つかりません。\nTemplate.xlsxに'Template'という名前のシートを作成してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                        _excelHandler.Load();
+                        return;
                     }
+
                     sheetsToAdd.Add((vehicleVM.VehicleTypeName, templateSheetName));
                 }
-
                 _excelHandler.SyncAllVehicleSheets(sheetsToDelete, renameMap, sheetsToAdd);
                 _excelHandler.Save();
 
@@ -117,20 +121,6 @@ namespace HansoInputTool.ViewModels
                 MessageBox.Show($"設定の保存中にエラーが発生しました。\n{ex.Message}", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                 _excelHandler.Load();
             }
-        }
-
-        private string FindTemplateSheetName(string category, string shashu)
-        {
-            var sheetNames = _excelHandler.GetVehicleSheetNames();
-            if (category == "CH大月") return sheetNames.FirstOrDefault(s => s.Contains("CH大月")) ?? "寝台車 30";
-            if (category == "CH東富士") return sheetNames.FirstOrDefault(s => s.Contains("CH東富士")) ?? "寝台車 30";
-            if (category == "東日本セレモニー") return "東日本セレモニー 1961";
-            if (category == "CH富士吉田" || category == "通常")
-            {
-                if (shashu == "寝台車") return "寝台車 30";
-                if (shashu == "霊柩車") return sheetNames.FirstOrDefault(s => s.Contains("霊柩車"));
-            }
-            return "寝台車 30";
         }
     }
 }

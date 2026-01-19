@@ -21,8 +21,6 @@ namespace HansoInputTool.Services
         private ExcelPackage _templatePackage;
         private readonly Dictionary<string, List<RowData>> _dataCache = new();
 
-        public List<string> SheetNames => _inputPackage?.Workbook.Worksheets.Select(ws => ws.Name).ToList() ?? new List<string>();
-
         public ExcelHandler(string inputFilePath, string templateFilePath, ColumnMapping columnMap)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -31,6 +29,16 @@ namespace HansoInputTool.Services
             _columnMap = columnMap;
             Load();
         }
+        private bool NeedQuotes(string sheetName)
+        {
+            return sheetName.Contains(" ") ||
+                   sheetName.Contains("-") ||
+                   sheetName.Contains("(") ||
+                   sheetName.Contains(")") ||
+                   sheetName.Contains("'") ||
+                   sheetName.Contains("!") ||
+                   sheetName.Contains("#");
+        }
 
         public void Load()
         {
@@ -38,32 +46,54 @@ namespace HansoInputTool.Services
             _templatePackage?.Dispose();
             _inputPackage = new ExcelPackage(new FileInfo(_inputFilePath));
             _templatePackage = new ExcelPackage(new FileInfo(_templateFilePath));
-            _dataCache.Clear(); // ロード時に必ずキャッシュをクリア
+            _dataCache.Clear();
         }
 
+        // Save の誤字修正
         public void Save()
         {
             _inputPackage?.Save();
             _templatePackage?.Save();
         }
 
+        public bool TemplateSheetExists(string sheetName)
+        {
+            return _templatePackage.Workbook.Worksheets.Any(ws => ws.Name == sheetName);
+        }
+        public List<string> SheetNames => _inputPackage?.Workbook.Worksheets
+            .Where(ws => !ws.Name.Contains("登録") && !IsTemplateSheet(ws.Name))
+            .Select(ws => ws.Name)
+            .ToList() ?? new List<string>();
+
         public void SyncAllVehicleSheets(List<string> sheetsToDelete, Dictionary<string, string> renameMap, List<(string newName, string templateName)> sheetsToAdd)
         {
             SyncPackageSheets(_inputPackage, "Input.xlsx", sheetsToDelete, renameMap, sheetsToAdd, true);
             SyncPackageSheets(_templatePackage, "Template.xlsx", sheetsToDelete, renameMap, sheetsToAdd, false);
-            UpdateMonthlySummarySheetIfNeeded(_templatePackage);
+
+            // 両ファイルともシートを支社名毎に並べ替え
+            ReorderVehicleSheets(_inputPackage);
+            ReorderVehicleSheets(_templatePackage);
+
+            // 月間集計は Input 側を更新する（Template を破壊しない）
+            UpdateMonthlySummarySheetIfNeeded(_inputPackage);
         }
 
         private void SyncPackageSheets(ExcelPackage package, string fileName, List<string> sheetsToDelete, Dictionary<string, string> renameMap, List<(string newName, string templateName)> sheetsToAdd, bool isInputFile)
         {
             Logger.Info($"{fileName} のシート同期処理を開始します。");
 
+            // 削除
             foreach (var sheetName in sheetsToDelete)
             {
                 var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
-                if (ws != null) { package.Workbook.Worksheets.Delete(ws); Logger.Info($"{fileName}: シート削除 -> {sheetName}"); }
+                if (ws != null)
+                {
+                    package.Workbook.Worksheets.Delete(ws);
+                    Logger.Info($"{fileName}: シート削除 -> {sheetName}");
+                }
             }
 
+            // リネーム
             foreach (var kvp in renameMap)
             {
                 var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == kvp.Key);
@@ -75,112 +105,489 @@ namespace HansoInputTool.Services
                 }
             }
 
+            // 追加
             foreach (var (newName, templateName) in sheetsToAdd)
             {
-                var templateWs = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
-                if (templateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateName}' が{fileName}に見つかりません。");
-                int insertIndex = GetInsertIndex(package, templateName);
-                var newWs = package.Workbook.Worksheets.Copy(templateWs.Name, newName);
-                if (package.Workbook.Worksheets.Count > 1) { package.Workbook.Worksheets.MoveAfter(newWs.Index, insertIndex); }
-                if (isInputFile) UpdateSheetCells(newWs);
-                Logger.Info($"{fileName}: シート追加 -> {newName} (テンプレート: {templateName})");
+                ExcelWorksheet templateWs;
+                if (isInputFile)
+                {
+                    // 明示ルール: CH系は Template1、東日本セレモニーは Template2
+                    try
+                    {
+                        var resolved = ParseSheetNameToBranchAndNumber(newName);
+                        var branch = resolved.Branch ?? "";
+
+                        bool isChFujiYoshida = newName.Contains("CH富士吉田") || templateName.Contains("CH富士吉田");
+                        bool isChOotsuki = newName.Contains("CH大月") || templateName.Contains("CH大月");
+                        bool isChHigashiFuji = newName.Contains("CH東富士") || templateName.Contains("CH東富士");
+                        bool isEastCeremony = newName.Contains("東日本セレモニー") || templateName.Contains("東日本セレモニー") || branch.Contains("東日本");
+
+                        string preferredTemplate;
+                        if (isEastCeremony)
+                        {
+                            preferredTemplate = "Template2";
+                        }
+                        else if (isChFujiYoshida || isChOotsuki || isChHigashiFuji)
+                        {
+                            preferredTemplate = "Template1";
+                        }
+                        else
+                        {
+                            bool isEast = branch.Contains("東日本") || newName.Contains("東日本") || templateName.Contains("東日本");
+                            preferredTemplate = isEast ? "Template2" : "Template1";
+                        }
+
+                        templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == preferredTemplate)
+                                     ?? _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn(ex, $"テンプレート選択で例外が発生しました。既定のテンプレート '{templateName}' を使用します。");
+                        templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                    }
+                }
+                else
+                {
+                    templateWs = _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                }
+
+                if (templateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateName}' が Template.xlsx に見つかりません。");
+
+                // 挿入位置は追加されるシート名（newName）に基づいて決定する
+                int insertIndex = GetInsertIndex(package, newName);
+                var newWs = package.Workbook.Worksheets.Add(newName, templateWs);
+
+                if (package.Workbook.Worksheets.Count > 1)
+                {
+                    try
+                    {
+                        package.Workbook.Worksheets.MoveAfter(newWs.Index, insertIndex);
+                    }
+                    catch
+                    {
+                        Logger.Warn($"{fileName}: シート移動に失敗しました -> {newName}");
+                    }
+                }
+
+                UpdateFormulas(newWs, templateName, newName);
+
+                if (isInputFile)
+                {
+                    // 支社名・番号・種類を解決
+                    var resolved = ParseSheetNameToBranchAndNumber(newName);
+                    var branch = resolved.Branch;
+                    var number = resolved.Number;
+
+                    if (string.IsNullOrWhiteSpace(branch))
+                    {
+                        branch = ParseSheetNameToBranchAndNumber(templateName).Branch;
+                    }
+
+                    // 種類はカテゴリキーで判定（寝台車 or 霊柩車）
+                    var categoryKey = GetCategoryKey(newName);
+                    if (categoryKey == "その他") categoryKey = GetCategoryKey(templateName);
+
+                    // テンプレート側に明示的な種類情報があれば優先して利用する
+                    var templateCategory = GetCategoryKey(templateName);
+                    string inferredTypeFromTemplate = templateCategory == "霊柩車" || templateCategory == "寝台車" ? templateCategory : null;
+
+                    // 優先ルール: テンプレート側の種類 -> シート名のカテゴリ -> デフォルト寝台車
+                    string typeText = inferredTypeFromTemplate ?? (categoryKey == "霊柩車" ? "霊柩車" : "寝台車");
+
+                    // branch に既にタイプが含まれているかチェック
+                    bool branchContainsType = !string.IsNullOrWhiteSpace(branch) && (branch.Contains("霊柩車") || branch.Contains("寝台車"));
+                    // branch から種類語を取り除いた支社名（空なら ""）
+                    var branchClean = (branch ?? "").Replace("霊柩車", "").Replace("寝台車", "").Trim();
+
+                    // typeText を最終的に使うか決める
+                    // - branch に種類語が含まれていない => typeText を使う
+                    // - branch に種類語が含まれているが branchClean が空（＝支社名が種類語のみ） => typeText を使う
+                    // - branch に種類語が含まれていて branchClean に支社名が残っている => 重複を避けて付けない
+                    string typeTextToUse;
+                    if (!branchContainsType) typeTextToUse = typeText;
+                    else typeTextToUse = string.IsNullOrWhiteSpace(branchClean) ? typeText : "" ;
+
+                    // 東日本系は B4/C4 に設定（Template2 相当）
+                    bool isEast = (categoryKey != null && categoryKey.Contains("東日本")) || (!string.IsNullOrWhiteSpace(branch) && branch.Contains("東日本")) || newName.Contains("東日本");
+                    if (isEast)
+                    {
+                        if (!string.IsNullOrWhiteSpace(branch)) newWs.Cells["B4"].Value = branch;
+                        if (!string.IsNullOrWhiteSpace(number) && int.TryParse(number, out int n1)) newWs.Cells["C4"].Value = n1;
+                        else if (!string.IsNullOrWhiteSpace(number)) newWs.Cells["C4"].Value = number;
+                    }
+                    else
+                    {
+                        // D1 に表示する支社名（種類語を除いた branchClean を優先）
+                        var d1 = string.IsNullOrWhiteSpace(typeTextToUse)
+                            ? branchClean
+                            : (string.IsNullOrWhiteSpace(branchClean) ? typeTextToUse : $"{branchClean} {typeTextToUse}").Trim();
+
+                        if (!string.IsNullOrWhiteSpace(d1)) newWs.Cells["D1"].Value = d1;
+
+                        if (!string.IsNullOrWhiteSpace(number) && int.TryParse(number, out int n2)) newWs.Cells["H1"].Value = n2;
+                        else if (!string.IsNullOrWhiteSpace(number)) newWs.Cells["H1"].Value = number;
+                    }
+
+                    // シート名を「支社名 種類 車両番号」に変更（重複を避け、branch が種類語のみなら種類語は付与する）
+                    var nameParts = new List<string>();
+                    // branchClean が空でも、template 側の種類がある場合は typeTextToUse がセットされるので種類は付く
+                    if (!string.IsNullOrWhiteSpace(branchClean)) nameParts.Add(branchClean);
+                    if (!string.IsNullOrWhiteSpace(typeTextToUse)) nameParts.Add(typeTextToUse);
+                    if (!string.IsNullOrWhiteSpace(number)) nameParts.Add(number);
+                    var finalName = string.Join(" ", nameParts).Trim();
+                    if (!string.IsNullOrWhiteSpace(finalName))
+                    {
+                        try { newWs.Name = finalName; }
+                        catch (Exception ex) { Logger.Warn(ex, $"シート名変更に失敗しました: {finalName}"); }
+                    }
+
+                    // B4/C4 の上書きに備え補助処理を呼ぶ
+                    UpdateSheetCells(newWs);
+                }
+
+                Logger.Info($"{fileName}: シート追加 -> {newWs.Name} (テンプレート: {templateName})");
+            }
+
+            // 追加後は必ず並べ替え（追加したシートも含める）
+            try
+            {
+                ReorderVehicleSheets(package);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "追加後の自動並べ替えに失敗しました。");
             }
         }
 
         private void UpdateMonthlySummarySheetIfNeeded(ExcelPackage package)
         {
             var summarySheet = package.Workbook.Worksheets["月間集計"];
-            if (summarySheet == null) return;
-            Logger.Info("月間集計シートの同期処理を開始します。");
-            var excelTable = summarySheet.Tables.FirstOrDefault();
-            if (excelTable == null) { Logger.Warn("'月間集計' シートにExcelテーブルが見つかりませんでした。"); return; }
+            if (summarySheet == null)
+            {
+                Logger.Warn("月間集計シートが見つかりません。");
+                return;
+            }
+
+            Logger.Info("=== 月間集計シートの更新を開始 ===");
+
+            // 対象シート一覧を取得（月間集計シート自体を除外）
             var allVehicleSheets = package.Workbook.Worksheets
-                .Where(ws => GetCategoryKey(ws.Name) != "その他" && ws.Name != "月間集計")
-                .Select(ws => ws.Name).OrderBy(s => GetCategoryOrder(s)).ThenBy(s => s).ToList();
-            var headerRows = excelTable.ShowHeader ? 1 : 0;
-            var startRow = excelTable.Address.Start.Row;
-            var startCol = excelTable.Address.Start.Column;
-            var endCol = excelTable.Address.End.Column;
-            var dataStartRow = startRow + headerRows;
-            if (excelTable.Address.Rows > headerRows) { summarySheet.DeleteRow(dataStartRow, excelTable.Address.Rows - headerRows); }
-            var tableName = excelTable.Name;
-            var tableStyle = excelTable.TableStyle;
-            summarySheet.Tables.Delete(excelTable.Name);
-            if (allVehicleSheets.Any())
+                .Where(ws => ws.Name != "月間集計")
+                .Select(ws => ws.Name)
+                .OrderBy(s => GetCategoryOrder(s))
+                .ThenBy(s => s)
+                .ToList();
+
+            Logger.Info($"対象車両シート数: {allVehicleSheets.Count}");
+
+            // 固定値（月間集計シートの構造に基づく）
+            int dataStartRow = 6;
+            int startCol = 1;  // A列
+            int endCol = 11;   // K列
+            int maxDataRows = 69; // テーブルの最大データ行数
+
+            // 既存データをすべてクリア
+            for (int row = dataStartRow; row < dataStartRow + maxDataRows; row++)
             {
-                if (allVehicleSheets.Count > 1) { summarySheet.InsertRow(dataStartRow + 1, allVehicleSheets.Count - 1, dataStartRow); }
-                var newAddress = new ExcelAddress(startRow, startCol, startRow + headerRows + allVehicleSheets.Count - 1, endCol);
-                excelTable = summarySheet.Tables.Add(newAddress, tableName);
+                for (int col = startCol; col <= endCol; col++)
+                {
+                    var cell = summarySheet.Cells[row, col];
+                    cell.Value = null;
+                    cell.Formula = null;
+                }
             }
-            else
-            {
-                var newAddress = new ExcelAddress(startRow, startCol, startRow, endCol);
-                excelTable = summarySheet.Tables.Add(newAddress, tableName);
-            }
-            excelTable.ShowHeader = true;
-            excelTable.ShowTotal = true;
-            excelTable.TableStyle = tableStyle;
+            Logger.Info($"{maxDataRows}行分のデータをクリアしました");
+
+            // 新しいデータを書き込み
             for (int i = 0; i < allVehicleSheets.Count; i++)
             {
-                var sheetName = allVehicleSheets[i];
+                string sheetName = allVehicleSheets[i];
                 var (branch, number) = ParseSheetNameToBranchAndNumber(sheetName);
                 int currentRow = dataStartRow + i;
-                summarySheet.Cells[currentRow, 1].Value = $"No.{i + 1}";
-                summarySheet.Cells[currentRow, 2].Value = branch;
-                summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
-                summarySheet.Cells[currentRow, 4].Formula = $"'{sheetName}'!E4";
-                summarySheet.Cells[currentRow, 5].Formula = $"'{sheetName}'!G4";
-                summarySheet.Cells[currentRow, 6].Formula = $"IF(E{currentRow}>0, D{currentRow}/E{currentRow}, 0)";
-                summarySheet.Cells[currentRow, 7].Formula = $"'{sheetName}'!G4";
-                summarySheet.Cells[currentRow, 8].Formula = $"'{sheetName}'!H4";
-                summarySheet.Cells[currentRow, 9].Formula = $"'{sheetName}'!I4";
-                summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
-                summarySheet.Cells[currentRow, 11].Formula = $"'{sheetName}'!K4";
+
+                try
+                {
+                    // A列: No.
+                    summarySheet.Cells[currentRow, 1].Value = $"No.{i + 1}";
+
+                    // B列: 営業所
+                    summarySheet.Cells[currentRow, 2].Value = branch;
+
+                    // C列: 番号
+                    summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
+
+                    // シート名に特殊文字が含まれる場合はシングルクォートで囲む
+                    string safeSheetName = NeedQuotes(sheetName) ? $"'{sheetName}'" : sheetName;
+
+                    // D列: 稼働日数（参照: 各シートのE4）
+                    summarySheet.Cells[currentRow, 4].Formula = $"{safeSheetName}!E4";
+
+                    // E列: 搬送回数（参照: 各シートのG4）
+                    summarySheet.Cells[currentRow, 5].Formula = $"{safeSheetName}!G4";
+
+                    // F列: 平均km（計算: D列/E列）
+                    summarySheet.Cells[currentRow, 6].Formula = $"IF(E{currentRow}>0,D{currentRow}/E{currentRow},0)";
+
+                    // G列: 搬送回数（参照: 各シートのG4）※E列と同じ
+                    summarySheet.Cells[currentRow, 7].Formula = $"{safeSheetName}!G4";
+
+                    // H列: 有料km（参照: 各シートのH4）
+                    summarySheet.Cells[currentRow, 8].Formula = $"{safeSheetName}!H4";
+
+                    // I列: 無料km（参照: 各シートのI4）
+                    summarySheet.Cells[currentRow, 9].Formula = $"{safeSheetName}!I4";
+
+                    // J列: 合計km（計算: H列+I列）
+                    summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
+
+                    // K列: 金額合計（参照: 各シートのK4）
+                    summarySheet.Cells[currentRow, 11].Formula = $"{safeSheetName}!K4";
+
+                    Logger.Info($"Row {currentRow}: {sheetName} のデータを設定しました");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, $"Row {currentRow} ({sheetName}) のデータ設定中にエラーが発生しました");
+                    // エラーが発生しても処理を継続
+                }
             }
+
+            // データがない場合
+            if (!allVehicleSheets.Any())
+            {
+                summarySheet.Cells[dataStartRow, 1].Value = "（車両データなし）";
+                Logger.Info("対象車両シートが0件のため、メッセージを表示しました");
+            }
+
+            // 計算モードを自動に設定
             package.Workbook.CalcMode = ExcelCalcMode.Automatic;
+
+            Logger.Info("=== 月間集計シートの更新が完了しました ===");
+        }
+        // Template 判定
+        private static bool IsTemplateSheet(string sheetName)
+        {
+            if (string.IsNullOrWhiteSpace(sheetName)) return false;
+            var normalized = sheetName.Replace(" ", "").ToLowerInvariant();
+            if (normalized.StartsWith("template", StringComparison.OrdinalIgnoreCase)) return true;
+            if (sheetName.IndexOf("テンプレート", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
         }
 
         public List<string> GetVehicleSheetNames()
         {
-            return _inputPackage.Workbook.Worksheets.Where(s => !s.Name.Contains("登録")).Select(s => s.Name).ToList();
+            return _inputPackage.Workbook.Worksheets
+                .Where(s => !s.Name.Contains("登録") && !IsTemplateSheet(s.Name))
+                .Select(s => s.Name)
+                .ToList();
+        }
+
+        // 安定して並べ替える実装（逆順で先頭へ移動）
+        private void ReorderVehicleSheets(ExcelPackage package)
+        {
+            try
+            {
+                var monthly = package.Workbook.Worksheets.FirstOrDefault(w => w.Name == "月間集計");
+
+                var vehicleInfos = package.Workbook.Worksheets
+                    .Where(ws => GetCategoryKey(ws.Name) != "その他" && !ws.Name.Contains("登録") && ws.Name != "月間集計" && !IsTemplateSheet(ws.Name))
+                    .Select(ws =>
+                    {
+                        var (branch, number) = ParseSheetNameToBranchAndNumber(ws.Name);
+                        int num = int.TryParse(number, out var n) ? n : int.MaxValue;
+                        return new { Name = ws.Name, Branch = branch ?? "", NumberInt = num, CategoryOrder = GetCategoryOrder(ws.Name) };
+                    })
+                    .ToList();
+
+                var orderedNames = vehicleInfos
+                    .OrderBy(v => v.Branch, StringComparer.Ordinal)
+                    .ThenBy(v => v.CategoryOrder)
+                    .ThenBy(v => v.NumberInt)
+                    .ThenBy(v => v.Name, StringComparer.Ordinal)
+                    .Select(v => v.Name)
+                    .ToList();
+
+                // 逆順で先頭に移動
+                for (int i = orderedNames.Count - 1; i >= 0; i--)
+                {
+                    var name = orderedNames[i];
+                    var ws = package.Workbook.Worksheets.FirstOrDefault(x => x.Name == name);
+                    if (ws == null) continue;
+                    package.Workbook.Worksheets.MoveBefore(ws.Index, 1);
+                }
+
+                if (monthly != null)
+                {
+                    package.Workbook.Worksheets.MoveAfter(monthly.Index, package.Workbook.Worksheets.Count);
+                }
+
+                Logger.Info($"パッケージのシート順を支社名毎に並べ替えました。");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "シート並び替え中にエラーが発生しました。");
+            }
+        }
+
+        private void UpdateFormulas(ExcelWorksheet ws, string oldSheetRef, string newSheetRef)
+        {
+            if (ws.Dimension == null) return;
+            foreach (var cell in ws.Cells)
+            {
+                if (!string.IsNullOrEmpty(cell.Formula))
+                {
+                    cell.Formula = cell.Formula.Replace($"'{oldSheetRef}'!", $"'{newSheetRef}'!");
+                }
+            }
+            Logger.Info($"シート '{ws.Name}' の数式を更新しました。");
         }
 
         private (string Branch, string Number) ParseSheetNameToBranchAndNumber(string sheetName)
         {
-            if (sheetName.Contains("東日本セレモニー")) { var numberMatch = Regex.Match(sheetName, @"\d+$"); return ("東日本", numberMatch.Success ? numberMatch.Value : ""); }
+            // 東日本セレモニーの場合
+            if (sheetName.Contains("東日本セレモニー"))
+            {
+                var numberMatch = Regex.Match(sheetName, @"\d+$");
+                return ("東日本セレモニー", numberMatch.Success ? numberMatch.Value : "");
+            }
+
+            // CH富士吉田の場合
+            if (sheetName.Contains("CH富士吉田"))
+            {
+                var numberMatch = Regex.Match(sheetName, @"\d+$");
+                return ("CH富士吉田", numberMatch.Success ? numberMatch.Value : "");
+            }
+
+            // CH大月の場合
+            if (sheetName.Contains("CH大月"))
+            {
+                var numberMatch = Regex.Match(sheetName, @"\d+$");
+                return ("CH大月", numberMatch.Success ? numberMatch.Value : "");
+            }
+
+            // CH東富士の場合
+            if (sheetName.Contains("CH東富士"))
+            {
+                var numberMatch = Regex.Match(sheetName, @"\d+$");
+                return ("CH東富士", numberMatch.Success ? numberMatch.Value : "");
+            }
+
+            // 通常の車両（営業所名なし）- 霊柩車または寝台車
+            if (sheetName.StartsWith("霊柩車") || sheetName.StartsWith("寝台車"))
+            {
+                var parts = sheetName.Split(' ');
+                if (parts.Length > 1 && int.TryParse(parts.Last(), out _))
+                {
+                    // 例: "霊柩車 1" → ("霊柩車", "1")
+                    // 例: "寝台車 30" → ("寝台車", "30")
+                    return (parts[0], parts.Last());
+                }
+                // 番号がない場合
+                return (parts[0], "");
+            }
+
+            return (sheetName, "");
+        }
+        private (string Branch, string Number) ParseSheetNameToBranchAndNumberForNormalSheet(string sheetName)
+        {
             var parts = sheetName.Split(' ');
             if (parts.Length > 1 && int.TryParse(parts.Last(), out _)) { return (string.Join(" ", parts.Take(parts.Length - 1)), parts.Last()); }
             return (sheetName, "");
         }
+
         private int GetCategoryOrder(string sheetName)
         {
-            if (sheetName.Contains("CH富士吉田")) return 1; if (sheetName.Contains("CH大月")) return 2; if (sheetName.Contains("CH東富士")) return 3;
-            if (sheetName.Contains("霊柩車")) return 4; if (sheetName.Contains("寝台車")) return 5; if (sheetName.Contains("東日本")) return 6; return 99;
+            // 通常の車両（営業所名なし） - 最優先
+            if (!sheetName.Contains("CH富士吉田") &&
+                !sheetName.Contains("CH大月") &&
+                !sheetName.Contains("CH東富士") &&
+                !sheetName.Contains("東日本") &&
+                (sheetName.StartsWith("霊柩車") || sheetName.StartsWith("寝台車")))
+            {
+                return 1;
+            }
+
+            // CH富士吉田
+            if (sheetName.Contains("CH富士吉田"))
+                return 2;
+
+            // CH大月
+            if (sheetName.Contains("CH大月"))
+                return 3;
+
+            // CH東富士
+            if (sheetName.Contains("CH東富士"))
+                return 4;
+
+            // 東日本セレモニー
+            if (sheetName.Contains("東日本"))
+                return 5;
+
+            return 99;
         }
         private string GetCategoryKey(string sheetName)
         {
-            if (sheetName.Contains("CH大月")) return "CH大月"; if (sheetName.Contains("CH東富士")) return "CH東富士"; if (sheetName.Contains("東日本セレモニー")) return "東日本セレモニー";
-            if (sheetName.Contains("霊柩車")) return "霊柩車"; if (sheetName.Contains("寝台車")) return "寝台車"; return "その他";
+            // 営業所名が明示されている場合
+            if (sheetName.Contains("CH富士吉田")) return "CH富士吉田";
+            if (sheetName.Contains("CH大月")) return "CH大月";
+            if (sheetName.Contains("CH東富士")) return "CH東富士";
+            if (sheetName.Contains("東日本セレモニー")) return "東日本セレモニー";
+
+            // 営業所の指定がない通常の車両
+            if (sheetName.StartsWith("霊柩車")) return "通常-霊柩車";
+            if (sheetName.StartsWith("寝台車")) return "通常-寝台車";
+
+            return "その他";
         }
-        private int GetInsertIndex(ExcelPackage package, string baseSheetName)
+        private int GetInsertIndex(ExcelPackage package, string newSheetName)
         {
-            string categoryKey = GetCategoryKey(baseSheetName);
-            var categorySheets = package.Workbook.Worksheets.Where(ws => GetCategoryKey(ws.Name) == categoryKey).ToList();
-            if (categorySheets.Any()) { return categorySheets.Max(ws => ws.Index); }
-            return package.Workbook.Worksheets.Count;
+            var newCategoryOrder = GetCategoryOrder(newSheetName);
+            int lastIndex = 0;
+            foreach (var ws in package.Workbook.Worksheets.OrderBy(s => s.Index))
+            {
+                int order = GetCategoryOrder(ws.Name);
+                if (order <= newCategoryOrder) lastIndex = ws.Index;
+            }
+            return lastIndex > 0 ? lastIndex : package.Workbook.Worksheets.Count;
         }
-        private void UpdateSheetCells(ExcelWorksheet ws)
+
+        private static int FindTotalRow(ExcelWorksheet ws)
         {
-            string sheetName = ws.Name;
-            if (sheetName.Contains("東日本セレモニー")) { var numberMatch = Regex.Match(sheetName, @"\d+$"); if (numberMatch.Success && int.TryParse(numberMatch.Value, out int number)) { ws.Cells["C4"].Value = number; } }
-            else { var lastSpaceIndex = sheetName.LastIndexOf(' '); if (lastSpaceIndex > -1 && int.TryParse(sheetName.Substring(lastSpaceIndex + 1), out int number)) { ws.Cells["D1"].Value = sheetName.Substring(0, lastSpaceIndex).Trim(); ws.Cells["H1"].Value = number; } else { ws.Cells["D1"].Value = sheetName; ws.Cells["H1"].Value = null; } }
+            if (ws?.Dimension == null) return -1;
+            for (int row = ws.Dimension.End.Row; row >= 3; row--)
+            {
+                if (ws.Cells[row, 1].Value?.ToString()?.Contains("合計") == true) return row;
+            }
+            return -1;
         }
+
+        private static int? GetNullableInt(object val)
+        {
+            if (val == null) return null;
+            if (val is int i) return i;
+            if (val is long l) return (int)l;
+            if (val is double d) return (int)d;
+            if (val is decimal m) return (int)m;
+
+            var s = val.ToString().Trim();
+            if (string.IsNullOrEmpty(s)) return null;
+            s = s.Replace(",", "").Replace("，", "");
+
+            if (double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.CurrentCulture, out double parsed) ||
+                double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out parsed))
+            {
+                return (int)parsed;
+            }
+
+            Logger.Warn($"GetNullableInt: 非数値フィールドをパースできませんでした: '{s}'");
+            return null;
+        }
+
+        private static double? GetNullableDouble(object val) => val == null ? null : Convert.ToDouble(val);
 
         public List<RowData> GetSheetDataForPreview(string sheetName)
         {
             if (sheetName == null || !_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) return new List<RowData>();
-
-            // キャッシュが存在し、有効な場合はキャッシュから返す
             if (_dataCache.ContainsKey(sheetName)) return _dataCache[sheetName];
 
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
@@ -194,6 +601,7 @@ namespace HansoInputTool.Services
             for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
             {
                 if (ws.Cells[rowIndex, map.Day].Value == null && ws.Cells[rowIndex, map.YuryoKm].Value == null) continue;
+
                 var rowData = new RowData
                 {
                     RowIndex = rowIndex,
@@ -205,50 +613,84 @@ namespace HansoInputTool.Services
                     K_LateMinutes = GetNullableInt(ws.Cells[rowIndex, map.ShinyaMinutes].Value),
                     L_IsKoryo = GetNullableInt(ws.Cells[rowIndex, map.IsKoryo].Value)
                 };
+
                 rowData.LateValueText = isOotsuki ? rowData.H_LateFeeOotsuki?.ToString() : rowData.K_LateMinutes?.ToString();
                 data.Add(rowData);
             }
-            _dataCache[sheetName] = data; // 読み込んだデータをキャッシュに保存
+
+            _dataCache[sheetName] = data;
             return data;
         }
 
-        private void InvalidateCache(string sheetName)
+        private void UpdateSheetCells(ExcelWorksheet ws)
         {
-            if (_dataCache.ContainsKey(sheetName))
+            string sheetName = ws.Name;
+            if (sheetName.Contains("東日本セレモニー"))
             {
-                _dataCache.Remove(sheetName);
+                var numberMatch = Regex.Match(sheetName, @"\d+$");
+                if (numberMatch.Success && int.TryParse(numberMatch.Value, out int number)) { ws.Cells["C4"].Value = number; }
+            }
+            else
+            {
+                var (branch, number) = ParseSheetNameToBranchAndNumberForNormalSheet(sheetName);
+                ws.Cells["B4"].Value = branch;
+                ws.Cells["C4"].Value = int.TryParse(number, out int numValue) ? numValue : (object)null;
             }
         }
 
-        public (int, string) RegisterNormalData(string sheetName, Dictionary<string, double?> values, bool isKoryo)
+        // 通常シート登録（行挿入含む）: (targetRow, insertInfo) を返す
+        public (int targetRow, string insertInfo) RegisterNormalData(string sheetName, Dictionary<string, double?> values, bool isKoryo)
         {
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) throw new ArgumentException($"シートが見つかりません: {sheetName}");
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
             var totalRowIndex = FindTotalRow(ws);
             if (totalRowIndex == -1) throw new Exception($"シート '{sheetName}' に '合計' 行が見つかりません。");
-            var (targetRow, insertInfo) = FindTargetRow(ws, totalRowIndex);
-            UpdateRowInternal(ws, targetRow, values, isKoryo);
-            InvalidateCache(sheetName); // キャッシュを無効化
+
+            var map = _columnMap.NormalSheet;
+            int targetRow = -1;
+            for (int r = 3; r < totalRowIndex; r++)
+            {
+                if (ws.Cells[r, map.Day].Value == null) { targetRow = r; break; }
+            }
+            string insertInfo = "";
+            if (targetRow == -1)
+            {
+                ws.InsertRow(totalRowIndex, 1);
+                targetRow = totalRowIndex;
+                insertInfo = "空き行がないため、合計行の上に新しい行を挿入します。";
+            }
+
+            // 値設定
+            double? yuryoVal = values.GetValueOrDefault("有料キロ(D)");
+            int hansoVal = (yuryoVal.HasValue && yuryoVal > 0) ? 1 : 0;
+            ws.Cells[targetRow, map.Day].Value = values.GetValueOrDefault("日(B)");
+            ws.Cells[targetRow, map.HansoCount].Value = hansoVal;
+            ws.Cells[targetRow, map.YuryoKm].Value = yuryoVal;
+            ws.Cells[targetRow, map.MuryoKm].Value = values.GetValueOrDefault("無料キロ(E)");
+            ws.Cells[targetRow, map.IsKoryo].Value = isKoryo ? 1 : (object)null;
+
+            bool isOotsuki = sheetName.Contains("大月");
+            if (isOotsuki)
+            {
+                ws.Cells[targetRow, map.ShinyaFee].Value = values.GetValueOrDefault("深夜料金(H)");
+                ws.Cells[targetRow, map.ShinyaMinutes].Value = null;
+            }
+            else
+            {
+                ws.Cells[targetRow, map.ShinyaFee].Value = null;
+                ws.Cells[targetRow, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)");
+            }
+
             return (targetRow, insertInfo);
         }
 
+        // 通常シート行更新
         public void UpdateNormalData(string sheetName, int rowIndex, Dictionary<string, double?> values, bool isKoryo)
         {
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) throw new ArgumentException($"シートが見つかりません: {sheetName}");
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
-            UpdateRowInternal(ws, rowIndex, values, isKoryo);
-            InvalidateCache(sheetName); // キャッシュを無効化
-        }
-
-        public void DeleteRows(string sheetName, List<int> rowIndices)
-        {
-            var ws = _inputPackage.Workbook.Worksheets[sheetName];
-            foreach (var rowIndex in rowIndices.OrderByDescending(r => r)) { ws.DeleteRow(rowIndex); }
-            InvalidateCache(sheetName); // キャッシュを無効化
-        }
-
-        private void UpdateRowInternal(ExcelWorksheet ws, int rowIndex, Dictionary<string, double?> values, bool isKoryo)
-        {
             var map = _columnMap.NormalSheet;
-            bool isOotsuki = ws.Name.Contains("大月");
+
             double? yuryoVal = values.GetValueOrDefault("有料キロ(D)");
             int hansoVal = (yuryoVal.HasValue && yuryoVal > 0) ? 1 : 0;
             ws.Cells[rowIndex, map.Day].Value = values.GetValueOrDefault("日(B)");
@@ -256,12 +698,24 @@ namespace HansoInputTool.Services
             ws.Cells[rowIndex, map.YuryoKm].Value = yuryoVal;
             ws.Cells[rowIndex, map.MuryoKm].Value = values.GetValueOrDefault("無料キロ(E)");
             ws.Cells[rowIndex, map.IsKoryo].Value = isKoryo ? 1 : (object)null;
-            if (isOotsuki) { ws.Cells[rowIndex, map.ShinyaFee].Value = values.GetValueOrDefault("深夜料金(H)"); ws.Cells[rowIndex, map.ShinyaMinutes].Value = null; }
-            else { ws.Cells[rowIndex, map.ShinyaFee].Value = null; ws.Cells[rowIndex, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)"); }
+
+            bool isOotsuki = sheetName.Contains("大月");
+            if (isOotsuki)
+            {
+                ws.Cells[rowIndex, map.ShinyaFee].Value = values.GetValueOrDefault("深夜料金(H)");
+                ws.Cells[rowIndex, map.ShinyaMinutes].Value = null;
+            }
+            else
+            {
+                ws.Cells[rowIndex, map.ShinyaFee].Value = null;
+                ws.Cells[rowIndex, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)");
+            }
         }
 
+        // 東日本シートの登録
         public void RegisterEastData(string sheetName, Dictionary<string, double?> values)
         {
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) throw new ArgumentException($"シートが見つかりません: {sheetName}");
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
             var map = _columnMap.EastSheet;
             ws.Cells[map.Jitsudo].Value = values.GetValueOrDefault("延実働車輌数");
@@ -271,6 +725,15 @@ namespace HansoInputTool.Services
             ws.Cells[map.UnsoJisseki].Value = values.GetValueOrDefault("運輸実績");
         }
 
+        // 行削除
+        public void DeleteRows(string sheetName, List<int> rowIndices)
+        {
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) throw new ArgumentException($"シートが見つかりません: {sheetName}");
+            var ws = _inputPackage.Workbook.Worksheets[sheetName];
+            foreach (var rowIndex in rowIndices.OrderByDescending(r => r)) { ws.DeleteRow(rowIndex); }
+        }
+
+        // 全データクリア（ログメッセージのリストを返す）
         public List<string> ClearData()
         {
             var logMessages = new List<string>();
@@ -295,8 +758,11 @@ namespace HansoInputTool.Services
                 }
                 else if (ws.Name.Contains("東日本"))
                 {
-                    ws.Cells[eastMap.Jitsudo].Value = null; ws.Cells[eastMap.Hanso].Value = null; ws.Cells[eastMap.YuryoKm].Value = null;
-                    ws.Cells[eastMap.MuryoKm].Value = null; ws.Cells[eastMap.UnsoJisseki].Value = null;
+                    ws.Cells[eastMap.Jitsudo].Value = null;
+                    ws.Cells[eastMap.Hanso].Value = null;
+                    ws.Cells[eastMap.YuryoKm].Value = null;
+                    ws.Cells[eastMap.MuryoKm].Value = null;
+                    ws.Cells[eastMap.UnsoJisseki].Value = null;
                     logMessages.Add($"[{ws.Name}] のデータをクリアしました。");
                 }
             }
@@ -304,6 +770,7 @@ namespace HansoInputTool.Services
             return logMessages;
         }
 
+        // 残データチェック
         public bool CheckRemainingData()
         {
             var map = _columnMap.NormalSheet;
@@ -313,23 +780,5 @@ namespace HansoInputTool.Services
             }
             return false;
         }
-
-        private static int FindTotalRow(ExcelWorksheet ws)
-        {
-            if (ws?.Dimension == null) return -1;
-            for (int row = ws.Dimension.End.Row; row >= 3; row--) { if (ws.Cells[row, 1].Value?.ToString()?.Contains("合計") == true) return row; }
-            return -1;
-        }
-
-        private (int targetRow, string insertInfo) FindTargetRow(ExcelWorksheet ws, int totalRowIndex)
-        {
-            var map = _columnMap.NormalSheet;
-            for (int rowNum = 3; rowNum < totalRowIndex; rowNum++) { if (ws.Cells[rowNum, map.Day].Value == null) return (rowNum, ""); }
-            ws.InsertRow(totalRowIndex, 1);
-            return (totalRowIndex, "空き行がないため、合計行の上に新しい行を挿入します。");
-        }
-
-        private static int? GetNullableInt(object val) => val == null ? null : (int?)Convert.ToDouble(val);
-        private static double? GetNullableDouble(object val) => val == null ? null : Convert.ToDouble(val);
     }
 }
