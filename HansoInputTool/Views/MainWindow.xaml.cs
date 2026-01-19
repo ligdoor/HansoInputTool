@@ -67,5 +67,10 @@ namespace HansoInputTool.Views
                 e.Handled = true;
             }
         }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }

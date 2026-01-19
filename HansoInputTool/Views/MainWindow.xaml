@@ -39,9 +39,40 @@
 
             <DockPanel Grid.Row="0" Margin="0,0,0,10">
                 <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button Content="❔ HELP" Command="{Binding OpenHelpCommand}" Style="{StaticResource NormalButton}" Background="Transparent" Foreground="{StaticResource SubTextBrush}" Margin="580,0,10,0"/>
-                    <Button Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" Style="{StaticResource NormalButton}" Background="Transparent" Foreground="{StaticResource SubTextBrush}"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" RenderTransformOrigin="0.5,0.472" Width="675">
+                    <Button Content="📊 月報統計"
+        Command="{Binding OpenMonthlyReportDashboardCommand}"
+        Style="{StaticResource NormalButton}"
+        Background="{StaticResource AccentBrush}"
+        Foreground="White"
+        FontWeight="SemiBold"
+        Padding="15,8"
+        Margin="350,0,8,0">
+                        <Button.Effect>
+                            <DropShadowEffect Color="#F4B942" 
+                         Opacity="0.4" 
+                         BlurRadius="15" 
+                         ShadowDepth="0"/>
+                        </Button.Effect>
+                    </Button>
+                    <Button Content="💾 バックアップ" Command="{Binding CreateBackupCommand}" 
+                Style="{StaticResource NormalButton}" Background="Transparent" 
+                Foreground="{StaticResource SubTextBrush}" Margin="0,0,10,0" 
+                ToolTip="手動でバックアップを作成"/>
+                    <Button Content="📂 復元" Command="{Binding RestoreBackupCommand}" 
+                Style="{StaticResource NormalButton}" Background="Transparent" 
+                Foreground="{StaticResource SubTextBrush}" Margin="0,0,10,0" 
+                ToolTip="バックアップから復元"/>
+                    <Button Content="📁 フォルダ" Command="{Binding OpenBackupFolderCommand}" 
+                Style="{StaticResource NormalButton}" Background="Transparent" 
+                Foreground="{StaticResource SubTextBrush}" Margin="0,0,10,0" 
+                ToolTip="バックアップフォルダを開く"/>
+                    <Button Content="❔ HELP" Command="{Binding OpenHelpCommand}" 
+                Style="{StaticResource NormalButton}" Background="Transparent" 
+                Foreground="{StaticResource SubTextBrush}" Margin="0,0,10,0"/>
+                    <Button Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" 
+                Style="{StaticResource NormalButton}" Background="Transparent" 
+                Foreground="{StaticResource SubTextBrush}"/>
                 </StackPanel>
             </DockPanel>
 

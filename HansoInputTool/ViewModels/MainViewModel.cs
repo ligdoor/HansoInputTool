@@ -22,13 +22,15 @@ using OfficeOpenXml;
 
 namespace HansoInputTool.ViewModels
 {
+
     public class MainViewModel : ObservableObject
+
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.4.5";
+        private const string CurrentVersion = "1.6.0";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
@@ -40,7 +42,8 @@ namespace HansoInputTool.ViewModels
         private static readonly string ColumnMapFilePath = Path.Combine(BaseDataPath, "column_map.json");
         private static readonly string HelpFilePath = Path.Combine(BaseDataPath, "readme.pdf");
         #endregion
-
+        private readonly BackupService _backupService;
+        private readonly ValidationService _validationService;
         #region Properties
         private ExcelHandler _excelHandler;
         public Dictionary<string, RateInfo> Rates { get; set; }
@@ -109,12 +112,19 @@ namespace HansoInputTool.ViewModels
         public ICommand TransferCommand { get; }
         public ICommand OnLoadedCommand { get; }
         public ICommand OnClosingCommand { get; }
+
+        public ICommand OpenMonthlyReportDashboardCommand { get; }
         #endregion
 
         public MainViewModel()
         {
+            _backupService = new BackupService();
+            _validationService = new ValidationService();
             OpenSettingsCommand = new RelayCommand(p => OpenSettings(), p => !IsBusy);
             OpenHelpCommand = new RelayCommand(p => OpenHelp(), p => !IsBusy);
+            CreateBackupCommand = new RelayCommand(p => CreateManualBackup(), p => !IsBusy);
+            RestoreBackupCommand = new RelayCommand(p => OpenRestoreBackupWindow(), p => !IsBusy);
+            OpenBackupFolderCommand = new RelayCommand(p => _backupService.OpenBackupFolder(), p => !IsBusy);
             RegisterNormalCommand = new RelayCommand(async p => await RegisterNormal(p), p => !IsBusy);
             RegisterEastCommand = new RelayCommand(async p => await RegisterEast(p), p => !IsBusy);
             EditRowCommand = new RelayCommand(p => OpenEditWindow(), p => SelectedRow != null && !IsBusy);
@@ -124,32 +134,53 @@ namespace HansoInputTool.ViewModels
             TransferCommand = new RelayCommand(async p => await StartTransfer(), p => !IsBusy);
             OnLoadedCommand = new RelayCommand(async p => await OnWindowLoaded());
             OnClosingCommand = new RelayCommand(p => OnWindowClosing(p));
+            OpenMonthlyReportDashboardCommand = new RelayCommand(_ => OpenMonthlyReportDashboard());
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
+        public ICommand CreateBackupCommand { get; }
+        public ICommand RestoreBackupCommand { get; }
+        public ICommand OpenBackupFolderCommand { get; }
 
         private async Task OnWindowLoaded()
         {
             try
             {
                 Logger.Info("アプリケーションの初期化を開始します。");
+
                 if (!Directory.Exists(BaseDataPath))
                 {
                     MessageBox.Show($"データフォルダが見つかりません。\n実行ファイルと同じ場所に 'data' フォルダを配置してください。", "初期化エラー", MessageBoxButton.OK, MessageBoxImage.Error);
-                    Application.Current.Shutdown(); return;
+                    Application.Current.Shutdown();
+                    return;
                 }
+
+                // 自動バックアップを作成
+                Logger.Info("起動時の自動バックアップを作成します。");
+                _backupService.CreateAutoBackup(InputFilePath);
+                _backupService.CreateAutoBackup(TemplateFilePath);
+                Log("起動時の自動バックアップを作成しました。");
+
                 var ratesJson = await File.ReadAllTextAsync(RatesFilePath);
                 Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(ratesJson);
+
                 var columnMapJson = await File.ReadAllTextAsync(ColumnMapFilePath);
                 _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
+
                 _excelHandler = new ExcelHandler(InputFilePath, TemplateFilePath, _columnMap);
+
                 ReloadAllData();
                 await CheckForUpdate();
+
                 if (_excelHandler.CheckRemainingData())
                 {
                     var result = MessageBox.Show("前回のデータが残っています。\n全ての入力データをクリアして新規に開始しますか？", "データクリア確認", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                    if (result == MessageBoxResult.Yes) { ClearInputData(true); }
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        ClearInputData(true);
+                    }
                 }
+
                 Logger.Info("アプリケーションの初期化が完了しました。");
             }
             catch (Exception ex)
@@ -159,7 +190,6 @@ namespace HansoInputTool.ViewModels
                 Application.Current.Shutdown();
             }
         }
-
         private void OnWindowClosing(object parameter) { }
 
         private void ReloadAllData()
@@ -206,7 +236,79 @@ namespace HansoInputTool.ViewModels
             UpdatePreview();
             Log("設定が更新されました。");
         }
+        private void CreateManualBackup()
+        {
+            try
+            {
+                var inputBackup = _backupService.CreateManualBackup(InputFilePath, "手動保存");
+                var templateBackup = _backupService.CreateManualBackup(TemplateFilePath, "手動保存");
 
+                if (inputBackup != null && templateBackup != null)
+                {
+                    MessageBox.Show(
+                        $"バックアップを作成しました。\n\n" +
+                        $"Input.xlsx: {Path.GetFileName(inputBackup)}\n" +
+                        $"Template.xlsx: {Path.GetFileName(templateBackup)}\n\n" +
+                        $"保存場所: backupsフォルダ",
+                        "バックアップ完了",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    Log("手動バックアップを作成しました。");
+                }
+                else
+                {
+                    MessageBox.Show("バックアップの作成に失敗しました。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "手動バックアップの作成中にエラーが発生しました");
+                MessageBox.Show($"バックアップの作成に失敗しました。\n詳細はログファイルを確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        /// <summary>
+        /// 月報統計ダッシュボードを開く
+        /// </summary>
+        private void OpenMonthlyReportDashboard()
+        {
+            try
+            {
+                Logger.Info("月報統計ダッシュボードを開きます");
+
+                var dashboardWindow = new MonthlyReportDashboardWindow
+                {
+                    Owner = Application.Current.MainWindow
+                };
+
+                dashboardWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "月報統計ダッシュボードを開く際にエラーが発生");
+                MessageBox.Show(
+                    $"ダッシュボードを開けませんでした: {ex.Message}",
+                    "エラー",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+        // バックアップ復元ウィンドウを開くメソッドを追加
+        private void OpenRestoreBackupWindow()
+        {
+            var restoreVM = new RestoreBackupWindowViewModel(_backupService, InputFilePath, TemplateFilePath, this);
+            var restoreWindow = new RestoreBackupWindow(restoreVM) { Owner = Application.Current.MainWindow };
+            restoreWindow.ShowDialog();
+        }
+
+        // 公開メソッド：バックアップ復元後にデータを再読み込み
+        public void ReloadAfterRestore()
+        {
+            _excelHandler.Load();
+            ReloadAllData();
+            Log("バックアップから復元しました。データを再読み込みしました。");
+            MessageBox.Show("データを再読み込みしました。", "復元完了", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
         private async Task RegisterNormal(object obj)
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
@@ -219,6 +321,33 @@ namespace HansoInputTool.ViewModels
             values["無料キロ(E)"] = muryoKmVal.HasValue ? Math.Round(muryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
             if (IsOotsukiSheet) { if (!TryParseValue(NormalLateValue, "深夜料金(H)", out var lateVal)) return; values["深夜料金(H)"] = lateVal; }
             else { if (!TryParseValue(NormalLateValue, "深夜時間(K)", out var lateVal)) return; values["深夜時間(K)"] = lateVal; }
+            // 入力値を検証する
+            var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet);
+
+            // エラーがある場合は登録を中止
+            if (!validationResult.IsValid)
+            {
+                MessageBox.Show(
+                    $"入力内容にエラーがあります:\n\n{validationResult.GetErrorMessage()}",
+                    "入力エラー",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            // 警告がある場合は確認
+            if (validationResult.HasWarnings)
+            {
+                var result = MessageBox.Show(
+                    $"以下の警告があります:\n\n{validationResult.GetWarningMessage()}\n\nそのまま登録しますか？",
+                    "確認",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+
             try
             {
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, IsKoryo);
@@ -247,6 +376,32 @@ namespace HansoInputTool.ViewModels
             if (!TryParseValue(EastYuryoKm, "有料キロ数", out var yuryo)) return; values["有料キロ数"] = yuryo;
             if (!TryParseValue(EastMuryoKm, "無料キロ数", out var muryo)) return; values["無料キロ数"] = muryo;
             if (!TryParseValue(EastUnso, "運輸実績", out var unso)) return; values["運輸実績"] = unso;
+            // 検証を実行
+            var validationResult = _validationService.ValidateEastData(values);
+
+            // エラーがある場合は登録を中止
+            if (!validationResult.IsValid)
+            {
+                MessageBox.Show(
+                    $"入力内容にエラーがあります:\n\n{validationResult.GetErrorMessage()}",
+                    "入力エラー",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            // 警告がある場合は確認
+            if (validationResult.HasWarnings)
+            {
+                var result = MessageBox.Show(
+                    $"以下の警告があります:\n\n{validationResult.GetWarningMessage()}\n\nそのまま登録しますか？",
+                    "確認",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
             try
             {
                 _excelHandler.RegisterEastData(SelectedEastSheet, values);

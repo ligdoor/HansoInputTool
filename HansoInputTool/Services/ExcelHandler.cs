@@ -13,6 +13,10 @@ namespace HansoInputTool.Services
 {
     public class ExcelHandler
     {
+        static ExcelHandler()
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        }
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly string _inputFilePath;
         private readonly string _templateFilePath;
@@ -23,7 +27,6 @@ namespace HansoInputTool.Services
 
         public ExcelHandler(string inputFilePath, string templateFilePath, ColumnMapping columnMap)
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             _inputFilePath = inputFilePath;
             _templateFilePath = templateFilePath;
             _columnMap = columnMap;
