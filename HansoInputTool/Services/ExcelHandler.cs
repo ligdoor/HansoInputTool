@@ -86,11 +86,7 @@ namespace HansoInputTool.Services
             foreach (var sheetName in sheetsToDelete)
             {
                 var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
-                if (ws != null)
-                {
-                    package.Workbook.Worksheets.Delete(ws);
-                    Logger.Info($"{fileName}: シート削除 -> {sheetName}");
-                }
+                if (ws != null) { package.Workbook.Worksheets.Delete(ws); Logger.Info($"{fileName}: シート削除 -> {sheetName}"); }
             }
 
             // リネーム
@@ -374,6 +370,9 @@ namespace HansoInputTool.Services
             return false;
         }
 
+        // ================================================================
+        // 以降：元の機能群（復元済み）
+        // ================================================================
         public List<string> GetVehicleSheetNames()
         {
             return _inputPackage.Workbook.Worksheets
@@ -776,7 +775,8 @@ namespace HansoInputTool.Services
             var map = _columnMap.NormalSheet;
             foreach (var ws in _inputPackage.Workbook.Worksheets)
             {
-                if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH")) && ws.Cells[3, map.Day].Value != null) return true;
+                if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH")) && ws.Cells[3, map.Day].Value != null)
+                    return true;
             }
             return false;
         }
