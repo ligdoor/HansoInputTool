@@ -1,6 +1,7 @@
-﻿using System.Windows;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-using HansoInputTool.Messaging; // Messengerを使うために追加
+using HansoInputTool.Messaging;
 using HansoInputTool.ViewModels;
 
 namespace HansoInputTool.Views
@@ -11,24 +12,49 @@ namespace HansoInputTool.Views
         {
             InitializeComponent();
 
-            // ViewModelのインスタンスを先に作成
             var viewModel = new MainViewModel();
 
             // メッセンジャーを購読して、FocusMessageを受け取った時の動作を定義
             Messenger.Register<FocusMessage>(this, message =>
             {
-                // メッセージで指定された名前のコントロールを探してフォーカスを当てる
                 if (FindName(message.TargetElementName) is UIElement targetElement)
                 {
                     targetElement.Focus();
                 }
             });
 
-            // DataContextに設定
+            // ショートカットキー処理
+            this.PreviewKeyDown += MainWindow_PreviewKeyDown;
+
             DataContext = viewModel;
         }
 
-        // Enterキーで次のコントロールに移動する処理（これは変更なし）
+        /// <summary>
+        /// ショートカットキーの処理
+        /// </summary>
+        private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // テキストボックスにフォーカスがある場合は、通常の入力を優先
+            if (Keyboard.FocusedElement is TextBox textBox)
+            {
+                // 修飾キーがある場合のみショートカットとして処理
+                if (Keyboard.Modifiers == ModifierKeys.None)
+                    return;
+            }
+            
+            if (DataContext is MainViewModel vm)
+            {
+                var key = e.Key == Key.System ? e.SystemKey : e.Key;
+                var modifiers = Keyboard.Modifiers;
+                
+                if (vm.ProcessShortcut(key, modifiers))
+                {
+                    e.Handled = true;
+                }
+            }
+        }
+
+        // Enterキーで次のコントロールに移動する処理
         private void TextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -42,7 +68,7 @@ namespace HansoInputTool.Views
             }
         }
 
-        // 通常シートの最後の入力欄でEnterキーを押したら登録する処理（これは変更なし）
+        // 通常シートの最後の入力欄でEnterキーを押したら登録する処理
         private void LastNormalTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -55,7 +81,7 @@ namespace HansoInputTool.Views
             }
         }
 
-        // 東日本シートの最後の入力欄でEnterキーを押したら登録する処理（これは変更なし）
+        // 東日本シートの最後の入力欄でEnterキーを押したら登録する処理
         private void LastEastTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -70,7 +96,6 @@ namespace HansoInputTool.Views
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-
         }
     }
 }

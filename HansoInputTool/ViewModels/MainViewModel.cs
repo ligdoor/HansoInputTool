@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -22,15 +22,13 @@ using OfficeOpenXml;
 
 namespace HansoInputTool.ViewModels
 {
-
     public class MainViewModel : ObservableObject
-
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.6.0";
+        private const string CurrentVersion = "1.7.0";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
@@ -41,9 +39,13 @@ namespace HansoInputTool.ViewModels
         private static readonly string TemplateFilePath = Path.Combine(BaseDataPath, "Template.xlsx");
         private static readonly string ColumnMapFilePath = Path.Combine(BaseDataPath, "column_map.json");
         private static readonly string HelpFilePath = Path.Combine(BaseDataPath, "readme.pdf");
+        private static readonly string ShortcutSettingsFilePath = Path.Combine(BaseDataPath, "shortcuts.json");
         #endregion
+
         private readonly BackupService _backupService;
         private readonly ValidationService _validationService;
+        private ShortcutService _shortcutService;
+
         #region Properties
         private ExcelHandler _excelHandler;
         public Dictionary<string, RateInfo> Rates { get; set; }
@@ -98,6 +100,8 @@ namespace HansoInputTool.ViewModels
         public string RNumber { get => _rNumber; set => SetProperty(ref _rNumber, value); }
         private bool _isBusy;
         public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
+        
+        public ShortcutService ShortcutService => _shortcutService;
         #endregion
 
         #region Commands
@@ -112,8 +116,10 @@ namespace HansoInputTool.ViewModels
         public ICommand TransferCommand { get; }
         public ICommand OnLoadedCommand { get; }
         public ICommand OnClosingCommand { get; }
-
         public ICommand OpenMonthlyReportDashboardCommand { get; }
+        public ICommand CreateBackupCommand { get; }
+        public ICommand RestoreBackupCommand { get; }
+        public ICommand OpenBackupFolderCommand { get; }
         #endregion
 
         public MainViewModel()
@@ -138,9 +144,6 @@ namespace HansoInputTool.ViewModels
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
-        public ICommand CreateBackupCommand { get; }
-        public ICommand RestoreBackupCommand { get; }
-        public ICommand OpenBackupFolderCommand { get; }
 
         private async Task OnWindowLoaded()
         {
@@ -155,7 +158,6 @@ namespace HansoInputTool.ViewModels
                     return;
                 }
 
-                // 自動バックアップを作成
                 Logger.Info("起動時の自動バックアップを作成します。");
                 _backupService.CreateAutoBackup(InputFilePath);
                 _backupService.CreateAutoBackup(TemplateFilePath);
@@ -168,6 +170,10 @@ namespace HansoInputTool.ViewModels
                 _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
 
                 _excelHandler = new ExcelHandler(InputFilePath, TemplateFilePath, _columnMap);
+
+                // ショートカット設定を初期化
+                _shortcutService = new ShortcutService(ShortcutSettingsFilePath);
+                Log("ショートカット設定を読み込みました。");
 
                 ReloadAllData();
                 await CheckForUpdate();
@@ -190,7 +196,178 @@ namespace HansoInputTool.ViewModels
                 Application.Current.Shutdown();
             }
         }
+
         private void OnWindowClosing(object parameter) { }
+
+        #region Shortcut Processing
+        /// <summary>
+        /// ショートカットキーを処理する
+        /// </summary>
+        public bool ProcessShortcut(Key key, ModifierKeys modifiers)
+        {
+            if (_shortcutService == null) return false;
+            
+            var shortcuts = _shortcutService.CurrentSettings.Shortcuts;
+            
+            foreach (var kvp in shortcuts)
+            {
+                if (kvp.Value.Matches(key, modifiers))
+                {
+                    return ExecuteShortcutAction(kvp.Key);
+                }
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// ショートカットアクションを実行する
+        /// </summary>
+        private bool ExecuteShortcutAction(string actionName)
+        {
+            if (IsBusy) return false;
+            
+            switch (actionName)
+            {
+                case "Save":
+                    if (SaveInputCommand.CanExecute(null))
+                    {
+                        SaveInputCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+                    
+                case "Register":
+                    if (SelectedTabIndex == 0 && RegisterNormalCommand.CanExecute(null))
+                    {
+                        RegisterNormalCommand.Execute(null);
+                        return true;
+                    }
+                    else if (SelectedTabIndex == 1 && RegisterEastCommand.CanExecute(null))
+                    {
+                        RegisterEastCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+                    
+                case "NextSheet":
+                    MoveToNextSheet();
+                    return true;
+                    
+                case "PrevSheet":
+                    MoveToPreviousSheet();
+                    return true;
+                    
+                case "Transfer":
+                    if (TransferCommand.CanExecute(null))
+                    {
+                        TransferCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+                    
+                case "OpenSettings":
+                    if (OpenSettingsCommand.CanExecute(null))
+                    {
+                        OpenSettingsCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+                    
+                case "SwitchTab":
+                    SelectedTabIndex = (SelectedTabIndex + 1) % 2;
+                    return true;
+                    
+                case "EditRow":
+                    if (EditRowCommand.CanExecute(null))
+                    {
+                        EditRowCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+                    
+                case "DeleteRow":
+                    if (DeleteRowCommand.CanExecute(null))
+                    {
+                        DeleteRowCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+                    
+                case "CreateBackup":
+                    if (CreateBackupCommand.CanExecute(null))
+                    {
+                        CreateBackupCommand.Execute(null);
+                        return true;
+                    }
+                    break;
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// 次のシートに移動
+        /// </summary>
+        private void MoveToNextSheet()
+        {
+            if (SelectedTabIndex == 0 && NormalSheets.Count > 0)
+            {
+                var currentIndex = NormalSheets.IndexOf(SelectedNormalSheet);
+                if (currentIndex < NormalSheets.Count - 1)
+                {
+                    SelectedNormalSheet = NormalSheets[currentIndex + 1];
+                }
+                else
+                {
+                    SelectedNormalSheet = NormalSheets[0];
+                }
+            }
+            else if (SelectedTabIndex == 1 && EastSheets.Count > 0)
+            {
+                var currentIndex = EastSheets.IndexOf(SelectedEastSheet);
+                if (currentIndex < EastSheets.Count - 1)
+                {
+                    SelectedEastSheet = EastSheets[currentIndex + 1];
+                }
+                else
+                {
+                    SelectedEastSheet = EastSheets[0];
+                }
+            }
+        }
+
+        /// <summary>
+        /// 前のシートに移動
+        /// </summary>
+        private void MoveToPreviousSheet()
+        {
+            if (SelectedTabIndex == 0 && NormalSheets.Count > 0)
+            {
+                var currentIndex = NormalSheets.IndexOf(SelectedNormalSheet);
+                if (currentIndex > 0)
+                {
+                    SelectedNormalSheet = NormalSheets[currentIndex - 1];
+                }
+                else
+                {
+                    SelectedNormalSheet = NormalSheets[NormalSheets.Count - 1];
+                }
+            }
+            else if (SelectedTabIndex == 1 && EastSheets.Count > 0)
+            {
+                var currentIndex = EastSheets.IndexOf(SelectedEastSheet);
+                if (currentIndex > 0)
+                {
+                    SelectedEastSheet = EastSheets[currentIndex - 1];
+                }
+                else
+                {
+                    SelectedEastSheet = EastSheets[EastSheets.Count - 1];
+                }
+            }
+        }
+        #endregion
 
         private void ReloadAllData()
         {
@@ -236,6 +413,7 @@ namespace HansoInputTool.ViewModels
             UpdatePreview();
             Log("設定が更新されました。");
         }
+
         private void CreateManualBackup()
         {
             try
@@ -267,9 +445,7 @@ namespace HansoInputTool.ViewModels
                 MessageBox.Show($"バックアップの作成に失敗しました。\n詳細はログファイルを確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-        /// <summary>
-        /// 月報統計ダッシュボードを開く
-        /// </summary>
+
         private void OpenMonthlyReportDashboard()
         {
             try
@@ -293,7 +469,7 @@ namespace HansoInputTool.ViewModels
                     MessageBoxImage.Error);
             }
         }
-        // バックアップ復元ウィンドウを開くメソッドを追加
+
         private void OpenRestoreBackupWindow()
         {
             var restoreVM = new RestoreBackupWindowViewModel(_backupService, InputFilePath, TemplateFilePath, this);
@@ -301,7 +477,6 @@ namespace HansoInputTool.ViewModels
             restoreWindow.ShowDialog();
         }
 
-        // 公開メソッド：バックアップ復元後にデータを再読み込み
         public void ReloadAfterRestore()
         {
             _excelHandler.Load();
@@ -309,6 +484,7 @@ namespace HansoInputTool.ViewModels
             Log("バックアップから復元しました。データを再読み込みしました。");
             MessageBox.Show("データを再読み込みしました。", "復元完了", MessageBoxButton.OK, MessageBoxImage.Information);
         }
+
         private async Task RegisterNormal(object obj)
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
@@ -321,10 +497,9 @@ namespace HansoInputTool.ViewModels
             values["無料キロ(E)"] = muryoKmVal.HasValue ? Math.Round(muryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
             if (IsOotsukiSheet) { if (!TryParseValue(NormalLateValue, "深夜料金(H)", out var lateVal)) return; values["深夜料金(H)"] = lateVal; }
             else { if (!TryParseValue(NormalLateValue, "深夜時間(K)", out var lateVal)) return; values["深夜時間(K)"] = lateVal; }
-            // 入力値を検証する
+
             var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet);
 
-            // エラーがある場合は登録を中止
             if (!validationResult.IsValid)
             {
                 MessageBox.Show(
@@ -335,7 +510,6 @@ namespace HansoInputTool.ViewModels
                 return;
             }
 
-            // 警告がある場合は確認
             if (validationResult.HasWarnings)
             {
                 var result = MessageBox.Show(
@@ -376,10 +550,9 @@ namespace HansoInputTool.ViewModels
             if (!TryParseValue(EastYuryoKm, "有料キロ数", out var yuryo)) return; values["有料キロ数"] = yuryo;
             if (!TryParseValue(EastMuryoKm, "無料キロ数", out var muryo)) return; values["無料キロ数"] = muryo;
             if (!TryParseValue(EastUnso, "運輸実績", out var unso)) return; values["運輸実績"] = unso;
-            // 検証を実行
+
             var validationResult = _validationService.ValidateEastData(values);
 
-            // エラーがある場合は登録を中止
             if (!validationResult.IsValid)
             {
                 MessageBox.Show(
@@ -390,7 +563,6 @@ namespace HansoInputTool.ViewModels
                 return;
             }
 
-            // 警告がある場合は確認
             if (validationResult.HasWarnings)
             {
                 var result = MessageBox.Show(
@@ -402,6 +574,7 @@ namespace HansoInputTool.ViewModels
                 if (result != MessageBoxResult.Yes)
                     return;
             }
+
             try
             {
                 _excelHandler.RegisterEastData(SelectedEastSheet, values);
@@ -522,7 +695,7 @@ namespace HansoInputTool.ViewModels
 
         private void OpenSettings()
         {
-            var settingsVM = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this);
+            var settingsVM = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService);
             var settingsWindow = new SettingsWindow(settingsVM) { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
         }
@@ -553,7 +726,6 @@ namespace HansoInputTool.ViewModels
         {
             if (SelectedRow == null) return;
 
-            // 参照をキャプチャ
             var sheet = SelectedNormalSheet;
             var rowIndex = SelectedRow.RowIndex;
 

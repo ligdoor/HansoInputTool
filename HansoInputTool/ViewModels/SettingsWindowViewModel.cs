@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace HansoInputTool.ViewModels
         private readonly MainViewModel _mainViewModel;
         private readonly ExcelHandler _excelHandler;
         private readonly string _ratesFilePath;
+        private readonly ShortcutService _shortcutService;
 
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ObservableCollection<VehicleSheetViewModel> VehicleSheetList { get; set; }
@@ -23,29 +25,57 @@ namespace HansoInputTool.ViewModels
         private VehicleSheetViewModel _selectedVehicle;
         public VehicleSheetViewModel SelectedVehicle { get => _selectedVehicle; set => SetProperty(ref _selectedVehicle, value); }
 
+        // ショートカット設定
+        public ShortcutSettingsViewModel ShortcutSettingsVM { get; }
+
+        // 選択中のタブインデックス
+        private int _selectedTabIndex;
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set => SetProperty(ref _selectedTabIndex, value);
+        }
+
         public ICommand AddVehicleCommand { get; }
         public ICommand DeleteVehicleCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand CancelCommand { get; }
+        public ICommand ResetShortcutsCommand { get; }
 
         public SettingsWindowViewModel(
             Dictionary<string, RateInfo> currentRates,
             ExcelHandler excelHandler,
             string ratesFilePath,
-            MainViewModel mainViewModel)
+            MainViewModel mainViewModel,
+            ShortcutService shortcutService)
         {
             _excelHandler = excelHandler;
             _ratesFilePath = ratesFilePath;
             _mainViewModel = mainViewModel;
+            _shortcutService = shortcutService;
 
             Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
             var currentSheets = _excelHandler.GetVehicleSheetNames();
             VehicleSheetList = new ObservableCollection<VehicleSheetViewModel>(currentSheets.Select(s => new VehicleSheetViewModel(s)));
 
+            // ショートカット設定VMを初期化
+            ShortcutSettingsVM = new ShortcutSettingsViewModel(_shortcutService.CurrentSettings);
+
             AddVehicleCommand = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
             SaveCommand = new RelayCommand(p => SaveSettings(p));
             CancelCommand = new RelayCommand(p => ((Window)p).Close());
+            ResetShortcutsCommand = new RelayCommand(p => ResetShortcuts());
+        }
+
+        // 旧コンストラクタ（後方互換性のため）
+        public SettingsWindowViewModel(
+            Dictionary<string, RateInfo> currentRates,
+            ExcelHandler excelHandler,
+            string ratesFilePath,
+            MainViewModel mainViewModel)
+            : this(currentRates, excelHandler, ratesFilePath, mainViewModel, null)
+        {
         }
 
         private void AddVehicle()
@@ -67,8 +97,23 @@ namespace HansoInputTool.ViewModels
             }
         }
 
+        private void ResetShortcuts()
+        {
+            var result = MessageBox.Show(
+                "ショートカット設定をデフォルトに戻しますか？",
+                "リセット確認",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                ShortcutSettingsVM.ResetToDefaultsCommand.Execute(null);
+            }
+        }
+
         private void SaveSettings(object parameter)
         {
+            // 車両シートのバリデーション
             if (VehicleSheetList.Any(v => string.IsNullOrWhiteSpace(v.VehicleTypeName)))
             {
                 MessageBox.Show("車両名が空の項目があります。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -82,8 +127,22 @@ namespace HansoInputTool.ViewModels
                 return;
             }
 
+            // ショートカットの重複チェック
+            if (ShortcutSettingsVM.HasDuplicates(out string duplicateInfo))
+            {
+                var result = MessageBox.Show(
+                    $"{duplicateInfo}\n\nそのまま保存しますか？",
+                    "ショートカットの重複",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+            }
+
             try
             {
+                // 車両シート設定の保存
                 var originalSheetNames = _excelHandler.GetVehicleSheetNames();
                 var finalSheetVMs = VehicleSheetList.ToList();
 
@@ -98,13 +157,10 @@ namespace HansoInputTool.ViewModels
 
                 foreach (var vehicleVM in addedVMs)
                 {
-                    // 東日本セレモニーの場合はTemplate2、それ以外はTemplate1を使用
-                    // Input.xlsxからコピーするのでTemplateSheetExistsは使わない
                     string templateSheetName = vehicleVM.Selected事業所カテゴリ == "東日本セレモニー"
                         ? "Template2"
                         : "Template1";
 
-                    // Input.xlsxにテンプレートシートが存在するか確認
                     if (!_excelHandler.SheetNames.Contains(templateSheetName))
                     {
                         MessageBox.Show($"コピー元となるテンプレートシート '{templateSheetName}' が見つかりません。\nInput.xlsxに'{templateSheetName}'という名前のシートを作成してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -118,8 +174,17 @@ namespace HansoInputTool.ViewModels
                 _excelHandler.SyncAllVehicleSheets(sheetsToDelete, renameMap, sheetsToAdd);
                 _excelHandler.Save();
 
+                // 料金設定の保存
                 string json = JsonConvert.SerializeObject(Rates, Formatting.Indented);
                 File.WriteAllText(_ratesFilePath, json);
+
+                // ショートカット設定の保存
+                if (_shortcutService != null)
+                {
+                    var newShortcutSettings = ShortcutSettingsVM.ToShortcutSettings();
+                    _shortcutService.UpdateSettings(newShortcutSettings);
+                    _shortcutService.Save();
+                }
 
                 _mainViewModel.UpdateRatesAndReload(Rates);
 
