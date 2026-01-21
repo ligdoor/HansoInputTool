@@ -28,7 +28,7 @@ namespace HansoInputTool.ViewModels
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.5.3";
+        private const string CurrentVersion = "1.5.4";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
@@ -600,22 +600,106 @@ namespace HansoInputTool.ViewModels
             else { IsEastSheetRegistered = false; EastSheetStatus = "（未登録）"; }
         }
 
+        // ViewModels/MainViewModel.cs の StartTransfer メソッドを修正
+
         private async Task StartTransfer()
         {
-            if (!int.TryParse(Period, out var period) || !int.TryParse(Month, out var month) || !int.TryParse(RNumber, out var rNum)) { MessageBox.Show("期、月、R番号を正しく入力してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
-            var dialog = new OpenFileDialog { Title = "出力先のベースフォルダを選択してください", CheckFileExists = false, CheckPathExists = true, FileName = "フォルダを選択", Filter = "Folder|.", ValidateNames = false, DereferenceLinks = true };
-            if (dialog.ShowDialog() != true) { Log("フォルダ選択がキャンセルされました。"); return; }
+            if (!int.TryParse(Period, out var period) ||
+                !int.TryParse(Month, out var month) ||
+                !int.TryParse(RNumber, out var rNum))
+            {
+                MessageBox.Show("期、月、R番号を正しく入力してください。", "エラー",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // === ここから追加 ===
+            // 転記前確認ダイアログを表示
+            bool shouldContinue = false;
+
+            var confirmVM = new TransferConfirmationViewModel(
+                _excelHandler,
+                Rates,
+                _columnMap,
+                Period,
+                Month,
+                RNumber,
+                (result) => shouldContinue = result
+            );
+
+            var confirmWindow = new TransferConfirmationWindow(confirmVM)
+            {
+                Owner = Application.Current.MainWindow
+            };
+
+            confirmWindow.ShowDialog();
+
+            // ユーザーが中止を選択した場合
+            if (!shouldContinue)
+            {
+                Log("転記処理がキャンセルされました。");
+                return;
+            }
+            // === ここまで追加 ===
+
+            // 出力先フォルダ選択（既存のコード）
+            var dialog = new OpenFileDialog
+            {
+                Title = "出力先のベースフォルダを選択してください",
+                CheckFileExists = false,
+                CheckPathExists = true,
+                FileName = "フォルダを選択",
+                Filter = "Folder|.",
+                ValidateNames = false,
+                DereferenceLinks = true
+            };
+
+            if (dialog.ShowDialog() != true)
+            {
+                Log("フォルダ選択がキャンセルされました。");
+                return;
+            }
+
             string outputDir = Path.GetDirectoryName(dialog.FileName);
+
+            // 以下は既存のコードをそのまま使用
             IsBusy = true;
             var progressVM = new ProgressWindowViewModel();
-            var progressWindow = new ProgressWindow(progressVM) { Owner = Application.Current.MainWindow };
-            var progress = new Progress<TransferProgressReport>(report => { if (!string.IsNullOrEmpty(report.Message)) { progressVM.AppendLog(report.Message); } if (report.Total > 0) { progressVM.UpdateProgress(report.Current, report.Total, ""); } });
+            var progressWindow = new ProgressWindow(progressVM)
+            {
+                Owner = Application.Current.MainWindow
+            };
+
+            var progress = new Progress<TransferProgressReport>(report =>
+            {
+                if (!string.IsNullOrEmpty(report.Message))
+                {
+                    progressVM.AppendLog(report.Message);
+                }
+                if (report.Total > 0)
+                {
+                    progressVM.UpdateProgress(report.Current, report.Total, "");
+                }
+            });
+
             progressWindow.Show();
+
             try
             {
                 _excelHandler.Save();
                 var transferService = new TransferService();
-                await transferService.ExecuteAsync(InputFilePath, TemplateFilePath, outputDir, period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
+                await transferService.ExecuteAsync(
+                    InputFilePath,
+                    TemplateFilePath,
+                    outputDir,
+                    period,
+                    month,
+                    rNum,
+                    _allSheetNames,
+                    Rates,
+                    _columnMap,
+                    progress);
+
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
                 progressVM.Complete("2つのファイルの作成が完了しました。");
@@ -627,9 +711,12 @@ namespace HansoInputTool.ViewModels
                 Log($"エラー: {ex.Message}");
                 progressVM.ErrorComplete($"エラーが発生しました: 詳細はログファイルを確認してください。");
             }
-            finally { IsBusy = false; CommandManager.InvalidateRequerySuggested(); }
+            finally
+            {
+                IsBusy = false;
+                CommandManager.InvalidateRequerySuggested();
+            }
         }
-
         private void LoadGeppoFile()
         {
             var openFileDialog = new OpenFileDialog { Title = "編集する実績月報ファイルを選択", Filter = "Excel ファイル (*.xlsx)|*.xlsx" };

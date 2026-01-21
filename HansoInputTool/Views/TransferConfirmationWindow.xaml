@@ -1,0 +1,447 @@
+﻿<!-- Views/TransferConfirmationWindow.xaml -->
+<Window x:Class="HansoInputTool.Views.TransferConfirmationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="📋 転記前の最終確認" 
+        Height="800" 
+        Width="1200"
+        WindowStartupLocation="CenterOwner" 
+        WindowState="Maximized"
+        Background="{StaticResource BgBrush}">
+
+    <Window.Resources>
+        <!-- 車両タブのスタイル -->
+        <Style x:Key="VehicleTabStyle" TargetType="ListBoxItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Border"
+                                Background="{StaticResource InactiveTabBrush}"
+                                BorderBrush="{StaticResource InputBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8,8,0,0"
+                                Padding="15,10"
+                                Margin="2,0">
+                            <StackPanel>
+                                <TextBlock Text="{Binding TabHeader}" 
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Text="{Binding WorkingDaysText}" 
+                                           FontSize="11"
+                                           Foreground="{StaticResource SubTextBrush}"
+                                           Margin="0,2,0,0"/>
+                                <TextBlock Text="{Binding IssueCountText}" 
+                                           FontSize="11"
+                                           Foreground="{Binding StatusColor}"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="Border" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource ButtonSecondaryBgBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- エラー行のスタイル -->
+        <Style x:Key="TransferRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasError}" Value="True">
+                    <Setter Property="Background">
+                        <Setter.Value>
+                            <!-- ここを修正: SolidColorBrushを直接定義 -->
+                            <SolidColorBrush Color="#26EF4444" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasWarning}" Value="True">
+                    <Setter Property="Background">
+                        <Setter.Value>
+                            <!-- ここを修正: SolidColorBrushを直接定義 -->
+                            <SolidColorBrush Color="#26F59E0B" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ヘッダー -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="📋 転記前の最終確認" 
+                       FontSize="24" 
+                       FontWeight="Bold" 
+                       Foreground="{StaticResource TextBrush}"
+                       VerticalAlignment="Center"/>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="{StaticResource InputBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="5"
+                        Padding="15,8"
+                        Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="車両数: " Foreground="{StaticResource SubTextBrush}"/>
+                        <TextBlock Text="{Binding TotalVehicles}" 
+                                   FontWeight="Bold" 
+                                   Foreground="{StaticResource TextBrush}"
+                                   Margin="5,0,15,0"/>
+                        <TextBlock Text="エラー: " Foreground="{StaticResource SubTextBrush}"/>
+                        <TextBlock Text="{Binding VehiclesWithErrors}" 
+                                   FontWeight="Bold" 
+                                   Foreground="{StaticResource RedBrush}"
+                                   Margin="5,0,15,0"/>
+                        <TextBlock Text="警告: " Foreground="{StaticResource SubTextBrush}"/>
+                        <TextBlock Text="{Binding VehiclesWithWarnings}" 
+                                   FontWeight="Bold" 
+                                   Margin="5,0">
+                            <TextBlock.Foreground>
+                                <SolidColorBrush Color="#F59E0B"/>
+                            </TextBlock.Foreground>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource GreenBrush}"
+                        CornerRadius="5"
+                        Padding="15,8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="総推定売上: " 
+                                   Foreground="White" 
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding TotalEstimatedRevenue, StringFormat=¥{0}}" 
+                                   FontWeight="Bold" 
+                                   FontSize="16"
+                                   Foreground="White"
+                                   Margin="5,0,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- 転記情報 -->
+        <Border Grid.Row="1" 
+                Background="{StaticResource PanelBackgroundBrush}"
+                BorderBrush="{StaticResource InputBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="5"
+                Padding="15"
+                Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="転記先: " Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Period, StringFormat={}期: {0}}" 
+                           Foreground="{StaticResource TextBrush}" 
+                           FontWeight="SemiBold"
+                           Margin="10,0"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Month, StringFormat={}月: {0}}" 
+                           Foreground="{StaticResource TextBrush}" 
+                           FontWeight="SemiBold"
+                           Margin="10,0"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding RNumber, StringFormat={}R: {0}}" 
+                           Foreground="{StaticResource TextBrush}" 
+                           FontWeight="SemiBold"
+                           Margin="10,0"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 車両タブ（横スクロール） -->
+        <ScrollViewer Grid.Row="2" 
+                      HorizontalScrollBarVisibility="Auto" 
+                      VerticalScrollBarVisibility="Disabled"
+                      Margin="0,0,0,10">
+            <ListBox ItemsSource="{Binding VehicleTabs}"
+                     SelectedItem="{Binding SelectedVehicle}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ItemContainerStyle="{StaticResource VehicleTabStyle}">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+            </ListBox>
+        </ScrollViewer>
+
+        <!-- メインコンテンツ -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 選択中の車両名とサマリー -->
+            <Border Grid.Row="0" 
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="{StaticResource InputBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Padding="15"
+                    Margin="0,0,0,10">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🚗 " FontSize="18"/>
+                        <TextBlock Text="{Binding SelectedVehicle.DisplayName}" 
+                                   FontSize="18" 
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextBrush}"/>
+                        <TextBlock Text="{Binding SelectedVehicle.WorkingDaysText}" 
+                                   FontSize="14"
+                                   Foreground="{StaticResource SubTextBrush}"
+                                   Margin="20,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- サマリー情報 -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Border Background="{StaticResource BgBrush}"
+                                BorderBrush="{StaticResource InputBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10,5"
+                                Margin="0,0,5,0">
+                            <StackPanel>
+                                <TextBlock Text="搬送回数" 
+                                           FontSize="10" 
+                                           Foreground="{StaticResource SubTextBrush}"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding CurrentVehicleSummary.TotalHanso, StringFormat={}{0}回}" 
+                                           FontSize="14" 
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource TextBrush}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{StaticResource BgBrush}"
+                                BorderBrush="{StaticResource InputBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10,5"
+                                Margin="0,0,5,0">
+                            <StackPanel>
+                                <TextBlock Text="走行距離" 
+                                           FontSize="10" 
+                                           Foreground="{StaticResource SubTextBrush}"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding CurrentVehicleSummary.TotalKm, StringFormat={}{0:N0}km}" 
+                                           FontSize="14" 
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource AccentBrush}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{StaticResource BgBrush}"
+                                BorderBrush="{StaticResource InputBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10,5">
+                            <StackPanel>
+                                <TextBlock Text="推定売上" 
+                                           FontSize="10" 
+                                           Foreground="{StaticResource SubTextBrush}"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding CurrentVehicleSummary.EstimatedRevenue, StringFormat=¥{0:N0}}" 
+                                           FontSize="14" 
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource GreenBrush}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- データグリッド -->
+            <DataGrid Grid.Row="1"
+                      ItemsSource="{Binding CurrentVehicleRows}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      RowStyle="{StaticResource TransferRowStyle}"
+                      GridLinesVisibility="Horizontal"
+                      Background="{StaticResource PanelBackgroundBrush}"
+                      RowHeight="30">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="日" Binding="{Binding Day}" Width="40" FontWeight="SemiBold"/>
+                    <DataGridTextColumn Header="搬送" Binding="{Binding HansoCount}" Width="45"/>
+                    <DataGridTextColumn Header="有料km" Binding="{Binding YuryoKm}" Width="70"/>
+                    <DataGridTextColumn Header="無料km" Binding="{Binding MuryoKm}" Width="70"/>
+                    <DataGridTextColumn Header="行旅" Binding="{Binding IsKoryo}" Width="45"/>
+                    <DataGridTextColumn Header="深夜" Binding="{Binding LateValue}" Width="60"/>
+                    <DataGridTextColumn Header="基本料" Binding="{Binding BaseFee}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="走行料" Binding="{Binding MileageFee}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="深夜料" Binding="{Binding LateFee}" Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="合計" Binding="{Binding TotalFee}" Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- 警告・エラー一覧 -->
+            <Border Grid.Row="2" 
+                    Background="{StaticResource PanelBackgroundBrush}"
+                    BorderBrush="{StaticResource InputBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Padding="15"
+                    Margin="0,10,0,0"
+                    MaxHeight="200">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                        <TextBlock Text="⚠️ 検出されたエラー・警告" 
+                                   FontSize="14" 
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextBrush}"
+                                   VerticalAlignment="Center"/>
+
+                        <CheckBox Content="エラーのみ表示" 
+                                  IsChecked="{Binding ShowErrorsOnly}"
+                                  DockPanel.Dock="Right"
+                                  VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding ValidationIssues}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource BgBrush}"
+                                            BorderBrush="{Binding Color}"
+                                            BorderThickness="1,0,0,0"
+                                            Padding="10,8"
+                                            Margin="0,2"
+                                            Cursor="Hand">
+                                        <Border.InputBindings>
+                                            <MouseBinding Command="{Binding DataContext.JumpToIssueCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          CommandParameter="{Binding}"
+                                                          MouseAction="LeftClick"/>
+                                        </Border.InputBindings>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Icon}" 
+                                                       FontSize="14" 
+                                                       Margin="0,0,10,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Message}" 
+                                                       FontSize="13" 
+                                                       Foreground="{Binding Color}"
+                                                       TextWrapping="Wrap"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ナビゲーションボタン -->
+        <StackPanel Grid.Row="4" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Center"
+                    Margin="0,15,0,10">
+            <Button Content="⬅️ 前の車両" 
+                    Command="{Binding PreviousVehicleCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource ButtonSecondaryBgBrush}"
+                    Padding="20,10"
+                    Margin="0,0,10,0"/>
+
+            <Button Content="次の車両 ➡️" 
+                    Command="{Binding NextVehicleCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource ButtonSecondaryBgBrush}"
+                    Padding="20,10"/>
+        </StackPanel>
+
+        <!-- 実行ボタン -->
+        <Grid Grid.Row="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1" 
+                    Content="📝 データを修正" 
+                    Command="{Binding EditDataCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource ButtonSecondaryBgBrush}"
+                    Padding="20,10"
+                    Margin="0,0,10,0"/>
+
+            <Button Grid.Column="2" 
+                    Content="❌ 中止" 
+                    Command="{Binding CancelCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource RedBrush}"
+                    Padding="20,10"
+                    Margin="0,0,10,0"/>
+
+            <Button Grid.Column="3" 
+                    Content="✓ 転記を実行" 
+                    Command="{Binding ConfirmTransferCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource GreenBrush}"
+                    Padding="30,10"
+                    FontSize="14"
+                    FontWeight="Bold"/>
+        </Grid>
+    </Grid>
+</Window>
