@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HansoInputTool")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+15fcdcf42f8ed47fc00c7b4ed5c6f3a45307ceb6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+38f33f0cbd70eb4c96d9b57aed365bf7697d3c13")]
 [assembly: System.Reflection.AssemblyProductAttribute("HansoInputTool")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HansoInputTool")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
