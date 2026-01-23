@@ -1,0 +1,6 @@
+[
+  { "Pattern": "^(?<branch>CH大月)\\b.*", "BranchGroup": "branch", "NumberGroup": null, "Priority": 1 },
+  { "Pattern": "^(?<branch>CH富士吉田)\\b.*", "BranchGroup": "branch", "NumberGroup": null, "Priority": 1 },
+  { "Pattern": "^(?<branch>東日本セレモニー)\\s*(?<number>\\d+)?$", "BranchGroup": "branch", "NumberGroup": "number", "Priority": 2 },
+  { "Pattern": "^(?<branch>.+?)\\s+(?<number>\\d+)$", "BranchGroup": "branch", "NumberGroup": "number", "Priority": 10 }
+]
