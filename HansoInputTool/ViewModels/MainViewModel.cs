@@ -28,7 +28,7 @@ namespace HansoInputTool.ViewModels
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.5.4";
+        private const string CurrentVersion = "1.6.0";
         private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
@@ -44,6 +44,7 @@ namespace HansoInputTool.ViewModels
 
         private readonly BackupService _backupService;
         private readonly ValidationService _validationService;
+        private readonly InputValidator _inputValidator;
         private ShortcutService _shortcutService;
 
         #region Properties
@@ -58,40 +59,199 @@ namespace HansoInputTool.ViewModels
         public int SelectedTabIndex { get => _selectedTabIndex; set => SetProperty(ref _selectedTabIndex, value); }
         public ObservableCollection<string> NormalSheets { get; } = new();
         private string _selectedNormalSheet;
-        public string SelectedNormalSheet { get => _selectedNormalSheet; set { if (SetProperty(ref _selectedNormalSheet, value)) { UpdatePreview(); OnPropertyChanged(nameof(IsOotsukiSheet)); } } }
+        public string SelectedNormalSheet { get => _selectedNormalSheet; set { if (SetProperty(ref _selectedNormalSheet, value)) { UpdatePreview(); OnPropertyChanged(nameof(IsOotsukiSheet)); ClearNormalValidationErrors(); } } }
         public ObservableCollection<RowData> PreviewData { get; } = new();
         public ICollectionView PreviewDataView { get; }
         private RowData _selectedRow;
         public RowData SelectedRow { get => _selectedRow; set => SetProperty(ref _selectedRow, value); }
         public bool IsOotsukiSheet => SelectedNormalSheet?.Contains("大月") ?? false;
+
+        // 通常シート入力フィールド
         private string _normalDay;
-        public string NormalDay { get => _normalDay; set => SetProperty(ref _normalDay, value); }
+        public string NormalDay
+        {
+            get => _normalDay;
+            set
+            {
+                if (SetProperty(ref _normalDay, value))
+                {
+                    ValidateNormalInput();
+                }
+            }
+        }
+
         private string _normalYuryoKm;
-        public string NormalYuryoKm { get => _normalYuryoKm; set => SetProperty(ref _normalYuryoKm, value); }
+        public string NormalYuryoKm
+        {
+            get => _normalYuryoKm;
+            set
+            {
+                if (SetProperty(ref _normalYuryoKm, value))
+                {
+                    ValidateNormalInput();
+                }
+            }
+        }
+
         private string _normalMuryoKm;
-        public string NormalMuryoKm { get => _normalMuryoKm; set => SetProperty(ref _normalMuryoKm, value); }
+        public string NormalMuryoKm
+        {
+            get => _normalMuryoKm;
+            set
+            {
+                if (SetProperty(ref _normalMuryoKm, value))
+                {
+                    ValidateNormalInput();
+                }
+            }
+        }
+
         private string _normalLateValue;
-        public string NormalLateValue { get => _normalLateValue; set => SetProperty(ref _normalLateValue, value); }
+        public string NormalLateValue
+        {
+            get => _normalLateValue;
+            set
+            {
+                if (SetProperty(ref _normalLateValue, value))
+                {
+                    ValidateNormalInput();
+                }
+            }
+        }
+
         private bool _isKoryo;
         public bool IsKoryo { get => _isKoryo; set => SetProperty(ref _isKoryo, value); }
+
+        // 通常シートバリデーションエラー
+        private string _normalDayError;
+        public string NormalDayError { get => _normalDayError; set => SetProperty(ref _normalDayError, value); }
+
+        private string _normalYuryoKmError;
+        public string NormalYuryoKmError { get => _normalYuryoKmError; set => SetProperty(ref _normalYuryoKmError, value); }
+
+        private string _normalMuryoKmError;
+        public string NormalMuryoKmError { get => _normalMuryoKmError; set => SetProperty(ref _normalMuryoKmError, value); }
+
+        private string _normalLateValueError;
+        public string NormalLateValueError { get => _normalLateValueError; set => SetProperty(ref _normalLateValueError, value); }
+
+        private bool _hasNormalValidationErrors;
+        public bool HasNormalValidationErrors
+        {
+            get => _hasNormalValidationErrors;
+            set
+            {
+                if (SetProperty(ref _hasNormalValidationErrors, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        }
+
+        // 東日本シート
         public ObservableCollection<string> EastSheets { get; } = new();
         private readonly List<string> _registeredEastSheets = new();
         private string _selectedEastSheet;
-        public string SelectedEastSheet { get => _selectedEastSheet; set { if (SetProperty(ref _selectedEastSheet, value)) { UpdateEastSheetStatus(); } } }
+        public string SelectedEastSheet { get => _selectedEastSheet; set { if (SetProperty(ref _selectedEastSheet, value)) { UpdateEastSheetStatus(); ClearEastValidationErrors(); } } }
         private string _eastSheetStatus = "（未登録）";
         public string EastSheetStatus { get => _eastSheetStatus; set => SetProperty(ref _eastSheetStatus, value); }
         private bool _isEastSheetRegistered = false;
         public bool IsEastSheetRegistered { get => _isEastSheetRegistered; set => SetProperty(ref _isEastSheetRegistered, value); }
+
         private string _eastJitsudo;
-        public string EastJitsudo { get => _eastJitsudo; set => SetProperty(ref _eastJitsudo, value); }
+        public string EastJitsudo
+        {
+            get => _eastJitsudo;
+            set
+            {
+                if (SetProperty(ref _eastJitsudo, value))
+                {
+                    ValidateEastInput();
+                }
+            }
+        }
+
         private string _eastHanso;
-        public string EastHanso { get => _eastHanso; set => SetProperty(ref _eastHanso, value); }
+        public string EastHanso
+        {
+            get => _eastHanso;
+            set
+            {
+                if (SetProperty(ref _eastHanso, value))
+                {
+                    ValidateEastInput();
+                }
+            }
+        }
+
         private string _eastYuryoKm;
-        public string EastYuryoKm { get => _eastYuryoKm; set => SetProperty(ref _eastYuryoKm, value); }
+        public string EastYuryoKm
+        {
+            get => _eastYuryoKm;
+            set
+            {
+                if (SetProperty(ref _eastYuryoKm, value))
+                {
+                    ValidateEastInput();
+                }
+            }
+        }
+
         private string _eastMuryoKm;
-        public string EastMuryoKm { get => _eastMuryoKm; set => SetProperty(ref _eastMuryoKm, value); }
+        public string EastMuryoKm
+        {
+            get => _eastMuryoKm;
+            set
+            {
+                if (SetProperty(ref _eastMuryoKm, value))
+                {
+                    ValidateEastInput();
+                }
+            }
+        }
+
         private string _eastUnso;
-        public string EastUnso { get => _eastUnso; set => SetProperty(ref _eastUnso, value); }
+        public string EastUnso
+        {
+            get => _eastUnso;
+            set
+            {
+                if (SetProperty(ref _eastUnso, value))
+                {
+                    ValidateEastInput();
+                }
+            }
+        }
+
+        // 東日本シートバリデーションエラー
+        private string _eastJitsudoError;
+        public string EastJitsudoError { get => _eastJitsudoError; set => SetProperty(ref _eastJitsudoError, value); }
+
+        private string _eastHansoError;
+        public string EastHansoError { get => _eastHansoError; set => SetProperty(ref _eastHansoError, value); }
+
+        private string _eastYuryoKmError;
+        public string EastYuryoKmError { get => _eastYuryoKmError; set => SetProperty(ref _eastYuryoKmError, value); }
+
+        private string _eastMuryoKmError;
+        public string EastMuryoKmError { get => _eastMuryoKmError; set => SetProperty(ref _eastMuryoKmError, value); }
+
+        private string _eastUnsoError;
+        public string EastUnsoError { get => _eastUnsoError; set => SetProperty(ref _eastUnsoError, value); }
+
+        private bool _hasEastValidationErrors;
+        public bool HasEastValidationErrors
+        {
+            get => _hasEastValidationErrors;
+            set
+            {
+                if (SetProperty(ref _hasEastValidationErrors, value))
+                {
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        }
+
         private string _period;
         public string Period { get => _period; set => SetProperty(ref _period, value); }
         private string _month;
@@ -100,7 +260,7 @@ namespace HansoInputTool.ViewModels
         public string RNumber { get => _rNumber; set => SetProperty(ref _rNumber, value); }
         private bool _isBusy;
         public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
-        
+
         public ShortcutService ShortcutService => _shortcutService;
         #endregion
 
@@ -126,13 +286,14 @@ namespace HansoInputTool.ViewModels
         {
             _backupService = new BackupService();
             _validationService = new ValidationService();
+            _inputValidator = new InputValidator(_validationService);
             OpenSettingsCommand = new RelayCommand(p => OpenSettings(), p => !IsBusy);
             OpenHelpCommand = new RelayCommand(p => OpenHelp(), p => !IsBusy);
             CreateBackupCommand = new RelayCommand(p => CreateManualBackup(), p => !IsBusy);
             RestoreBackupCommand = new RelayCommand(p => OpenRestoreBackupWindow(), p => !IsBusy);
             OpenBackupFolderCommand = new RelayCommand(p => _backupService.OpenBackupFolder(), p => !IsBusy);
-            RegisterNormalCommand = new RelayCommand(async p => await RegisterNormal(p), p => !IsBusy);
-            RegisterEastCommand = new RelayCommand(async p => await RegisterEast(p), p => !IsBusy);
+            RegisterNormalCommand = new RelayCommand(async p => await RegisterNormal(p), p => !IsBusy && !HasNormalValidationErrors);
+            RegisterEastCommand = new RelayCommand(async p => await RegisterEast(p), p => !IsBusy && !HasEastValidationErrors);
             EditRowCommand = new RelayCommand(p => OpenEditWindow(), p => SelectedRow != null && !IsBusy);
             DeleteRowCommand = new RelayCommand(p => DeleteSelectedRow(), p => SelectedRow != null && !IsBusy);
             LoadGeppoFileCommand = new RelayCommand(p => LoadGeppoFile(), p => !IsBusy);
@@ -144,6 +305,71 @@ namespace HansoInputTool.ViewModels
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
+
+        #region Validation Methods
+
+        /// <summary>
+        /// 通常シートの入力値をリアルタイムバリデーション
+        /// </summary>
+        private void ValidateNormalInput()
+        {
+            var result = _inputValidator.ValidateNormalSheet(
+                NormalDay,
+                NormalYuryoKm,
+                NormalMuryoKm,
+                NormalLateValue,
+                IsOotsukiSheet,
+                SelectedNormalSheet);
+
+            // 結果をプロパティに反映
+            NormalDayError = result.DayError;
+            NormalYuryoKmError = result.YuryoKmError;
+            NormalMuryoKmError = result.MuryoKmError;
+            NormalLateValueError = result.LateValueError;
+            HasNormalValidationErrors = result.HasErrors;
+        }
+
+        /// <summary>
+        /// 東日本シートの入力値をリアルタイムバリデーション
+        /// </summary>
+        private void ValidateEastInput()
+        {
+            var result = _inputValidator.ValidateEastSheet(
+                EastJitsudo,
+                EastHanso,
+                EastYuryoKm,
+                EastMuryoKm,
+                EastUnso);
+
+            // 結果をプロパティに反映
+            EastJitsudoError = result.JitsudoError;
+            EastHansoError = result.HansoError;
+            EastYuryoKmError = result.YuryoKmError;
+            EastMuryoKmError = result.MuryoKmError;
+            EastUnsoError = result.UnsoError;
+            HasEastValidationErrors = result.HasErrors;
+        }
+
+        private void ClearNormalValidationErrors()
+        {
+            NormalDayError = string.Empty;
+            NormalYuryoKmError = string.Empty;
+            NormalMuryoKmError = string.Empty;
+            NormalLateValueError = string.Empty;
+            HasNormalValidationErrors = false;
+        }
+
+        private void ClearEastValidationErrors()
+        {
+            EastJitsudoError = string.Empty;
+            EastHansoError = string.Empty;
+            EastYuryoKmError = string.Empty;
+            EastMuryoKmError = string.Empty;
+            EastUnsoError = string.Empty;
+            HasEastValidationErrors = false;
+        }
+
+        #endregion
 
         private async Task OnWindowLoaded()
         {
@@ -206,9 +432,9 @@ namespace HansoInputTool.ViewModels
         public bool ProcessShortcut(Key key, ModifierKeys modifiers)
         {
             if (_shortcutService == null) return false;
-            
+
             var shortcuts = _shortcutService.CurrentSettings.Shortcuts;
-            
+
             foreach (var kvp in shortcuts)
             {
                 if (kvp.Value.Matches(key, modifiers))
@@ -216,7 +442,7 @@ namespace HansoInputTool.ViewModels
                     return ExecuteShortcutAction(kvp.Key);
                 }
             }
-            
+
             return false;
         }
 
@@ -226,7 +452,7 @@ namespace HansoInputTool.ViewModels
         private bool ExecuteShortcutAction(string actionName)
         {
             if (IsBusy) return false;
-            
+
             switch (actionName)
             {
                 case "Save":
@@ -236,7 +462,7 @@ namespace HansoInputTool.ViewModels
                         return true;
                     }
                     break;
-                    
+
                 case "Register":
                     if (SelectedTabIndex == 0 && RegisterNormalCommand.CanExecute(null))
                     {
@@ -249,15 +475,15 @@ namespace HansoInputTool.ViewModels
                         return true;
                     }
                     break;
-                    
+
                 case "NextSheet":
                     MoveToNextSheet();
                     return true;
-                    
+
                 case "PrevSheet":
                     MoveToPreviousSheet();
                     return true;
-                    
+
                 case "Transfer":
                     if (TransferCommand.CanExecute(null))
                     {
@@ -265,7 +491,7 @@ namespace HansoInputTool.ViewModels
                         return true;
                     }
                     break;
-                    
+
                 case "OpenSettings":
                     if (OpenSettingsCommand.CanExecute(null))
                     {
@@ -273,11 +499,11 @@ namespace HansoInputTool.ViewModels
                         return true;
                     }
                     break;
-                    
+
                 case "SwitchTab":
                     SelectedTabIndex = (SelectedTabIndex + 1) % 2;
                     return true;
-                    
+
                 case "EditRow":
                     if (EditRowCommand.CanExecute(null))
                     {
@@ -285,7 +511,7 @@ namespace HansoInputTool.ViewModels
                         return true;
                     }
                     break;
-                    
+
                 case "DeleteRow":
                     if (DeleteRowCommand.CanExecute(null))
                     {
@@ -293,7 +519,7 @@ namespace HansoInputTool.ViewModels
                         return true;
                     }
                     break;
-                    
+
                 case "CreateBackup":
                     if (CreateBackupCommand.CanExecute(null))
                     {
@@ -302,7 +528,7 @@ namespace HansoInputTool.ViewModels
                     }
                     break;
             }
-            
+
             return false;
         }
 
@@ -489,14 +715,15 @@ namespace HansoInputTool.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet)) { MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             if (string.IsNullOrWhiteSpace(NormalDay)) { MessageBox.Show("日付は必須です。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+
             var values = new Dictionary<string, double?>();
-            if (!TryParseValue(NormalDay, "日(B)", out var dayVal)) return; values["日(B)"] = dayVal;
-            if (!TryParseValue(NormalYuryoKm, "有料キロ(D)", out var yuryoKmVal)) return;
+            if (!TryParseValue(NormalDay, "日(B)", out var dayVal, silent: true)) return; values["日(B)"] = dayVal;
+            if (!TryParseValue(NormalYuryoKm, "有料キロ(D)", out var yuryoKmVal, silent: true)) return;
             values["有料キロ(D)"] = yuryoKmVal.HasValue ? Math.Round(yuryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
-            if (!TryParseValue(NormalMuryoKm, "無料キロ(E)", out var muryoKmVal)) return;
+            if (!TryParseValue(NormalMuryoKm, "無料キロ(E)", out var muryoKmVal, silent: true)) return;
             values["無料キロ(E)"] = muryoKmVal.HasValue ? Math.Round(muryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
-            if (IsOotsukiSheet) { if (!TryParseValue(NormalLateValue, "深夜料金(H)", out var lateVal)) return; values["深夜料金(H)"] = lateVal; }
-            else { if (!TryParseValue(NormalLateValue, "深夜時間(K)", out var lateVal)) return; values["深夜時間(K)"] = lateVal; }
+            if (IsOotsukiSheet) { if (!TryParseValue(NormalLateValue, "深夜料金(H)", out var lateVal, silent: true)) return; values["深夜料金(H)"] = lateVal; }
+            else { if (!TryParseValue(NormalLateValue, "深夜時間(K)", out var lateVal, silent: true)) return; values["深夜時間(K)"] = lateVal; }
 
             var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet);
 
@@ -531,6 +758,7 @@ namespace HansoInputTool.ViewModels
                 Log($"[{SelectedNormalSheet}] の {targetRow}行目にデータを登録しました。");
                 NormalDay = NormalYuryoKm = NormalMuryoKm = NormalLateValue = string.Empty;
                 IsKoryo = false;
+                ClearNormalValidationErrors();
                 await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "NormalDayTextBox" });
             }
@@ -545,11 +773,11 @@ namespace HansoInputTool.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedEastSheet)) { MessageBox.Show("東日本シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             var values = new Dictionary<string, double?>();
-            if (!TryParseValue(EastJitsudo, "延実働車輌数", out var jitsudo)) return; values["延実働車輌数"] = jitsudo;
-            if (!TryParseValue(EastHanso, "搬送回数", out var hanso)) return; values["搬送回数"] = hanso;
-            if (!TryParseValue(EastYuryoKm, "有料キロ数", out var yuryo)) return; values["有料キロ数"] = yuryo;
-            if (!TryParseValue(EastMuryoKm, "無料キロ数", out var muryo)) return; values["無料キロ数"] = muryo;
-            if (!TryParseValue(EastUnso, "運輸実績", out var unso)) return; values["運輸実績"] = unso;
+            if (!TryParseValue(EastJitsudo, "延実働車輌数", out var jitsudo, silent: true)) return; values["延実働車輌数"] = jitsudo;
+            if (!TryParseValue(EastHanso, "搬送回数", out var hanso, silent: true)) return; values["搬送回数"] = hanso;
+            if (!TryParseValue(EastYuryoKm, "有料キロ数", out var yuryo, silent: true)) return; values["有料キロ数"] = yuryo;
+            if (!TryParseValue(EastMuryoKm, "無料キロ数", out var muryo, silent: true)) return; values["無料キロ数"] = muryo;
+            if (!TryParseValue(EastUnso, "運輸実績", out var unso, silent: true)) return; values["運輸実績"] = unso;
 
             var validationResult = _validationService.ValidateEastData(values);
 
@@ -583,6 +811,7 @@ namespace HansoInputTool.ViewModels
                 if (!_registeredEastSheets.Contains(SelectedEastSheet)) { _registeredEastSheets.Add(SelectedEastSheet); }
                 UpdateEastSheetStatus();
                 EastJitsudo = EastHanso = EastYuryoKm = EastMuryoKm = EastUnso = string.Empty;
+                ClearEastValidationErrors();
                 await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "EastJitsudoTextBox" });
             }
@@ -600,8 +829,6 @@ namespace HansoInputTool.ViewModels
             else { IsEastSheetRegistered = false; EastSheetStatus = "（未登録）"; }
         }
 
-        // ViewModels/MainViewModel.cs の StartTransfer メソッドを修正
-
         private async Task StartTransfer()
         {
             if (!int.TryParse(Period, out var period) ||
@@ -613,8 +840,6 @@ namespace HansoInputTool.ViewModels
                 return;
             }
 
-            // === ここから追加 ===
-            // 転記前確認ダイアログを表示
             bool shouldContinue = false;
 
             var confirmVM = new TransferConfirmationViewModel(
@@ -634,15 +859,12 @@ namespace HansoInputTool.ViewModels
 
             confirmWindow.ShowDialog();
 
-            // ユーザーが中止を選択した場合
             if (!shouldContinue)
             {
                 Log("転記処理がキャンセルされました。");
                 return;
             }
-            // === ここまで追加 ===
 
-            // 出力先フォルダ選択（既存のコード）
             var dialog = new OpenFileDialog
             {
                 Title = "出力先のベースフォルダを選択してください",
@@ -662,7 +884,6 @@ namespace HansoInputTool.ViewModels
 
             string outputDir = Path.GetDirectoryName(dialog.FileName);
 
-            // 以下は既存のコードをそのまま使用
             IsBusy = true;
             var progressVM = new ProgressWindowViewModel();
             var progressWindow = new ProgressWindow(progressVM)
@@ -717,6 +938,7 @@ namespace HansoInputTool.ViewModels
                 CommandManager.InvalidateRequerySuggested();
             }
         }
+
         private void LoadGeppoFile()
         {
             var openFileDialog = new OpenFileDialog { Title = "編集する実績月報ファイルを選択", Filter = "Excel ファイル (*.xlsx)|*.xlsx" };
@@ -771,12 +993,15 @@ namespace HansoInputTool.ViewModels
             else { Application.Current.Dispatcher.Invoke(updateAction); }
         }
 
-        private static bool TryParseValue(string input, string fieldName, out double? result)
+        private static bool TryParseValue(string input, string fieldName, out double? result, bool silent = false)
         {
             result = null;
             if (string.IsNullOrWhiteSpace(input)) return true;
             if (double.TryParse(input, out double parsedValue)) { result = parsedValue; return true; }
-            MessageBox.Show($"「{input}」は {fieldName} の数値として認識できません。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (!silent)
+            {
+                MessageBox.Show($"「{input}」は {fieldName} の数値として認識できません。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
             return false;
         }
 

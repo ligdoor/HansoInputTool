@@ -10,12 +10,20 @@
 
     <Window.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
 
         <Style x:Key="PlaceholderTextBlockStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource SubTextBrush}"/>
             <Setter Property="Margin" Value="8,0,0,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        
+        <Style x:Key="ErrorTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource RedBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
         </Style>
     </Window.Resources>
 
@@ -39,41 +47,55 @@
 
             <DockPanel Grid.Row="0" Margin="0,0,0,10">
                 <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                <!-- 40-60行目を以下に置き換え -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button Content="📊 月報統計"
-            Command="{Binding OpenMonthlyReportDashboardCommand}"
-            Style="{StaticResource NormalButton}"
-            Background="{StaticResource AccentBrush}"
-            Foreground="White"
-            FontWeight="SemiBold"
-            Padding="15,8"
-            Margin="300,0,8,0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding OpenMonthlyReportDashboardCommand}"
+                            Style="{StaticResource NormalButton}"
+                            Background="{StaticResource AccentBrush}"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            Padding="12,8"
+                            Margin="0,0,8,0">
                         <Button.Effect>
                             <DropShadowEffect Color="#F4B942" 
-                              Opacity="0.4" 
-                              BlurRadius="15" 
-                              ShadowDepth="0"/>
+                                              Opacity="0.4" 
+                                              BlurRadius="15" 
+                                              ShadowDepth="0"/>
                         </Button.Effect>
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📊 月報統計"/>
                     </Button>
-                    <Button Content="💾 バックアップ" Command="{Binding CreateBackupCommand}" 
-            Style="{StaticResource NormalButton}" Background="Transparent" 
-            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0" 
-            ToolTip="手動でバックアップを作成"/>
-                    <Button Content="📂 復元" Command="{Binding RestoreBackupCommand}" 
-            Style="{StaticResource NormalButton}" Background="Transparent" 
-            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0" 
-            ToolTip="バックアップから復元"/>
-                    <Button Content="📁 フォルダ" Command="{Binding OpenBackupFolderCommand}" 
-            Style="{StaticResource NormalButton}" Background="Transparent" 
-            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0" 
-            ToolTip="バックアップフォルダを開く"/>
-                    <Button Content="❔ HELP" Command="{Binding OpenHelpCommand}" 
-            Style="{StaticResource NormalButton}" Background="Transparent" 
-            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"/>
-                    <Button Content="⚙️ 設定" Command="{Binding OpenSettingsCommand}" 
-            Style="{StaticResource NormalButton}" Background="Transparent" 
-            Foreground="{StaticResource SubTextBrush}"/>
+                    <Button Command="{Binding CreateBackupCommand}" 
+                            Style="{StaticResource NormalButton}" Background="Transparent" 
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
+                            Padding="8,6"
+                            ToolTip="手動でバックアップを作成">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="💾 バックアップ"/>
+                    </Button>
+                    <Button Command="{Binding RestoreBackupCommand}" 
+                            Style="{StaticResource NormalButton}" Background="Transparent" 
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
+                            Padding="8,6"
+                            ToolTip="バックアップから復元">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📂 復元"/>
+                    </Button>
+                    <Button Command="{Binding OpenBackupFolderCommand}" 
+                            Style="{StaticResource NormalButton}" Background="Transparent" 
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
+                            Padding="8,6"
+                            ToolTip="バックアップフォルダを開く">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📁 フォルダ"/>
+                    </Button>
+                    <Button Command="{Binding OpenHelpCommand}" 
+                            Style="{StaticResource NormalButton}" Background="Transparent" 
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
+                            Padding="8,6">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="❔ HELP"/>
+                    </Button>
+                    <Button Command="{Binding OpenSettingsCommand}" 
+                            Style="{StaticResource NormalButton}" Background="Transparent" 
+                            Foreground="{StaticResource SubTextBrush}"
+                            Padding="8,6">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="⚙️ 設定"/>
+                    </Button>
                 </StackPanel>
             </DockPanel>
 
@@ -155,206 +177,282 @@
                     <TabItem Header="通常シート">
                         <StackPanel Margin="10">
                             <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10"/>
+                            
+                            <!-- 日(B) -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="日(B)" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="NormalDayTextBox" Text="{Binding NormalDay, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:5"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=NormalDayTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="日(B)" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="NormalDayTextBox" Text="{Binding NormalDay, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:5"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalDayTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding NormalDayError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding NormalDayError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 有料キロ(D) -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="有料キロ(D)" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding NormalYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:120.5"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=NormalYuryoKmTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="有料キロ(D)" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding NormalYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:120.5"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalYuryoKmTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding NormalYuryoKmError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding NormalYuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 無料キロ(E) -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="無料キロ(E)" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding NormalMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:10"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=NormalMuryoKmTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="無料キロ(E)" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding NormalMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:10"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalMuryoKmTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding NormalMuryoKmError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding NormalMuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 深夜料金(H)/深夜時間(K) -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
-                                    <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
-                                    <Grid>
-                                        <TextBox x:Name="NormalLateValueTextBox" Text="{Binding NormalLateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
-                                        <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:3000"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                        <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:90"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
+                                        <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                                        <Grid>
+                                            <TextBox x:Name="NormalLateValueTextBox" Text="{Binding NormalLateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
+                                            <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:3000"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:90"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding NormalLateValueError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding NormalLateValueError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
                             <CheckBox Content="行旅死亡人（基本料半額）" IsChecked="{Binding IsKoryo}" Margin="5,10"/>
                             <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Right" Style="{StaticResource NormalButton}" Height="22" Width="38" Margin="0,40,125,0"/>
                         </StackPanel>
                     </TabItem>
+                    
                     <TabItem Header="東日本シート">
                         <StackPanel Margin="10">
                             <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}" Margin="0,0,0,10"/>
+                            
+                            <!-- 延実働車輌数 -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="延実働車輌数" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="EastJitsudoTextBox" Text="{Binding EastJitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:12"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=EastJitsudoTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="延実働車輌数" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="EastJitsudoTextBox" Text="{Binding EastJitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:12"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=EastJitsudoTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding EastJitsudoError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding EastJitsudoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 搬送回数 -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="搬送回数" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="EastHansoTextBox" Text="{Binding EastHanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:34"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=EastHansoTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="搬送回数" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="EastHansoTextBox" Text="{Binding EastHanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:34"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=EastHansoTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding EastHansoError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding EastHansoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 有料キロ数 -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="有料キロ数" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding EastYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:200.0"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=EastYuryoKmTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="有料キロ数" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding EastYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:200.0"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=EastYuryoKmTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding EastYuryoKmError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding EastYuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 無料キロ数 -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="無料キロ数" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding EastMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:15"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=EastMuryoKmTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="無料キロ数" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding EastMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:15"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=EastMuryoKmTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding EastMuryoKmError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding EastMuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
+                            <!-- 運輸実績 -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <StackPanel Margin="5">
-                                    <Label Content="運輸実績" Padding="0,0,0,2"/>
-                                    <Grid>
-                                        <TextBox x:Name="EastUnsoTextBox" Text="{Binding EastUnso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown"/>
-                                        <TextBlock>
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                    <Setter Property="Text" Value="例:125000"/>
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Text, ElementName=EastUnsoTextBox}" Value="">
-                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style></TextBlock>
-                                    </Grid>
-                                </StackPanel>
+                                <Grid>
+                                    <StackPanel Margin="5">
+                                        <Label Content="運輸実績" Padding="0,0,0,2"/>
+                                        <Grid>
+                                            <TextBox x:Name="EastUnsoTextBox" Text="{Binding EastUnso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown"/>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:125000"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=EastUnsoTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <TextBlock Text="{Binding EastUnsoError}" 
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding EastUnsoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
+                            
                             <DockPanel Margin="0,10,0,0">
                                 <TextBlock Text="{Binding EastSheetStatus}" VerticalAlignment="Center" Margin="5,0">
                                     <TextBlock.Style>
@@ -373,6 +471,7 @@
                         </StackPanel>
                     </TabItem>
                 </TabControl>
+                
                 <Grid Grid.Column="1">
                     <Grid.Style>
                         <Style TargetType="Grid">
