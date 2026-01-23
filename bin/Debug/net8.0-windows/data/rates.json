@@ -1,0 +1,14 @@
+{
+  "寝台車": {
+    "BaseFee": 14113,
+    "MileageFee": 4510,
+    "LateNightFixedFee": 3091,
+    "LateNightUnitFee": 1584
+  },
+  "霊柩車": {
+    "BaseFee": 20570,
+    "MileageFee": 7590,
+    "LateNightFixedFee": 0,
+    "LateNightUnitFee": 0
+  }
+}
