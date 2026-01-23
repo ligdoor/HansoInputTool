@@ -30,7 +30,7 @@ namespace HansoInputTool.ViewModels
         private const string AppName = "HansoInputTool";
         private const string CurrentVersion = "1.6.0";
         private const string GithubToken = "";
-        private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/version.json";
+        private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/HansoInputTool/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
 
         private static readonly string BaseDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
