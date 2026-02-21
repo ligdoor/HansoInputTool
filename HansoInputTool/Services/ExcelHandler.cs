@@ -199,12 +199,9 @@ namespace HansoInputTool.Services
                     var branchClean = (branch ?? "").Replace("霊柩車", "").Replace("寝台車", "").Trim();
 
                     // typeText を最終的に使うか決める
-                    // - branch に種類語が含まれていない => typeText を使う
-                    // - branch に種類語が含まれているが branchClean が空（＝支社名が種類語のみ） => typeText を使う
-                    // - branch に種類語が含まれていて branchClean に支社名が残っている => 重複を避けて付けない
                     string typeTextToUse;
                     if (!branchContainsType) typeTextToUse = typeText;
-                    else typeTextToUse = string.IsNullOrWhiteSpace(branchClean) ? typeText : "" ;
+                    else typeTextToUse = string.IsNullOrWhiteSpace(branchClean) ? typeText : "";
 
                     // 東日本系は B4/C4 に設定（Template2 相当）
                     bool isEast = (categoryKey != null && categoryKey.Contains("東日本")) || (!string.IsNullOrWhiteSpace(branch) && branch.Contains("東日本")) || newName.Contains("東日本");
@@ -229,7 +226,6 @@ namespace HansoInputTool.Services
 
                     // シート名を「支社名 種類 車両番号」に変更（重複を避け、branch が種類語のみなら種類語は付与する）
                     var nameParts = new List<string>();
-                    // branchClean が空でも、template 側の種類がある場合は typeTextToUse がセットされるので種類は付く
                     if (!string.IsNullOrWhiteSpace(branchClean)) nameParts.Add(branchClean);
                     if (!string.IsNullOrWhiteSpace(typeTextToUse)) nameParts.Add(typeTextToUse);
                     if (!string.IsNullOrWhiteSpace(number)) nameParts.Add(number);
@@ -474,14 +470,12 @@ namespace HansoInputTool.Services
                 return ("CH東富士", numberMatch.Success ? numberMatch.Value : "");
             }
 
-            // 通常の車両（営業所名なし）- 霊柩車または寝台車
+            // 通常の車両（営業所名なし） - 霊柩車または寝台車
             if (sheetName.StartsWith("霊柩車") || sheetName.StartsWith("寝台車"))
             {
                 var parts = sheetName.Split(' ');
                 if (parts.Length > 1 && int.TryParse(parts.Last(), out _))
                 {
-                    // 例: "霊柩車 1" → ("霊柩車", "1")
-                    // 例: "寝台車 30" → ("寝台車", "30")
                     return (parts[0], parts.Last());
                 }
                 // 番号がない場合
@@ -706,6 +700,9 @@ namespace HansoInputTool.Services
                 ws.Cells[targetRow, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)");
             }
 
+            // ★修正点：登録後にキャッシュを削除してプレビューが正しく更新されるようにする
+            if (_dataCache.ContainsKey(sheetName)) _dataCache.Remove(sheetName);
+
             return (targetRow, insertInfo);
         }
 
@@ -735,6 +732,9 @@ namespace HansoInputTool.Services
                 ws.Cells[rowIndex, map.ShinyaFee].Value = null;
                 ws.Cells[rowIndex, map.ShinyaMinutes].Value = values.GetValueOrDefault("深夜時間(K)");
             }
+
+            // ★修正点：編集後にキャッシュを削除してプレビューが正しく更新されるようにする
+            if (_dataCache.ContainsKey(sheetName)) _dataCache.Remove(sheetName);
         }
 
         // 東日本シートの登録
@@ -756,6 +756,8 @@ namespace HansoInputTool.Services
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) throw new ArgumentException($"シートが見つかりません: {sheetName}");
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
             foreach (var rowIndex in rowIndices.OrderByDescending(r => r)) { ws.DeleteRow(rowIndex); }
+            // ★行削除後もキャッシュをクリア
+            if (_dataCache.ContainsKey(sheetName)) _dataCache.Remove(sheetName);
         }
 
         // 全データクリア（ログメッセージのリストを返す）

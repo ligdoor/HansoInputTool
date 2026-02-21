@@ -79,17 +79,30 @@ namespace HansoInputTool.Services
 
                 progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = "最終処理中..." });
 
-                if (wbShukei.Workbook.Worksheets.Any(ws => ws.Name == "寝台車 29"))
+                // ★修正点：A1に和暦(R番号)、B1に月を書き込む対象シートを汎用的に処理
+                // 「寝台車 29」だけでなく「CH富士吉田 29」「CH大月 29」「CH東富士 29」にも対応
+                var targetSheetNames = new[]
                 {
-                    var wsOut29 = wbShukei.Workbook.Worksheets["寝台車 29"];
-                    wsOut29.Cells["A1"].Value = $"R{rNum}";
-                    wsOut29.Cells["B1"].Value = month;
-                }
-                if (wbGeppo.Workbook.Worksheets.Any(ws => ws.Name == "寝台車 29"))
+                    "寝台車 29",
+                    "CH富士吉田 29",
+                };
+
+                foreach (var targetName in targetSheetNames)
                 {
-                    var wsGeppo29 = wbGeppo.Workbook.Worksheets["寝台車 29"];
-                    wsGeppo29.Cells["A1"].Value = $"R{rNum}";
-                    wsGeppo29.Cells["B1"].Value = month;
+                    if (wbShukei.Workbook.Worksheets.Any(ws => ws.Name == targetName))
+                    {
+                        var ws = wbShukei.Workbook.Worksheets[targetName];
+                        ws.Cells["A1"].Value = $"R{rNum}";
+                        ws.Cells["B1"].Value = month;
+                        Logger.Info($"集計ファイル [{targetName}] に A1=R{rNum}, B1={month} を書き込みました。");
+                    }
+                    if (wbGeppo.Workbook.Worksheets.Any(ws => ws.Name == targetName))
+                    {
+                        var ws = wbGeppo.Workbook.Worksheets[targetName];
+                        ws.Cells["A1"].Value = $"R{rNum}";
+                        ws.Cells["B1"].Value = month;
+                        Logger.Info($"月報ファイル [{targetName}] に A1=R{rNum}, B1={month} を書き込みました。");
+                    }
                 }
 
                 wbShukei.Save();

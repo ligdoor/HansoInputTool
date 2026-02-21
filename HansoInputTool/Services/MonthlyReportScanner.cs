@@ -43,8 +43,8 @@ namespace HansoInputTool.Services
                     try
                     {
                         // サブフォルダ内のxlsファイルを検索
-                        var xlsFiles = Directory.GetFiles(subFolder, "*.xls", SearchOption.TopDirectoryOnly);
-                        
+                        var xlsFiles = Directory.GetFiles(subFolder, "*.xlsx", SearchOption.TopDirectoryOnly);
+
                         foreach (var xlsFile in xlsFiles)
                         {
                             var fileName = Path.GetFileName(xlsFile);
@@ -87,7 +87,7 @@ namespace HansoInputTool.Services
         private bool IsMonthlyReportFile(string fileName)
         {
             // パターン: ##期#月R#アルス搬送・霊柩車　実績月報.xls
-            var pattern = @"^\d+期\d+月R\d+アルス搬送・霊柩車\s*実績月報\.xls$";
+            var pattern = @"^\d+期\s+\d+月\s+R\d+\s+アルス搬送・霊柩車\s+実績月報\.xlsx$";
             return Regex.IsMatch(fileName, pattern);
         }
         
