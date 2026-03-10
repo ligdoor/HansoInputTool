@@ -18,6 +18,7 @@ namespace HansoInputTool.ViewModels
         private readonly ExcelHandler _excelHandler;
         private readonly string _ratesFilePath;
         private readonly ShortcutService _shortcutService;
+        private readonly BackupService _backupService;
 
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ObservableCollection<VehicleSheetViewModel> VehicleSheetList { get; set; }
@@ -27,6 +28,21 @@ namespace HansoInputTool.ViewModels
 
         // ショートカット設定
         public ShortcutSettingsViewModel ShortcutSettingsVM { get; }
+
+        // バックアップ設定
+        private int _maxAutoBackupFiles;
+        public int MaxAutoBackupFiles
+        {
+            get => _maxAutoBackupFiles;
+            set => SetProperty(ref _maxAutoBackupFiles, Math.Max(1, Math.Min(50, value)));
+        }
+
+        private int _maxManualBackupFiles;
+        public int MaxManualBackupFiles
+        {
+            get => _maxManualBackupFiles;
+            set => SetProperty(ref _maxManualBackupFiles, Math.Max(1, Math.Min(100, value)));
+        }
 
         // 選択中のタブインデックス
         private int _selectedTabIndex;
@@ -47,12 +63,14 @@ namespace HansoInputTool.ViewModels
             ExcelHandler excelHandler,
             string ratesFilePath,
             MainViewModel mainViewModel,
-            ShortcutService shortcutService)
+            ShortcutService shortcutService,
+            BackupService backupService = null)
         {
             _excelHandler = excelHandler;
             _ratesFilePath = ratesFilePath;
             _mainViewModel = mainViewModel;
             _shortcutService = shortcutService;
+            _backupService = backupService;
 
             Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
             var currentSheets = _excelHandler.GetVehicleSheetNames();
@@ -60,6 +78,10 @@ namespace HansoInputTool.ViewModels
 
             // ショートカット設定VMを初期化
             ShortcutSettingsVM = new ShortcutSettingsViewModel(_shortcutService.CurrentSettings);
+
+            // バックアップ設定の初期値を読み込み
+            MaxAutoBackupFiles   = _backupService?.MaxBackupFiles       ?? 10;
+            MaxManualBackupFiles = _backupService?.MaxManualBackupFiles ?? 20;
 
             AddVehicleCommand = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
@@ -74,7 +96,7 @@ namespace HansoInputTool.ViewModels
             ExcelHandler excelHandler,
             string ratesFilePath,
             MainViewModel mainViewModel)
-            : this(currentRates, excelHandler, ratesFilePath, mainViewModel, null)
+            : this(currentRates, excelHandler, ratesFilePath, mainViewModel, null, null)
         {
         }
 
@@ -184,6 +206,20 @@ namespace HansoInputTool.ViewModels
                     var newShortcutSettings = ShortcutSettingsVM.ToShortcutSettings();
                     _shortcutService.UpdateSettings(newShortcutSettings);
                     _shortcutService.Save();
+                }
+
+                // バックアップ保持数を反映
+                if (_backupService != null)
+                {
+                    _backupService.MaxBackupFiles       = MaxAutoBackupFiles;
+                    _backupService.MaxManualBackupFiles = MaxManualBackupFiles;
+                }
+
+                // バックアップ保持数を反映
+                if (_backupService != null)
+                {
+                    _backupService.MaxBackupFiles       = MaxAutoBackupFiles;
+                    _backupService.MaxManualBackupFiles = MaxManualBackupFiles;
                 }
 
                 _mainViewModel.UpdateRatesAndReload(Rates);

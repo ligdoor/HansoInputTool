@@ -270,28 +270,38 @@
                                         <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                                         <Grid>
                                             <TextBox x:Name="NormalLateValueTextBox" Text="{Binding NormalLateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
-                                            <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:3000"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <TextBlock Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}">
+                                            <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
                                                         <Setter Property="Text" Value="例:90"/>
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value="">
+                                                            <!-- TextBoxが空 かつ 大月シートでない（深夜時間モード）のときだけ表示 -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value=""/>
+                                                                    <Condition Binding="{Binding IsOotsukiSheet}" Value="False"/>
+                                                                </MultiDataTrigger.Conditions>
                                                                 <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
+                                                            </MultiDataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock>
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
+                                                        <Setter Property="Text" Value="例:3000"/>
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <!-- TextBoxが空 かつ 大月シート（深夜料金モード）のときだけ表示 -->
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value=""/>
+                                                                    <Condition Binding="{Binding IsOotsukiSheet}" Value="True"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </MultiDataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </TextBlock.Style>

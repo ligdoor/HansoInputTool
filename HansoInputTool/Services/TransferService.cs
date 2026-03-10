@@ -64,13 +64,17 @@ namespace HansoInputTool.Services
                 {
                     progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = $"処理中: {sheetName} ..." });
 
-                    if (sheetName.Contains("寝台車") || sheetName.Contains("霊柩車") || sheetName.Contains("CH"))
+                    if (IsNormalSheet(sheetName))
                     {
                         ProcessNormalSheet(wbInput, wbGeppo, wbShukei, sheetName, rates, columnMap);
                     }
-                    else if (sheetName.Contains("東日本"))
+                    else if (IsEastSheet(sheetName))
                     {
                         ProcessEastSheet(wbInput, wbShukei, sheetName, columnMap);
+                    }
+                    else
+                    {
+                        Logger.Warn($"[{sheetName}] はどのシート種別にも該当しないためスキップしました。");
                     }
 
                     processedCount++;
@@ -79,29 +83,26 @@ namespace HansoInputTool.Services
 
                 progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = "最終処理中..." });
 
-                // ★修正点：A1に和暦(R番号)、B1に月を書き込む対象シートを汎用的に処理
-                // 「寝台車 29」だけでなく「CH富士吉田 29」「CH大月 29」「CH東富士 29」にも対応
-                var targetSheetNames = new[]
+                // 全ての車両シート（寝台車・霊柩車・CH系）に対して
+                // A1=R{rNum}、B1=月 を書き込む（C1=期はファイル名に使用するのみ・セルへの記入は不要）
+                foreach (var sheetWs in wbShukei.Workbook.Worksheets)
                 {
-                    "寝台車 29",
-                    "CH富士吉田 29",
-                };
-
-                foreach (var targetName in targetSheetNames)
-                {
-                    if (wbShukei.Workbook.Worksheets.Any(ws => ws.Name == targetName))
+                    string sn = sheetWs.Name;
+                    if (IsNormalSheet(sn) || IsEastSheet(sn))
                     {
-                        var ws = wbShukei.Workbook.Worksheets[targetName];
-                        ws.Cells["A1"].Value = $"R{rNum}";
-                        ws.Cells["B1"].Value = month;
-                        Logger.Info($"集計ファイル [{targetName}] に A1=R{rNum}, B1={month} を書き込みました。");
+                        sheetWs.Cells["A1"].Value = $"R{rNum}";
+                        sheetWs.Cells["B1"].Value = month;
+                        Logger.Info($"集計ファイル [{sn}] に A1=R{rNum}, B1={month} を書き込みました。");
                     }
-                    if (wbGeppo.Workbook.Worksheets.Any(ws => ws.Name == targetName))
+                }
+                foreach (var sheetWs in wbGeppo.Workbook.Worksheets)
+                {
+                    string sn = sheetWs.Name;
+                    if (IsNormalSheet(sn) || IsEastSheet(sn))
                     {
-                        var ws = wbGeppo.Workbook.Worksheets[targetName];
-                        ws.Cells["A1"].Value = $"R{rNum}";
-                        ws.Cells["B1"].Value = month;
-                        Logger.Info($"月報ファイル [{targetName}] に A1=R{rNum}, B1={month} を書き込みました。");
+                        sheetWs.Cells["A1"].Value = $"R{rNum}";
+                        sheetWs.Cells["B1"].Value = month;
+                        Logger.Info($"月報ファイル [{sn}] に A1=R{rNum}, B1={month} を書き込みました。");
                     }
                 }
 
@@ -109,6 +110,17 @@ namespace HansoInputTool.Services
                 wbGeppo.Save();
             });
         }
+
+        // ===== シート種別の一元判定ヘルパー =====
+        private static readonly string[] NormalSheetKeywords = { "寝台車", "霊柩車", "CH富士吉田", "CH大月", "CH東富士" };
+        private static readonly string[] EastSheetKeywords  = { "東日本セレモニー", "東日本" };
+
+        private static bool IsNormalSheet(string sheetName) =>
+            NormalSheetKeywords.Any(kw => sheetName.Contains(kw));
+
+        private static bool IsEastSheet(string sheetName) =>
+            EastSheetKeywords.Any(kw => sheetName.Contains(kw));
+        // ==========================================
 
         private void ProcessNormalSheet(ExcelPackage wbInput, ExcelPackage wbGeppo, ExcelPackage wbShukei, string sheetName, Dictionary<string, RateInfo> rates, ColumnMapping columnMap)
         {

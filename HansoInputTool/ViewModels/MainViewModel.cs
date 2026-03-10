@@ -17,23 +17,25 @@ using HansoInputTool.ViewModels.Base;
 using HansoInputTool.Views;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NLog;
 using OfficeOpenXml;
 
 namespace HansoInputTool.ViewModels
 {
-    public class MainViewModel : ObservableObject
+    public class MainViewModel : ObservableObject, IDisposable
     {
+        private bool _disposed = false;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         #region Constants and Paths
         private const string AppName = "HansoInputTool";
-        private const string CurrentVersion = "1.6.1";
-        private const string GithubToken = "";
         private const string VersionInfoUrl = "https://raw.githubusercontent.com/ligdoor/HansoInputTool/refs/heads/master/HansoInputTool/version.json";
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
 
+        // バージョンは version.json から読み込む（ハードコードしない）
         private static readonly string BaseDataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
+        private static readonly string VersionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.json");
         private static readonly string RatesFilePath = Path.Combine(BaseDataPath, "rates.json");
         private static readonly string InputFilePath = Path.Combine(BaseDataPath, "Input.xlsx");
         private static readonly string TemplateFilePath = Path.Combine(BaseDataPath, "Template.xlsx");
@@ -53,6 +55,7 @@ namespace HansoInputTool.ViewModels
         private ColumnMapping _columnMap;
         private List<string> _allSheetNames;
         private readonly StringBuilder _logBuilder = new();
+        private const int MaxLogLines = 200; // ログの最大表示行数
         private string _logText;
         public string LogText { get => _logText; private set => SetProperty(ref _logText, value); }
         private int _selectedTabIndex = 0;
@@ -981,14 +984,47 @@ namespace HansoInputTool.ViewModels
 
         private async Task CheckForUpdate()
         {
-            var updateService = new UpdateService(CurrentVersion, GithubToken, VersionInfoUrl, ReleasesPageUrl, Log);
+            // version.json からローカルのバージョンを読み込む
+            string currentVersion = "0.0.0";
+            try
+            {
+                if (File.Exists(VersionFilePath))
+                {
+                    var versionJson = await File.ReadAllTextAsync(VersionFilePath);
+                    var versionData = JObject.Parse(versionJson);
+                    currentVersion = versionData["latest_version"]?.ToString() ?? "0.0.0";
+                    Logger.Info($"ローカルバージョン: {currentVersion}");
+                }
+                else
+                {
+                    Logger.Warn($"version.json が見つかりません: {VersionFilePath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "version.json の読み込みに失敗しました。バージョンチェックをスキップします。");
+                return;
+            }
+
+            var updateService = new UpdateService(currentVersion, "", VersionInfoUrl, ReleasesPageUrl, Log);
             await updateService.CheckForUpdateAsync();
         }
 
         private void Log(string message)
         {
             Logger.Info(message);
-            void updateAction() { _logBuilder.AppendLine(message); LogText = _logBuilder.ToString(); }
+            void updateAction()
+            {
+                _logBuilder.AppendLine(message);
+                // 最大行数を超えたら古い行を削除
+                var lines = _logBuilder.ToString().Split('\n');
+                if (lines.Length > MaxLogLines)
+                {
+                    _logBuilder.Clear();
+                    _logBuilder.Append(string.Join("\n", lines.Skip(lines.Length - MaxLogLines)));
+                }
+                LogText = _logBuilder.ToString();
+            }
             if (Application.Current.Dispatcher.CheckAccess()) { updateAction(); }
             else { Application.Current.Dispatcher.Invoke(updateAction); }
         }
@@ -1007,7 +1043,7 @@ namespace HansoInputTool.ViewModels
 
         private void OpenSettings()
         {
-            var settingsVM = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService);
+            var settingsVM = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService, _backupService);
             var settingsWindow = new SettingsWindow(settingsVM) { Owner = Application.Current.MainWindow };
             settingsWindow.ShowDialog();
         }
@@ -1048,6 +1084,17 @@ namespace HansoInputTool.ViewModels
                 UpdatePreview();
                 _excelHandler.Save();
                 Log($"[{sheet}] から {rowIndex}行目のデータを削除しました。");
+            }
+        }
+        /// <summary>
+        /// リソースの解放（ExcelHandlerのExcelPackageを確実に閉じる）
+        /// </summary>
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _excelHandler?.Dispose();
+                _disposed = true;
             }
         }
     }

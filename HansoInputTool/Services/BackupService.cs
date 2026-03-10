@@ -10,7 +10,9 @@ namespace HansoInputTool.Services
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly string _backupDir;
-        private const int MaxBackupFiles = 10; // 保持するバックアップ数
+        // バックアップ保持数（設定画面から変更可能）
+        public int MaxBackupFiles { get; set; } = 10;
+        public int MaxManualBackupFiles { get; set; } = 20;
 
         public BackupService()
         {
@@ -88,6 +90,9 @@ namespace HansoInputTool.Services
                 File.Copy(filePath, backupPath, true);
                 Logger.Info($"手動バックアップを作成しました: {backupFileName}");
 
+                // 古い手動バックアップを削除
+                CleanOldManualBackups(fileName, extension);
+
                 return backupPath;
             }
             catch (Exception ex)
@@ -120,6 +125,31 @@ namespace HansoInputTool.Services
             catch (Exception ex)
             {
                 Logger.Error(ex, "古いバックアップの削除中にエラーが発生しました");
+            }
+        }
+
+        /// <summary>
+        /// 古い手動バックアップを削除（最新N件のみ保持）
+        /// </summary>
+        private void CleanOldManualBackups(string baseFileName, string extension)
+        {
+            try
+            {
+                var pattern = $"{baseFileName}_*_manual{extension}";
+                var backups = Directory.GetFiles(_backupDir, pattern)
+                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .Skip(MaxManualBackupFiles)
+                    .ToList();
+
+                foreach (var oldBackup in backups)
+                {
+                    File.Delete(oldBackup);
+                    Logger.Info($"古い手動バックアップを削除しました: {Path.GetFileName(oldBackup)}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "古い手動バックアップの削除中にエラーが発生しました");
             }
         }
 

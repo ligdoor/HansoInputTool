@@ -11,8 +11,9 @@ using OfficeOpenXml.Table;
 
 namespace HansoInputTool.Services
 {
-    public class ExcelHandler
+    public class ExcelHandler : IDisposable
     {
+        private bool _disposed = false;
         static ExcelHandler()
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -398,25 +399,30 @@ namespace HansoInputTool.Services
                     .ToList();
 
                 var orderedNames = vehicleInfos
-                    .OrderBy(v => v.Branch, StringComparer.Ordinal)
-                    .ThenBy(v => v.CategoryOrder)
+                    .OrderBy(v => v.CategoryOrder)
                     .ThenBy(v => v.NumberInt)
                     .ThenBy(v => v.Name, StringComparer.Ordinal)
                     .Select(v => v.Name)
                     .ToList();
 
-                // 逆順で先頭に移動
+                // 月間集計がある場合は先頭に移動
+                if (monthly != null)
+                {
+                    package.Workbook.Worksheets.MoveBefore(monthly.Index, 1);
+                }
+
+                // 車両シートを月間集計の後（2番目以降）に順番通り配置
+                // orderedNamesの順番で後ろから2番目の位置に挿入
                 for (int i = orderedNames.Count - 1; i >= 0; i--)
                 {
                     var name = orderedNames[i];
                     var ws = package.Workbook.Worksheets.FirstOrDefault(x => x.Name == name);
                     if (ws == null) continue;
-                    package.Workbook.Worksheets.MoveBefore(ws.Index, 1);
-                }
-
-                if (monthly != null)
-                {
-                    package.Workbook.Worksheets.MoveAfter(monthly.Index, package.Workbook.Worksheets.Count);
+                    // 月間集計がある場合は2番目に、ない場合は先頭に移動
+                    if (monthly != null)
+                        package.Workbook.Worksheets.MoveAfter(ws.Index, 1);
+                    else
+                        package.Workbook.Worksheets.MoveBefore(ws.Index, 1);
                 }
 
                 Logger.Info($"パッケージのシート順を支社名毎に並べ替えました。");
@@ -493,31 +499,25 @@ namespace HansoInputTool.Services
 
         private int GetCategoryOrder(string sheetName)
         {
-            // 通常の車両（営業所名なし） - 最優先
-            if (!sheetName.Contains("CH富士吉田") &&
-                !sheetName.Contains("CH大月") &&
-                !sheetName.Contains("CH東富士") &&
-                !sheetName.Contains("東日本") &&
-                (sheetName.StartsWith("霊柩車") || sheetName.StartsWith("寝台車")))
-            {
-                return 1;
-            }
-
-            // CH富士吉田
+            // 富士吉田系（CH富士吉田 または 営業所なしの通常車両）
             if (sheetName.Contains("CH富士吉田"))
                 return 2;
 
-            // CH大月
-            if (sheetName.Contains("CH大月"))
+            // 大月系（CH大月 または 大月を含む）
+            if (sheetName.Contains("CH大月") || (sheetName.Contains("大月") && !sheetName.Contains("CH富士吉田") && !sheetName.Contains("CH東富士") && !sheetName.Contains("東日本")))
                 return 3;
 
-            // CH東富士
+            // 東富士系
             if (sheetName.Contains("CH東富士"))
                 return 4;
 
             // 東日本セレモニー
             if (sheetName.Contains("東日本"))
                 return 5;
+
+            // 通常の車両（営業所名なし） - 富士吉田グループとして先頭
+            if (sheetName.StartsWith("霊柩車") || sheetName.StartsWith("寝台車"))
+                return 1;
 
             return 99;
         }
@@ -526,6 +526,8 @@ namespace HansoInputTool.Services
             // 営業所名が明示されている場合
             if (sheetName.Contains("CH富士吉田")) return "CH富士吉田";
             if (sheetName.Contains("CH大月")) return "CH大月";
+            // 「大月 寝台車」など CH なしの大月系も大月として扱う
+            if (sheetName.Contains("大月") && !sheetName.Contains("CH富士吉田") && !sheetName.Contains("CH東富士") && !sheetName.Contains("東日本")) return "CH大月";
             if (sheetName.Contains("CH東富士")) return "CH東富士";
             if (sheetName.Contains("東日本セレモニー")) return "東日本セレモニー";
 
@@ -807,6 +809,17 @@ namespace HansoInputTool.Services
                     return true;
             }
             return false;
+        }
+
+        /// <summary>リソースを解放します（ExcelPackageを確実に閉じる）</summary>
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _inputPackage?.Dispose();
+                _templatePackage?.Dispose();
+                _disposed = true;
+            }
         }
     }
 }
