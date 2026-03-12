@@ -1,0 +1,107 @@
+<Window x:Class="HansoInputTool.Views.VehicleAnnualSummaryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:HansoInputTool.ViewModels"
+        Title="運輸実績 年度集計 Excel出力"
+        Width="520" Height="250"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#0B1220">
+
+    <Window.DataContext>
+        <vm:VehicleAnnualSummaryViewModel />
+    </Window.DataContext>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- フォルダ選択 -->
+        <TextBlock Grid.Row="0"
+                   Text="集計ファイルのフォルダ"
+                   FontWeight="SemiBold"
+                   FontSize="12"
+                   Foreground="#94A3B8"
+                   Margin="0,0,0,6"/>
+
+        <Grid Grid.Row="1" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0"
+                    Background="#172033"
+                    BorderBrush="#2B4A7A"
+                    BorderThickness="2"
+                    CornerRadius="3"
+                    Margin="0,0,8,0">
+                <TextBlock Text="{Binding FolderPath}"
+                           Foreground="#E6EEF8"
+                           VerticalAlignment="Center"
+                           Padding="8,6"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding FolderPath}"/>
+            </Border>
+            <Button Grid.Column="1"
+                    Content="参照..."
+                    Width="72" Height="30"
+                    Style="{StaticResource NormalButton}"
+                    Command="{Binding SelectFolderCommand}"
+                    IsEnabled="{Binding IsNotBusy}"/>
+        </Grid>
+
+        <!-- 期間指定 -->
+        <TextBlock Grid.Row="2"
+                   Text="集計期間"
+                   FontWeight="SemiBold"
+                   FontSize="12"
+                   Foreground="#94A3B8"
+                   Margin="0,0,0,8"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="開始：" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12" Margin="0,0,4,0"/>
+            <TextBox Text="{Binding StartYear, UpdateSourceTrigger=PropertyChanged}"
+                     Width="58" IsEnabled="{Binding IsNotBusy}"/>
+            <TextBlock Text=" 年 " VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12"/>
+            <TextBox Text="{Binding StartMonth, UpdateSourceTrigger=PropertyChanged}"
+                     Width="38" IsEnabled="{Binding IsNotBusy}"/>
+            <TextBlock Text=" 月　　" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12"/>
+            <TextBlock Text="終了：" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12" Margin="0,0,4,0"/>
+            <TextBox Text="{Binding EndYear, UpdateSourceTrigger=PropertyChanged}"
+                     Width="58" IsEnabled="{Binding IsNotBusy}"/>
+            <TextBlock Text=" 年 " VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12"/>
+            <TextBox Text="{Binding EndMonth, UpdateSourceTrigger=PropertyChanged}"
+                     Width="38" IsEnabled="{Binding IsNotBusy}"/>
+            <TextBlock Text=" 月" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12"/>
+        </StackPanel>
+
+        <!-- 実行ボタン＋ステータス -->
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Button Grid.Row="0"
+                    Content="集計を実行して Excel に出力"
+                    Command="{Binding ExecuteCommand}"
+                    Height="36"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Background="#10B981"
+                    Style="{StaticResource NormalButton}"/>
+
+            <TextBlock Grid.Row="1"
+                       Text="{Binding StatusMessage}"
+                       Foreground="#94A3B8"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,8,0,0"/>
+        </Grid>
+    </Grid>
+</Window>

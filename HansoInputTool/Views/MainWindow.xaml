@@ -1,4 +1,4 @@
-﻿<Window x:Class="HansoInputTool.Views.MainWindow"
+<Window x:Class="HansoInputTool.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -46,8 +46,27 @@
             </Grid.RowDefinitions>
 
             <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding AppVersion}" FontSize="11" VerticalAlignment="Center"
+                               Foreground="{StaticResource SubTextBrush}" Margin="8,0,0,0"/>
+                </StackPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding OpenVehicleAnnualSummaryCommand}"
+                            Style="{StaticResource NormalButton}"
+                            Background="#0F766E"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            Padding="12,8"
+                            Margin="0,0,8,0">
+                        <Button.Effect>
+                            <DropShadowEffect Color="#0F766E" 
+                                              Opacity="0.4" 
+                                              BlurRadius="15" 
+                                              ShadowDepth="0"/>
+                        </Button.Effect>
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📈 年度集計"/>
+                    </Button>
                     <Button Command="{Binding OpenMonthlyReportDashboardCommand}"
                             Style="{StaticResource NormalButton}"
                             Background="{StaticResource AccentBrush}"
@@ -175,7 +194,7 @@
                 </Grid.ColumnDefinitions>
                 <TabControl Grid.Column="0" Margin="0,0,10,0" SelectedIndex="{Binding SelectedTabIndex}">
                     <TabItem Header="通常シート">
-                        <StackPanel Margin="10">
+                        <StackPanel Margin="10" DataContext="{Binding NormalSheet}">
                             <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10"/>
                             
                             <!-- 日(B) -->
@@ -184,7 +203,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="日(B)" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalDayTextBox" Text="{Binding NormalDay, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalDayTextBox" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -199,9 +218,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding NormalDayError}" 
+                                        <TextBlock Text="{Binding DayError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding NormalDayError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding DayError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -212,7 +231,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="有料キロ(D)" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding NormalYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -227,9 +246,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding NormalYuryoKmError}" 
+                                        <TextBlock Text="{Binding YuryoKmError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding NormalYuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -240,7 +259,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="無料キロ(E)" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding NormalMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -255,9 +274,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding NormalMuryoKmError}" 
+                                        <TextBlock Text="{Binding MuryoKmError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding NormalMuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -269,7 +288,7 @@
                                         <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
                                         <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalLateValueTextBox" Text="{Binding NormalLateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -307,9 +326,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding NormalLateValueError}" 
+                                        <TextBlock Text="{Binding LateValueError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding NormalLateValueError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding LateValueError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -320,7 +339,7 @@
                     </TabItem>
                     
                     <TabItem Header="東日本シート">
-                        <StackPanel Margin="10">
+                        <StackPanel Margin="10" DataContext="{Binding EastSheet}">
                             <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}" Margin="0,0,0,10"/>
                             
                             <!-- 延実働車輌数 -->
@@ -329,7 +348,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="延実働車輌数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastJitsudoTextBox" Text="{Binding EastJitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastJitsudoTextBox" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -344,9 +363,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding EastJitsudoError}" 
+                                        <TextBlock Text="{Binding JitsudoError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding EastJitsudoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding JitsudoError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -357,7 +376,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="搬送回数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastHansoTextBox" Text="{Binding EastHanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastHansoTextBox" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -372,9 +391,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding EastHansoError}" 
+                                        <TextBlock Text="{Binding HansoError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding EastHansoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding HansoError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -385,7 +404,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="有料キロ数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding EastYuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -400,9 +419,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding EastYuryoKmError}" 
+                                        <TextBlock Text="{Binding YuryoKmError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding EastYuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -413,7 +432,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="無料キロ数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding EastMuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -428,9 +447,9 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding EastMuryoKmError}" 
+                                        <TextBlock Text="{Binding MuryoKmError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding EastMuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -441,7 +460,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="運輸実績" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastUnsoTextBox" Text="{Binding EastUnso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown"/>
+                                            <TextBox x:Name="EastUnsoTextBox" Text="{Binding Unso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -456,20 +475,20 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </Grid>
-                                        <TextBlock Text="{Binding EastUnsoError}" 
+                                        <TextBlock Text="{Binding UnsoError}" 
                                                    Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding EastUnsoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                   Visibility="{Binding UnsoError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </Grid>
                             </Border>
                             
                             <DockPanel Margin="0,10,0,0">
-                                <TextBlock Text="{Binding EastSheetStatus}" VerticalAlignment="Center" Margin="5,0">
+                                <TextBlock Text="{Binding SheetStatus}" VerticalAlignment="Center" Margin="5,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{StaticResource SubTextBrush}"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsEastSheetRegistered}" Value="True">
+                                                <DataTrigger Binding="{Binding IsSheetRegistered}" Value="True">
                                                     <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -507,8 +526,8 @@
                             <DataGridTextColumn Header="有料km" Binding="{Binding D_YuryoKm, StringFormat={}{0:N0}}" Width="*"/>
                             <DataGridTextColumn Header="無料km" Binding="{Binding E_MuryoKm, StringFormat={}{0:N0}}" Width="*"/>
                             <DataGridTextColumn Header="行旅" Binding="{Binding IsKoryoText}" Width="50"/>
-                            <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="*" Visibility="{Binding Data.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
-                            <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="*" Visibility="{Binding Data.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                            <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="*" Visibility="{Binding Data.NormalSheet.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
+                            <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="*" Visibility="{Binding Data.NormalSheet.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
