@@ -82,6 +82,22 @@
                         </Button.Effect>
                         <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📊 月報統計"/>
                     </Button>
+                    <Button Command="{Binding OpenPdfImportCommand}"
+                            Style="{StaticResource NormalButton}"
+                            Background="#7c3aed"
+                            Foreground="White"
+                            FontWeight="SemiBold"
+                            Padding="12,8"
+                            Margin="0,0,8,0"
+                            ToolTip="日報PDFを読み込んで自動入力">
+                        <Button.Effect>
+                            <DropShadowEffect Color="#7c3aed"
+                                              Opacity="0.4"
+                                              BlurRadius="15"
+                                              ShadowDepth="0"/>
+                        </Button.Effect>
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📄 PDF読込"/>
+                    </Button>
                     <Button Command="{Binding CreateBackupCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
                             Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"

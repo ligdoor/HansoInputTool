@@ -17,6 +17,7 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="NLog" Version="6.0.7" />
 		<PackageReference Include="NLog.Extensions.Logging" Version="6.1.0" />
+		<PackageReference Include="PDFsharp" Version="6.1.1" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Compile Update="Models\ColumnMapping.cs">

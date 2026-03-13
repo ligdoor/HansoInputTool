@@ -1,0 +1,69 @@
+<Window x:Class="HansoInputTool.Views.ApiKeyInputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Claude APIキーの設定"
+        Height="260" Width="480"
+        Background="{StaticResource BgBrush}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="🔑 Claude APIキーの設定" FontSize="15" FontWeight="Bold"
+                   Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="12"
+                   Foreground="{StaticResource SubTextBrush}" Margin="0,0,0,8">
+            PDF日報の自動読み取りにはClaude APIキーが必要です。<LineBreak/>
+            Anthropic Console (console.anthropic.com) で取得できます。
+        </TextBlock>
+
+        <TextBlock Grid.Row="2" Text="APIキー (sk-ant-...)" FontSize="12"
+                   Foreground="{StaticResource SubTextBrush}" Margin="0,0,0,4"/>
+
+        <Grid Grid.Row="3" Margin="0,0,0,8">
+            <TextBox x:Name="ApiKeyBox"
+                     Background="#172033" Foreground="{StaticResource TextBrush}"
+                     BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
+                     Padding="8,6" FontSize="12"/>
+            <TextBlock Text="sk-ant-api03-..." IsHitTestVisible="False"
+                       Foreground="#64748b" FontSize="12" Padding="9,7"
+                       VerticalAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Text, ElementName=ApiKeyBox}" Value="">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+
+        <TextBlock Grid.Row="4" TextWrapping="Wrap" FontSize="11"
+                   Foreground="#64748b">
+            ※ APIキーはローカルの data/api_settings.json に保存されます。
+        </TextBlock>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="キャンセル" Click="CancelButton_Click"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource ButtonSecondaryBgBrush}"
+                    Padding="16,7" Margin="0,0,8,0"/>
+            <Button Content="保存して開く" Click="OkButton_Click"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource AccentBrush}"
+                    Padding="16,7"/>
+        </StackPanel>
+    </Grid>
+</Window>

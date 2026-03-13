@@ -113,6 +113,7 @@ namespace HansoInputTool.ViewModels
         public ICommand OnClosingCommand { get; }
         public ICommand OpenMonthlyReportDashboardCommand { get; }
         public ICommand OpenVehicleAnnualSummaryCommand { get; }
+        public ICommand OpenPdfImportCommand { get; }
 
         // XAMLバインディング互換のため子VMのコマンドを公開
         public ICommand RegisterNormalCommand => NormalSheet.RegisterCommand;
@@ -141,6 +142,7 @@ namespace HansoInputTool.ViewModels
             OnClosingCommand                  = new RelayCommand(p => { });
             OpenMonthlyReportDashboardCommand = new RelayCommand(_ => OpenWindow<MonthlyReportDashboardWindow>("月報統計ダッシュボード"));
             OpenVehicleAnnualSummaryCommand   = new RelayCommand(_ => OpenWindow<VehicleAnnualSummaryWindow>("車両別年度集計"));
+            OpenPdfImportCommand              = new RelayCommand(_ => OpenPdfImport(), _ => !IsBusy);
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
@@ -478,6 +480,74 @@ namespace HansoInputTool.ViewModels
         {
             var vm = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService, _backupService);
             new SettingsWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
+        }
+
+        private void OpenPdfImport()
+        {
+            var apiKey = LoadApiKey();
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                var inputDialog = new ApiKeyInputWindow { Owner = Application.Current.MainWindow };
+                if (inputDialog.ShowDialog() != true) return;
+                apiKey = inputDialog.ApiKey;
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                    SaveApiKey(apiKey);
+            }
+
+            var vm = new PdfImportViewModel(NormalSheet, Log, apiKey);
+            new Views.PdfImportWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
+        }
+
+        private static readonly string ApiSettingsFilePath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "data", "api_settings.json");
+
+        // AES暗号化用の固定キー（変更しないこと）
+        private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("HansoTool!AES256Key#2025$Secure!"); // 32バイト
+        private static readonly byte[] AesIv  = System.Text.Encoding.UTF8.GetBytes("HansoIV!16Bytes!"); // 16バイト
+
+        private string LoadApiKey()
+        {
+            try
+            {
+                if (!File.Exists(ApiSettingsFilePath)) return null;
+                var json = File.ReadAllText(ApiSettingsFilePath);
+                var obj = JObject.Parse(json);
+                var encrypted = obj["claude_api_key"]?.ToString();
+                if (string.IsNullOrEmpty(encrypted)) return null;
+
+                using var aes = System.Security.Cryptography.Aes.Create();
+                aes.Key = AesKey;
+                aes.IV  = AesIv;
+                using var decryptor = aes.CreateDecryptor();
+                var encryptedBytes = Convert.FromBase64String(encrypted);
+                using var ms = new MemoryStream(encryptedBytes);
+                using var cs = new System.Security.Cryptography.CryptoStream(ms, decryptor, System.Security.Cryptography.CryptoStreamMode.Read);
+                using var reader = new StreamReader(cs);
+                return reader.ReadToEnd();
+            }
+            catch { return null; }
+        }
+
+        private void SaveApiKey(string apiKey)
+        {
+            try
+            {
+                using var aes = System.Security.Cryptography.Aes.Create();
+                aes.Key = AesKey;
+                aes.IV  = AesIv;
+                using var encryptor = aes.CreateEncryptor();
+                using var ms = new MemoryStream();
+                using var cs = new System.Security.Cryptography.CryptoStream(ms, encryptor, System.Security.Cryptography.CryptoStreamMode.Write);
+                using var writer = new StreamWriter(cs);
+                writer.Write(apiKey);
+                writer.Flush();
+                cs.FlushFinalBlock();
+                var encrypted = Convert.ToBase64String(ms.ToArray());
+
+                var obj = new JObject { ["claude_api_key"] = encrypted };
+                File.WriteAllText(ApiSettingsFilePath, obj.ToString());
+            }
+            catch (Exception ex) { Logger.Warn(ex, "APIキーの保存に失敗しました"); }
         }
 
         private void OpenHelp()
