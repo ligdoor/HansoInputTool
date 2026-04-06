@@ -229,9 +229,9 @@ namespace HansoInputTool.ViewModels
                 PreviewData.Add(item);
         }
 
-        public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, bool isKoryo)
+        public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, bool isKoryo, bool isEmbalming)
         {
-            _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, isKoryo);
+            _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, isKoryo, isEmbalming);
             UpdatePreview();
             _excelHandler.Save();
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。");

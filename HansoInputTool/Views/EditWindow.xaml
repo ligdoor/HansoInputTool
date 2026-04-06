@@ -54,6 +54,7 @@
                 </Grid>
             </Border>
             <CheckBox Content="行旅死亡人（基本料半額）" IsChecked="{Binding IsKoryo}" Margin="5,10"/>
+            <CheckBox Content="エンバーミング" IsChecked="{Binding IsEmbalming}" Margin="5,0"/>
             <Button Content="保存" HorizontalAlignment="Right" Margin="0,15,0,0"
                     Command="{Binding SaveCommand}"
                     CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"

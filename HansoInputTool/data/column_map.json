@@ -9,7 +9,8 @@
     "ShinyaFee": 8,
     "TotalFee": 9,
     "ShinyaMinutes": 11,
-    "IsKoryo": 12
+    "IsKoryo": 12,
+    "IsEmbalming": 13
   },
   "EastSheet": {
     "Jitsudo": "E4",

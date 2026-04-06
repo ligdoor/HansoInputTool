@@ -32,7 +32,7 @@ namespace HansoInputTool.Services
 
             const int dataStartRow = 6;
             const int startCol     = 1;  // A列
-            const int endCol       = 11; // K列
+            const int endCol       = 12; // L列（エンバーミング追加）
             const int maxDataRows  = 69;
 
             // 既存データをクリア
@@ -68,6 +68,7 @@ namespace HansoInputTool.Services
                     summarySheet.Cells[currentRow, 9].Formula  = $"{safeSheetName}!I4";                                     // 無料km
                     summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";                            // 合計km
                     summarySheet.Cells[currentRow, 11].Formula = $"{safeSheetName}!K4";                                     // 金額合計
+                    summarySheet.Cells[currentRow, 12].Value   = GetEmbalmingCount(sheetName);                              // エンバーミング合計
 
                     Logger.Info($"Row {currentRow}: {sheetName} のデータを設定しました");
                 }

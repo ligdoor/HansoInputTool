@@ -30,6 +30,9 @@ namespace HansoInputTool.ViewModels
         private bool _isKoryo;
         public bool IsKoryo { get => _isKoryo; set => SetProperty(ref _isKoryo, value); }
 
+        private bool _isEmbalming;
+        public bool IsEmbalming { get => _isEmbalming; set => SetProperty(ref _isEmbalming, value); }
+
         public ICommand SaveCommand { get; }
 
         public EditWindowViewModel(MainViewModel mainViewModel, string sheetName, RowData rowData)
@@ -46,6 +49,7 @@ namespace HansoInputTool.ViewModels
             MuryoKm = rowData.E_MuryoKm?.ToString();
             LateValue = IsOotsukiSheet ? rowData.H_LateFeeOotsuki?.ToString() : rowData.K_LateMinutes?.ToString();
             IsKoryo = rowData.L_IsKoryo == 1;
+            IsEmbalming = rowData.M_IsEmbalming == 1;
 
             SaveCommand = new RelayCommand(SaveEdit);
         }
@@ -80,7 +84,7 @@ namespace HansoInputTool.ViewModels
                 values["深夜時間(K)"] = lateVal;
             }
 
-            _mainViewModel.UpdateRowData(_sheetName, _rowIndex, values, IsKoryo);
+            _mainViewModel.UpdateRowData(_sheetName, _rowIndex, values, IsKoryo, IsEmbalming);
             ((Window)parameter).Close();
         }
 

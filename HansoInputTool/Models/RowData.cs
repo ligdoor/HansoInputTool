@@ -16,6 +16,8 @@ namespace HansoInputTool.Models
         public int? K_LateMinutes { get; set; }
         public int? L_IsKoryo { get; set; }
         public string IsKoryoText => L_IsKoryo == 1 ? "✔" : "";
+        public int? M_IsEmbalming { get; set; }
+        public string IsEmbalmingText => M_IsEmbalming == 1 ? "✔" : "";
         public string LateValueText { get; set; }
     }
 }

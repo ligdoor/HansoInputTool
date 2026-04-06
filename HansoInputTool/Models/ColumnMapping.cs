@@ -21,6 +21,7 @@ namespace HansoInputTool.Models
         public int TotalFee { get; set; }
         public int ShinyaMinutes { get; set; }
         public int IsKoryo { get; set; }
+        public int IsEmbalming { get; set; }
     }
 
     public class CellAddressMap

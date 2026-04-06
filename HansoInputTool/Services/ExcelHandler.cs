@@ -103,7 +103,8 @@ namespace HansoInputTool.Services
                     E_MuryoKm        = GetNullableInt(ws.Cells[rowIndex, map.MuryoKm].Value),
                     H_LateFeeOotsuki = GetNullableInt(ws.Cells[rowIndex, map.ShinyaFee].Value),
                     K_LateMinutes    = GetNullableInt(ws.Cells[rowIndex, map.ShinyaMinutes].Value),
-                    L_IsKoryo        = GetNullableInt(ws.Cells[rowIndex, map.IsKoryo].Value)
+                    L_IsKoryo        = GetNullableInt(ws.Cells[rowIndex, map.IsKoryo].Value),
+                    M_IsEmbalming    = GetNullableInt(ws.Cells[rowIndex, map.IsEmbalming].Value)
                 };
                 rowData.LateValueText = isOotsuki
                     ? rowData.H_LateFeeOotsuki?.ToString()
@@ -119,7 +120,7 @@ namespace HansoInputTool.Services
 
         #region データ書き込み
 
-        public (int targetRow, string insertInfo) RegisterNormalData(string sheetName, Dictionary<string, double?> values, bool isKoryo)
+        public (int targetRow, string insertInfo) RegisterNormalData(string sheetName, Dictionary<string, double?> values, bool isKoryo, bool isEmbalming)
         {
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
@@ -141,16 +142,16 @@ namespace HansoInputTool.Services
                 insertInfo = "空き行がないため、合計行の上に新しい行を挿入します。";
             }
 
-            WriteNormalValues(ws, targetRow, map, values, isKoryo, sheetName.Contains("大月"));
+            WriteNormalValues(ws, targetRow, map, values, isKoryo, isEmbalming, sheetName.Contains("大月"));
             InvalidateCache(sheetName);
             return (targetRow, insertInfo);
         }
 
-        public void UpdateNormalData(string sheetName, int rowIndex, Dictionary<string, double?> values, bool isKoryo)
+        public void UpdateNormalData(string sheetName, int rowIndex, Dictionary<string, double?> values, bool isKoryo, bool isEmbalming)
         {
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
-            WriteNormalValues(_inputPackage.Workbook.Worksheets[sheetName], rowIndex, _columnMap.NormalSheet, values, isKoryo, sheetName.Contains("大月"));
+            WriteNormalValues(_inputPackage.Workbook.Worksheets[sheetName], rowIndex, _columnMap.NormalSheet, values, isKoryo, isEmbalming, sheetName.Contains("大月"));
             InvalidateCache(sheetName);
         }
 
@@ -191,7 +192,7 @@ namespace HansoInputTool.Services
                     if (totalRowIndex != -1)
                     {
                         for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
-                            foreach (int col in new[] { normalMap.Day, normalMap.HansoCount, normalMap.YuryoKm, normalMap.MuryoKm, normalMap.ShinyaFee, normalMap.ShinyaMinutes, normalMap.IsKoryo })
+                            foreach (int col in new[] { normalMap.Day, normalMap.HansoCount, normalMap.YuryoKm, normalMap.MuryoKm, normalMap.ShinyaFee, normalMap.ShinyaMinutes, normalMap.IsKoryo, normalMap.IsEmbalming })
                                 if (col > 0) ws.Cells[rowIndex, col].Value = null;
                         logMessages.Add($"[{ws.Name}] の入力値をクリアしました。");
                     }
@@ -225,7 +226,7 @@ namespace HansoInputTool.Services
         #region 内部ヘルパー（他のpartialファイルからも使用）
 
         private void WriteNormalValues(ExcelWorksheet ws, int row, SheetColumnMap map,
-            Dictionary<string, double?> values, bool isKoryo, bool isOotsuki)
+            Dictionary<string, double?> values, bool isKoryo, bool isEmbalming, bool isOotsuki)
         {
             double? yuryoVal = values.GetValueOrDefault("有料キロ(D)");
             int hansoVal     = (yuryoVal.HasValue && yuryoVal > 0) ? 1 : 0;
@@ -234,7 +235,8 @@ namespace HansoInputTool.Services
             ws.Cells[row, map.HansoCount].Value = hansoVal;
             ws.Cells[row, map.YuryoKm].Value    = yuryoVal;
             ws.Cells[row, map.MuryoKm].Value    = values.GetValueOrDefault("無料キロ(E)");
-            ws.Cells[row, map.IsKoryo].Value    = isKoryo ? 1 : (object)null;
+            ws.Cells[row, map.IsKoryo].Value     = isKoryo ? 1 : (object)null;
+            ws.Cells[row, map.IsEmbalming].Value = isEmbalming ? 1 : (object)null;
 
             if (isOotsuki)
             {
@@ -251,6 +253,22 @@ namespace HansoInputTool.Services
         private void InvalidateCache(string sheetName)
         {
             if (_dataCache.ContainsKey(sheetName)) _dataCache.Remove(sheetName);
+        }
+
+        /// <summary>
+        /// 指定シートのエンバーミング件数（M列=1 の行数）を返す
+        /// </summary>
+        public int GetEmbalmingCount(string sheetName)
+        {
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) return 0;
+            var ws = _inputPackage.Workbook.Worksheets[sheetName];
+            var totalRowIndex = FindTotalRow(ws);
+            if (totalRowIndex == -1) return 0;
+            int count = 0;
+            int col = _columnMap.NormalSheet.IsEmbalming;
+            for (int r = 3; r < totalRowIndex; r++)
+                if (GetNullableInt(ws.Cells[r, col].Value) == 1) count++;
+            return count;
         }
 
         internal static int FindTotalRow(ExcelWorksheet ws)

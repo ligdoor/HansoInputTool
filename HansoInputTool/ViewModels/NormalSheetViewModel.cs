@@ -85,6 +85,13 @@ namespace HansoInputTool.ViewModels
             set => SetProperty(ref _isKoryo, value);
         }
 
+        private bool _isEmbalming;
+        public bool IsEmbalming
+        {
+            get => _isEmbalming;
+            set => SetProperty(ref _isEmbalming, value);
+        }
+
         #endregion
 
         #region バリデーションエラー
@@ -234,7 +241,7 @@ namespace HansoInputTool.ViewModels
 
             try
             {
-                var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, IsKoryo);
+                var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, IsKoryo, IsEmbalming);
                 _updatePreview?.Invoke();
                 _excelHandler.Save();
                 if (!string.IsNullOrEmpty(insertInfo)) _log?.Invoke($"[{SelectedNormalSheet}] {insertInfo}");
@@ -242,6 +249,7 @@ namespace HansoInputTool.ViewModels
 
                 Day = YuryoKm = MuryoKm = LateValue = string.Empty;
                 IsKoryo = false;
+                IsEmbalming = false;
                 ClearValidationErrors();
 
                 await Task.Delay(50);

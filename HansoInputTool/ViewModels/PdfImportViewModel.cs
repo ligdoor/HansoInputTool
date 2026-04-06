@@ -147,6 +147,7 @@ namespace HansoInputTool.ViewModels
                 _normalSheet.MuryoKm  = item.MuryoKm;
                 _normalSheet.LateValue = string.IsNullOrEmpty(item.ShinyaMinutes) ? "0" : item.ShinyaMinutes;
                 _normalSheet.IsKoryo  = false;
+                _normalSheet.IsEmbalming = false;
 
                 await Task.Delay(100);
 
