@@ -211,6 +211,28 @@ namespace HansoInputTool.Services
             return logMessages;
         }
 
+        /// <summary>
+        /// 東日本シートの登録済み値をセルアドレスから読み取って返す。
+        /// 未入力の場合は null を返す。
+        /// </summary>
+        public Dictionary<string, double?> GetEastSheetValues(string sheetName)
+        {
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
+                return null;
+
+            var ws  = _inputPackage.Workbook.Worksheets[sheetName];
+            var map = _columnMap.EastSheet;
+
+            return new Dictionary<string, double?>
+            {
+                ["延実働車輌数"] = GetNullableDouble(ws.Cells[map.Jitsudo].Value),
+                ["搬送回数"]   = GetNullableDouble(ws.Cells[map.Hanso].Value),
+                ["有料キロ数"] = GetNullableDouble(ws.Cells[map.YuryoKm].Value),
+                ["無料キロ数"] = GetNullableDouble(ws.Cells[map.MuryoKm].Value),
+                ["運輸実績"]   = GetNullableDouble(ws.Cells[map.UnsoJisseki].Value),
+            };
+        }
+
         public bool CheckRemainingData()
         {
             var map = _columnMap.NormalSheet;

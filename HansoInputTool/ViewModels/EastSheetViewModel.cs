@@ -35,6 +35,7 @@ namespace HansoInputTool.ViewModels
             {
                 if (SetProperty(ref _selectedEastSheet, value))
                 {
+                    LoadExistingValues();
                     UpdateSheetStatus();
                     ClearValidationErrors();
                 }
@@ -159,11 +160,12 @@ namespace HansoInputTool.ViewModels
         }
 
         /// <summary>
-        /// 転記完了後など、登録済みリストをリセットする
+        /// 転記完了後など、登録済みリストをリセットしフィールドもクリアする
         /// </summary>
         public void ClearRegisteredSheets()
         {
             _registeredSheets.Clear();
+            ClearFields();
             UpdateSheetStatus();
         }
 
@@ -194,8 +196,69 @@ namespace HansoInputTool.ViewModels
         private void UpdateSheetStatus()
         {
             if (string.IsNullOrEmpty(SelectedEastSheet)) { IsSheetRegistered = false; SheetStatus = ""; return; }
-            if (_registeredSheets.Contains(SelectedEastSheet)) { IsSheetRegistered = true; SheetStatus = "✅ 登録完了"; }
-            else { IsSheetRegistered = false; SheetStatus = "（未登録）"; }
+
+            // Excelに実際に値が入っているかで登録済みを判定
+            bool hasData = HasExistingData();
+            if (hasData || _registeredSheets.Contains(SelectedEastSheet))
+            {
+                IsSheetRegistered = true;
+                SheetStatus = "✅ 登録済み";
+            }
+            else
+            {
+                IsSheetRegistered = false;
+                SheetStatus = "（未登録）";
+            }
+        }
+
+        private bool HasExistingData()
+        {
+            if (_excelHandler == null || string.IsNullOrEmpty(SelectedEastSheet)) return false;
+            var vals = _excelHandler.GetEastSheetValues(SelectedEastSheet);
+            if (vals == null) return false;
+            return vals.Values.Any(v => v != null);
+        }
+
+        /// <summary>
+        /// シート選択時にExcelの登録済み値をテキストボックスに読み戻す
+        /// </summary>
+        private void LoadExistingValues()
+        {
+            if (_excelHandler == null || string.IsNullOrEmpty(SelectedEastSheet))
+            {
+                ClearFields();
+                return;
+            }
+
+            var vals = _excelHandler.GetEastSheetValues(SelectedEastSheet);
+            if (vals == null)
+            {
+                ClearFields();
+                return;
+            }
+
+            // バリデーションが走らないよう、バッキングフィールドに直接セット後にまとめてPropertyChanged
+            _jitsudo  = vals["延実働車輌数"]?.ToString() ?? string.Empty;
+            _hanso    = vals["搬送回数"]?.ToString() ?? string.Empty;
+            _yuryoKm  = vals["有料キロ数"]?.ToString() ?? string.Empty;
+            _muryoKm  = vals["無料キロ数"]?.ToString() ?? string.Empty;
+            _unso     = vals["運輸実績"]?.ToString() ?? string.Empty;
+
+            OnPropertyChanged(nameof(Jitsudo));
+            OnPropertyChanged(nameof(Hanso));
+            OnPropertyChanged(nameof(YuryoKm));
+            OnPropertyChanged(nameof(MuryoKm));
+            OnPropertyChanged(nameof(Unso));
+        }
+
+        private void ClearFields()
+        {
+            _jitsudo = _hanso = _yuryoKm = _muryoKm = _unso = string.Empty;
+            OnPropertyChanged(nameof(Jitsudo));
+            OnPropertyChanged(nameof(Hanso));
+            OnPropertyChanged(nameof(YuryoKm));
+            OnPropertyChanged(nameof(MuryoKm));
+            OnPropertyChanged(nameof(Unso));
         }
 
         #endregion
@@ -243,7 +306,6 @@ namespace HansoInputTool.ViewModels
                     _registeredSheets.Add(SelectedEastSheet);
                 UpdateSheetStatus();
 
-                Jitsudo = Hanso = YuryoKm = MuryoKm = Unso = string.Empty;
                 ClearValidationErrors();
 
                 await Task.Delay(50);
