@@ -21,6 +21,7 @@ namespace HansoInputTool.ViewModels
         private readonly Dictionary<string, RateInfo> _rates;
         private readonly ColumnMapping _columnMap;
         private readonly Action<bool> _callback;
+        private readonly FlagDefinitionService _flagService;
 
         // 基本情報
         public string Period { get; set; }
@@ -91,12 +92,14 @@ namespace HansoInputTool.ViewModels
             string period,
             string month,
             string rNumber,
-            Action<bool> callback)
+            Action<bool> callback,
+            FlagDefinitionService flagService = null)
         {
             _excelHandler = excelHandler;
-            _rates = rates;
-            _columnMap = columnMap;
-            _callback = callback;
+            _rates        = rates;
+            _columnMap    = columnMap;
+            _callback     = callback;
+            _flagService  = flagService;
 
             Period = period;
             Month = month;
@@ -183,8 +186,21 @@ namespace HansoInputTool.ViewModels
             {
                 if (!row.B_Day.HasValue) continue;
 
+                // 金額ありフラグを動的に取得
+                var withAmountFlags = _flagService?.Flags
+                    .Where(f => f.Type == FlagType.WithAmount).ToList()
+                    ?? new List<FlagDefinition>();
+
                 // 料金計算
-                double baseFee = row.L_IsKoryo == 1 ? rate.BaseFee / 2.0 : rate.BaseFee;
+                double baseFee = rate.BaseFee;
+                foreach (var flag in withAmountFlags)
+                {
+                    if (!row.GetFlag(flag.Id)) continue;
+                    if (flag.AmountType == AmountType.Rate && flag.AmountValue.HasValue)
+                        baseFee = Math.Floor(rate.BaseFee * flag.AmountValue.Value);
+                    else if (flag.AmountType == AmountType.Fixed && flag.AmountValue.HasValue)
+                        baseFee = flag.AmountValue.Value;
+                }
                 double mileageFee = 0;
                 double lateFee = 0;
 
@@ -255,12 +271,24 @@ namespace HansoInputTool.ViewModels
 
                 if (row.B_Day.HasValue)
                 {
-                    totalHanso += row.C_Hanso ?? 0;
-                    totalYuryoKm += row.D_YuryoKm ?? 0;
-                    totalMuryoKm += row.E_MuryoKm ?? 0;
-                    if (row.L_IsKoryo == 1) koryoCount++;
+                    totalHanso   += row.C_Hanso    ?? 0;
+                    totalYuryoKm += row.D_YuryoKm  ?? 0;
+                    totalMuryoKm += row.E_MuryoKm  ?? 0;
 
-                    baseFee = row.L_IsKoryo == 1 ? rate.BaseFee / 2.0 : rate.BaseFee;
+                    // 金額ありフラグを動的に取得して料金再計算
+                    var withAmountFlags2 = _flagService?.Flags
+                        .Where(f => f.Type == FlagType.WithAmount).ToList()
+                        ?? new List<FlagDefinition>();
+
+                    baseFee = rate.BaseFee;
+                    foreach (var flag in withAmountFlags2)
+                    {
+                        if (!row.GetFlag(flag.Id)) continue;
+                        if (flag.AmountType == AmountType.Rate && flag.AmountValue.HasValue)
+                            baseFee = Math.Floor(rate.BaseFee * flag.AmountValue.Value);
+                        else if (flag.AmountType == AmountType.Fixed && flag.AmountValue.HasValue)
+                            baseFee = flag.AmountValue.Value;
+                    }
 
                     if (row.D_YuryoKm.HasValue && row.D_YuryoKm > 0)
                     {
@@ -288,7 +316,7 @@ namespace HansoInputTool.ViewModels
                     HansoCount = row.C_Hanso?.ToString() ?? "-",
                     YuryoKm = row.D_YuryoKm?.ToString("N0") ?? "-",
                     MuryoKm = row.E_MuryoKm?.ToString("N0") ?? "-",
-                    IsKoryo = row.L_IsKoryo == 1 ? "✓" : "-",
+                    IsKoryo = row.FlagSummaryText,
                     LateValue = isOotsuki
                         ? (row.H_LateFeeOotsuki?.ToString("N0") ?? "-")
                         : (row.K_LateMinutes?.ToString() ?? "-"),

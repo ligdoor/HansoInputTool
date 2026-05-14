@@ -19,6 +19,7 @@ namespace HansoInputTool.ViewModels
         private readonly string _ratesFilePath;
         private readonly ShortcutService _shortcutService;
         private readonly BackupService _backupService;
+        private readonly FlagDefinitionService _flagService;
 
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ObservableCollection<VehicleSheetViewModel> VehicleSheetList { get; set; }
@@ -31,6 +32,9 @@ namespace HansoInputTool.ViewModels
 
         // バックアップ設定
         private int _maxAutoBackupFiles;
+
+        // フラグ管理
+        public FlagSettingsViewModel FlagSettingsVM { get; }
         public int MaxAutoBackupFiles
         {
             get => _maxAutoBackupFiles;
@@ -64,13 +68,15 @@ namespace HansoInputTool.ViewModels
             string ratesFilePath,
             MainViewModel mainViewModel,
             ShortcutService shortcutService,
-            BackupService backupService = null)
+            BackupService backupService = null,
+            FlagDefinitionService flagService = null)
         {
             _excelHandler = excelHandler;
             _ratesFilePath = ratesFilePath;
             _mainViewModel = mainViewModel;
             _shortcutService = shortcutService;
             _backupService = backupService;
+            _flagService   = flagService;
 
             Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
             var currentSheets = _excelHandler.GetVehicleSheetNames();
@@ -79,14 +85,17 @@ namespace HansoInputTool.ViewModels
             // ショートカット設定VMを初期化
             ShortcutSettingsVM = new ShortcutSettingsViewModel(_shortcutService.CurrentSettings);
 
+            // フラグ管理VMを初期化
+            FlagSettingsVM = flagService != null ? new FlagSettingsViewModel(flagService) : null;
+
             // バックアップ設定の初期値を読み込み
             MaxAutoBackupFiles   = _backupService?.MaxBackupFiles       ?? 10;
             MaxManualBackupFiles = _backupService?.MaxManualBackupFiles ?? 20;
 
-            AddVehicleCommand = new RelayCommand(p => AddVehicle());
+            AddVehicleCommand    = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
-            SaveCommand = new RelayCommand(p => SaveSettings(p));
-            CancelCommand = new RelayCommand(p => ((Window)p).Close());
+            SaveCommand          = new RelayCommand(p => SaveSettings(p));
+            CancelCommand        = new RelayCommand(p => ((Window)p).Close());
             ResetShortcutsCommand = new RelayCommand(p => ResetShortcuts());
         }
 
@@ -96,7 +105,7 @@ namespace HansoInputTool.ViewModels
             ExcelHandler excelHandler,
             string ratesFilePath,
             MainViewModel mainViewModel)
-            : this(currentRates, excelHandler, ratesFilePath, mainViewModel, null, null)
+            : this(currentRates, excelHandler, ratesFilePath, mainViewModel, null, null, null)
         {
         }
 
@@ -220,6 +229,31 @@ namespace HansoInputTool.ViewModels
                 {
                     _backupService.MaxBackupFiles       = MaxAutoBackupFiles;
                     _backupService.MaxManualBackupFiles = MaxManualBackupFiles;
+                }
+
+                // フラグ設定の保存
+                if (FlagSettingsVM != null)
+                {
+                    if (!FlagSettingsVM.Validate(out string flagError))
+                    {
+                        MessageBox.Show(flagError, "フラグ設定エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // 変更前のフラグ一覧を保存（差分検出用）
+                    var oldFlags = _flagService.Flags.ToList();
+
+                    FlagSettingsVM.ApplyChanges();
+
+                    // 変更後のフラグ一覧
+                    var newFlags = _flagService.Flags.ToList();
+
+                    // Excel列を同期（追加・削除）
+                    _excelHandler.SyncFlagColumns(oldFlags, newFlags);
+                    _excelHandler.Save();
+
+                    // NormalSheetのチェックボックスを再構築
+                    _mainViewModel.NormalSheet.RebuildFlagItems();
                 }
 
                 _mainViewModel.UpdateRatesAndReload(Rates);

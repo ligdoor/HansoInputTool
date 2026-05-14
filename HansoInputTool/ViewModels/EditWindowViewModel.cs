@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using HansoInputTool.Models;
+using HansoInputTool.Services;
 using HansoInputTool.ViewModels.Base;
 
 namespace HansoInputTool.ViewModels
@@ -27,29 +30,40 @@ namespace HansoInputTool.ViewModels
         private string _lateValue;
         public string LateValue { get => _lateValue; set => SetProperty(ref _lateValue, value); }
 
-        private bool _isKoryo;
-        public bool IsKoryo { get => _isKoryo; set => SetProperty(ref _isKoryo, value); }
-
-        private bool _isEmbalming;
-        public bool IsEmbalming { get => _isEmbalming; set => SetProperty(ref _isEmbalming, value); }
+        /// <summary>動的フラグチェックボックスのリスト</summary>
+        public ObservableCollection<FlagCheckBoxItem> FlagItems { get; } = new();
 
         public ICommand SaveCommand { get; }
 
         public EditWindowViewModel(MainViewModel mainViewModel, string sheetName, RowData rowData)
         {
             _mainViewModel = mainViewModel;
-            _sheetName = sheetName;
-            _rowIndex = rowData.RowIndex;
+            _sheetName     = sheetName;
+            _rowIndex      = rowData.RowIndex;
 
             IsOotsukiSheet = sheetName.Contains("大月");
-            WindowTitle = $"行 {rowData.RowIndex} を編集 - {sheetName}";
+            WindowTitle    = $"行 {rowData.RowIndex} を編集 - {sheetName}";
 
-            Day = rowData.B_Day?.ToString();
-            YuryoKm = rowData.D_YuryoKm?.ToString();
-            MuryoKm = rowData.E_MuryoKm?.ToString();
-            LateValue = IsOotsukiSheet ? rowData.H_LateFeeOotsuki?.ToString() : rowData.K_LateMinutes?.ToString();
-            IsKoryo = rowData.L_IsKoryo == 1;
-            IsEmbalming = rowData.M_IsEmbalming == 1;
+            Day       = rowData.B_Day?.ToString();
+            YuryoKm   = rowData.D_YuryoKm?.ToString();
+            MuryoKm   = rowData.E_MuryoKm?.ToString();
+            LateValue = IsOotsukiSheet
+                ? rowData.H_LateFeeOotsuki?.ToString()
+                : rowData.K_LateMinutes?.ToString();
+
+            // 動的フラグをRowDataから復元
+            var flagService = mainViewModel.FlagService;
+            if (flagService != null)
+            {
+                foreach (var flag in flagService.Flags.OrderBy(f => f.Order))
+                {
+                    var item = new FlagCheckBoxItem(flag)
+                    {
+                        IsChecked = rowData.GetFlag(flag.Id)
+                    };
+                    FlagItems.Add(item);
+                }
+            }
 
             SaveCommand = new RelayCommand(SaveEdit);
         }
@@ -64,7 +78,7 @@ namespace HansoInputTool.ViewModels
 
             var values = new Dictionary<string, double?>();
 
-            if (!TryParseValue(Day, "日(B)", out var dayVal)) return;
+            if (!TryParseValue(Day,      "日(B)",      out var dayVal))     return;
             values["日(B)"] = dayVal;
 
             if (!TryParseValue(YuryoKm, "有料キロ(D)", out var yuryoKmVal)) return;
@@ -84,25 +98,18 @@ namespace HansoInputTool.ViewModels
                 values["深夜時間(K)"] = lateVal;
             }
 
-            _mainViewModel.UpdateRowData(_sheetName, _rowIndex, values, IsKoryo, IsEmbalming);
+            var flagStates = FlagItems.ToDictionary(f => f.Id, f => f.IsChecked);
+            _mainViewModel.UpdateRowData(_sheetName, _rowIndex, values, flagStates);
             ((Window)parameter).Close();
         }
 
         private static bool TryParseValue(string input, string fieldName, out double? result)
         {
             result = null;
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return true; // Empty is allowed for non-required fields
-            }
-
-            if (double.TryParse(input, out double parsedValue))
-            {
-                result = parsedValue;
-                return true;
-            }
-
-            MessageBox.Show($"「{input}」は {fieldName} の数値として認識できません。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (string.IsNullOrWhiteSpace(input)) return true;
+            if (double.TryParse(input, out double parsedValue)) { result = parsedValue; return true; }
+            MessageBox.Show($"「{input}」は {fieldName} の数値として認識できません。",
+                "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
     }

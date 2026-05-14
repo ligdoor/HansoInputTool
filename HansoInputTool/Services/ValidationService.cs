@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace HansoInputTool.Services
@@ -8,7 +9,15 @@ namespace HansoInputTool.Services
         /// <summary>
         /// 通常シートのデータを検証
         /// </summary>
-        public ValidationResult ValidateNormalData(Dictionary<string, double?> values, string sheetName)
+        /// <param name="values">入力値</param>
+        /// <param name="sheetName">シート名</param>
+        /// <param name="year">入力対象の年（月末日チェックに使用。0なら現在年で判定）</param>
+        /// <param name="month">入力対象の月（月末日チェックに使用。0なら1〜31の範囲チェックのみ）</param>
+        public ValidationResult ValidateNormalData(
+            Dictionary<string, double?> values,
+            string sheetName,
+            int year  = 0,
+            int month = 0)
         {
             var result = new ValidationResult();
 
@@ -19,10 +28,22 @@ namespace HansoInputTool.Services
             }
             else
             {
-                var day = values["日(B)"].Value;
+                var day = (int)values["日(B)"].Value;
+
                 if (day < 1 || day > 31)
                 {
                     result.AddError("日付", "日付は1-31の範囲で入力してください");
+                }
+                else if (month >= 1 && month <= 12)
+                {
+                    // 月が分かっている場合は実際の月末日と照合する
+                    int useYear = (year >= 1900) ? year : DateTime.Now.Year;
+                    int lastDay = DateTime.DaysInMonth(useYear, month);
+                    if (day > lastDay)
+                    {
+                        result.AddError("日付",
+                            $"{month}月は{lastDay}日までです（入力値: {day}日）");
+                    }
                 }
             }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -31,7 +31,8 @@ namespace HansoInputTool.Services
             List<string> allSheetNames,
             Dictionary<string, RateInfo> rates,
             ColumnMapping columnMap,
-            IProgress<TransferProgressReport> progress)
+            IProgress<TransferProgressReport> progress,
+            FlagDefinitionService flagService = null)
         {
             await Task.Run(() =>
             {
@@ -53,20 +54,20 @@ namespace HansoInputTool.Services
                 using var wbGeppo = new ExcelPackage(new FileInfo(geppoFilepath));
                 using var wbShukei = new ExcelPackage(new FileInfo(shukeiFilepath));
 
-                progress.Report(new TransferProgressReport { Message = "--- 全シートの転記処理を開始 ---" });
-                Logger.Info("--- 全シートの転記処理を開始 ---");
-
                 var sheetsToProcess = allSheetNames?.Where(s => !s.Contains("登録")).ToList() ?? new List<string>();
                 int totalSheets = sheetsToProcess.Count;
                 int processedCount = 0;
 
+                progress.Report(new TransferProgressReport { Current = 0, Total = totalSheets, Message = $"転記処理を開始します（対象: {totalSheets}シート）" });
+                Logger.Info($"転記処理を開始: {totalSheets}シート");
+
                 foreach (var sheetName in sheetsToProcess)
                 {
-                    progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = $"処理中: {sheetName} ..." });
+                    progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = $"[{processedCount + 1}/{totalSheets}] {sheetName} を処理中..." });
 
                     if (IsNormalSheet(sheetName))
                     {
-                        ProcessNormalSheet(wbInput, wbGeppo, wbShukei, sheetName, rates, columnMap);
+                        ProcessNormalSheet(wbInput, wbGeppo, wbShukei, sheetName, rates, columnMap, flagService);
                     }
                     else if (IsEastSheet(sheetName))
                     {
@@ -78,10 +79,10 @@ namespace HansoInputTool.Services
                     }
 
                     processedCount++;
-                    Logger.Info($"[{sheetName}] の処理が完了しました。");
+                    Logger.Info($"[{sheetName}] 完了 ({processedCount}/{totalSheets})");
                 }
 
-                progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = "最終処理中..." });
+                progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = $"全{totalSheets}シートの転記が完了しました。保存中..." });
 
                 // 全ての車両シート（寝台車・霊柩車・CH系）に対して
                 // A1=R{rNum}、B1=月 を書き込む（C1=期はファイル名に使用するのみ・セルへの記入は不要）
@@ -122,7 +123,7 @@ namespace HansoInputTool.Services
             EastSheetKeywords.Any(kw => sheetName.Contains(kw));
         // ==========================================
 
-        private void ProcessNormalSheet(ExcelPackage wbInput, ExcelPackage wbGeppo, ExcelPackage wbShukei, string sheetName, Dictionary<string, RateInfo> rates, ColumnMapping columnMap)
+        private void ProcessNormalSheet(ExcelPackage wbInput, ExcelPackage wbGeppo, ExcelPackage wbShukei, string sheetName, Dictionary<string, RateInfo> rates, ColumnMapping columnMap, FlagDefinitionService flagService = null)
         {
             var wsIn = wbInput.Workbook.Worksheets[sheetName];
             var wsGeppo = wbGeppo.Workbook.Worksheets[sheetName];
@@ -142,6 +143,11 @@ namespace HansoInputTool.Services
             bool isOotsuki = sheetName.Contains("大月");
             double totalKihon = 0, totalSoko = 0, totalShinya = 0, totalSum = 0;
 
+            // 金額ありフラグ（WithAmount）を取得して料金計算に使う
+            var withAmountFlags = flagService?.Flags
+                .Where(f => f.Type == FlagType.WithAmount)
+                .ToList() ?? new List<FlagDefinition>();
+
             for (int row = 3; row < totalRowIdx; row++)
             {
                 int hansoVal = GetInt(wsIn.Cells[row, normalMap.HansoCount].Value);
@@ -150,9 +156,18 @@ namespace HansoInputTool.Services
                 if (hansoVal > 0)
                 {
                     double yuryoKmVal = GetDouble(wsIn.Cells[row, normalMap.YuryoKm].Value);
-                    bool isKoryo = GetInt(wsIn.Cells[row, normalMap.IsKoryo].Value) == 1;
 
-                    rowKihon = isKoryo ? Math.Floor((double)ratesForSheet.BaseFee / 2) : ratesForSheet.BaseFee;
+                    // 動的フラグによる基本料金計算
+                    rowKihon = ratesForSheet.BaseFee;
+                    foreach (var flag in withAmountFlags)
+                    {
+                        bool flagOn = GetInt(wsIn.Cells[row, flag.ExcelColumn].Value) == 1;
+                        if (!flagOn) continue;
+                        if (flag.AmountType == AmountType.Rate && flag.AmountValue.HasValue)
+                            rowKihon = Math.Floor(ratesForSheet.BaseFee * flag.AmountValue.Value);
+                        else if (flag.AmountType == AmountType.Fixed && flag.AmountValue.HasValue)
+                            rowKihon = flag.AmountValue.Value;
+                    }
 
                     if (yuryoKmVal > 0)
                     {

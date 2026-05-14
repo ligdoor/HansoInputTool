@@ -32,8 +32,11 @@ namespace HansoInputTool.Services
 
             const int dataStartRow = 6;
             const int startCol     = 1;  // A列
-            const int endCol       = 12; // L列（エンバーミング追加）
             const int maxDataRows  = 69;
+
+            // 動的フラグを取得
+            var flags  = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
+            int endCol = 11 + flags.Count; // K列まで固定 + フラグ列数分
 
             // 既存データをクリア
             for (int row = dataStartRow; row < dataStartRow + maxDataRows; row++)
@@ -60,15 +63,22 @@ namespace HansoInputTool.Services
                     summarySheet.Cells[currentRow, 2].Value = branch;
                     summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
 
-                    summarySheet.Cells[currentRow, 4].Formula  = $"{safeSheetName}!E4";                                     // 稼働日数
-                    summarySheet.Cells[currentRow, 5].Formula  = $"{safeSheetName}!G4";                                     // 搬送回数
-                    summarySheet.Cells[currentRow, 6].Formula  = $"IF(E{currentRow}>0,D{currentRow}/E{currentRow},0)";     // 平均km
-                    summarySheet.Cells[currentRow, 7].Formula  = $"{safeSheetName}!G4";                                     // 搬送回数（再掲）
-                    summarySheet.Cells[currentRow, 8].Formula  = $"{safeSheetName}!H4";                                     // 有料km
-                    summarySheet.Cells[currentRow, 9].Formula  = $"{safeSheetName}!I4";                                     // 無料km
-                    summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";                            // 合計km
-                    summarySheet.Cells[currentRow, 11].Formula = $"{safeSheetName}!K4";                                     // 金額合計
-                    summarySheet.Cells[currentRow, 12].Value   = GetEmbalmingCount(sheetName);                              // エンバーミング合計
+                    summarySheet.Cells[currentRow, 4].Formula  = $"{safeSheetName}!E4";
+                    summarySheet.Cells[currentRow, 5].Formula  = $"{safeSheetName}!G4";
+                    summarySheet.Cells[currentRow, 6].Formula  = $"IF(E{currentRow}>0,D{currentRow}/E{currentRow},0)";
+                    summarySheet.Cells[currentRow, 7].Formula  = $"{safeSheetName}!G4";
+                    summarySheet.Cells[currentRow, 8].Formula  = $"{safeSheetName}!H4";
+                    summarySheet.Cells[currentRow, 9].Formula  = $"{safeSheetName}!I4";
+                    summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
+                    summarySheet.Cells[currentRow, 11].Formula = $"{safeSheetName}!K4";
+
+                    // 動的フラグ列（12列目以降）
+                    for (int fi = 0; fi < flags.Count; fi++)
+                    {
+                        int summaryCol = 12 + fi;
+                        summarySheet.Cells[currentRow, summaryCol].Value =
+                            GetFlagCount(sheetName, flags[fi].ExcelColumn);
+                    }
 
                     Logger.Info($"Row {currentRow}: {sheetName} のデータを設定しました");
                 }

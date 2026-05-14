@@ -41,6 +41,7 @@ namespace HansoInputTool.ViewModels
         private static readonly string ColumnMapFilePath        = Path.Combine(BaseDataPath, "column_map.json");
         private static readonly string HelpFilePath             = Path.Combine(BaseDataPath, "readme.pdf");
         private static readonly string ShortcutSettingsFilePath = Path.Combine(BaseDataPath, "shortcuts.json");
+        private static readonly string CustomFlagsFilePath      = Path.Combine(BaseDataPath, "custom_flags.json");
 
         #endregion
 
@@ -52,9 +53,11 @@ namespace HansoInputTool.ViewModels
         private ExcelHandler _excelHandler;
         private ColumnMapping _columnMap;
         private List<string> _allSheetNames;
+        private FlagDefinitionService _flagService;
 
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ShortcutService ShortcutService => _shortcutService;
+        public FlagDefinitionService FlagService => _flagService;
 
         #endregion
 
@@ -173,11 +176,19 @@ namespace HansoInputTool.ViewModels
                 var columnMapJson = await File.ReadAllTextAsync(ColumnMapFilePath);
                 _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
 
+                _flagService     = new FlagDefinitionService(CustomFlagsFilePath);
                 _excelHandler    = new ExcelHandler(InputFilePath, TemplateFilePath, _columnMap);
                 _shortcutService = new ShortcutService(ShortcutSettingsFilePath);
                 Log("ショートカット設定を読み込みました。");
 
-                NormalSheet.Initialize(_excelHandler, Log, UpdatePreview);
+                // 月末日チェック用に年・月を渡す（Month は "1"〜"12" の文字列）
+                NormalSheet.Initialize(_excelHandler, Log, UpdatePreview, _flagService,
+                    getYearMonth: () =>
+                    {
+                        int.TryParse(Month, out var m);
+                        return (DateTime.Now.Year, m);
+                    });
+                _excelHandler.FlagService = _flagService;
                 EastSheet.Initialize(_excelHandler, Log);
 
                 ReloadAllData();
@@ -229,9 +240,9 @@ namespace HansoInputTool.ViewModels
                 PreviewData.Add(item);
         }
 
-        public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, bool isKoryo, bool isEmbalming)
+        public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, Dictionary<string, bool> flagStates)
         {
-            _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, isKoryo, isEmbalming);
+            _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, flagStates);
             UpdatePreview();
             _excelHandler.Save();
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。");
@@ -333,7 +344,7 @@ namespace HansoInputTool.ViewModels
             }
 
             bool shouldContinue = false;
-            var confirmVM = new TransferConfirmationViewModel(_excelHandler, Rates, _columnMap, Period, Month, RNumber, r => shouldContinue = r);
+            var confirmVM = new TransferConfirmationViewModel(_excelHandler, Rates, _columnMap, Period, Month, RNumber, r => shouldContinue = r, _flagService);
             new TransferConfirmationWindow(confirmVM) { Owner = Application.Current.MainWindow }.ShowDialog();
             if (!shouldContinue) { Log("転記処理がキャンセルされました。"); return; }
 
@@ -361,7 +372,7 @@ namespace HansoInputTool.ViewModels
                 _excelHandler.Save();
                 await new TransferService().ExecuteAsync(
                     InputFilePath, TemplateFilePath, outputDir,
-                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress);
+                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService);
 
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
@@ -478,7 +489,7 @@ namespace HansoInputTool.ViewModels
 
         private void OpenSettings()
         {
-            var vm = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService, _backupService);
+            var vm = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService, _backupService, _flagService);
             new SettingsWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
         }
 

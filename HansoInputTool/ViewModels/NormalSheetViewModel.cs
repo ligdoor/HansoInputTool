@@ -20,10 +20,13 @@ namespace HansoInputTool.ViewModels
         private readonly ValidationService _validationService;
         private readonly InputValidator _inputValidator;
 
-        // ExcelHandler と PreviewData は MainViewModel から注入する
         private ExcelHandler _excelHandler;
         private Action<string> _log;
         private Action _updatePreview;
+        private FlagDefinitionService _flagService;
+
+        // 入力対象の年・月を取得するデリゲート（月末日チェックに使用）
+        private Func<(int year, int month)> _getYearMonth;
 
         #region シート選択
 
@@ -78,18 +81,30 @@ namespace HansoInputTool.ViewModels
             set { if (SetProperty(ref _lateValue, value)) ValidateInput(); }
         }
 
-        private bool _isKoryo;
-        public bool IsKoryo
+        #endregion
+
+        #region 動的フラグチェックボックス
+
+        /// <summary>UIにバインドするフラグチェックボックスのリスト</summary>
+        public ObservableCollection<FlagCheckBoxItem> FlagItems { get; } = new();
+
+        /// <summary>フラグの状態を Id → bool で返す（登録時に使用）</summary>
+        public Dictionary<string, bool> GetFlagStates()
+            => FlagItems.ToDictionary(f => f.Id, f => f.IsChecked);
+
+        /// <summary>フラグを全てリセットする</summary>
+        public void ResetFlags()
         {
-            get => _isKoryo;
-            set => SetProperty(ref _isKoryo, value);
+            foreach (var item in FlagItems) item.IsChecked = false;
         }
 
-        private bool _isEmbalming;
-        public bool IsEmbalming
+        /// <summary>フラグ定義が変更されたときにFlagItemsを再構築する</summary>
+        public void RebuildFlagItems()
         {
-            get => _isEmbalming;
-            set => SetProperty(ref _isEmbalming, value);
+            FlagItems.Clear();
+            if (_flagService == null) return;
+            foreach (var flag in _flagService.Flags.OrderBy(f => f.Order))
+                FlagItems.Add(new FlagCheckBoxItem(flag));
         }
 
         #endregion
@@ -124,7 +139,6 @@ namespace HansoInputTool.ViewModels
         #region コマンド
 
         public ICommand RegisterCommand { get; }
-        // XAMLバインディング互換用エイリアス
         public ICommand RegisterNormalCommand => RegisterCommand;
 
         #endregion
@@ -138,19 +152,16 @@ namespace HansoInputTool.ViewModels
                 p => !HasValidationErrors);
         }
 
-        /// <summary>
-        /// ExcelHandler・ログ・プレビュー更新を MainViewModel から受け取る
-        /// </summary>
-        public void Initialize(ExcelHandler excelHandler, Action<string> log, Action updatePreview)
+        public void Initialize(ExcelHandler excelHandler, Action<string> log, Action updatePreview, FlagDefinitionService flagService = null, Func<(int year, int month)> getYearMonth = null)
         {
-            _excelHandler = excelHandler;
-            _log = log;
+            _excelHandler  = excelHandler;
+            _log           = log;
             _updatePreview = updatePreview;
+            _flagService   = flagService;
+            _getYearMonth  = getYearMonth;
+            RebuildFlagItems();
         }
 
-        /// <summary>
-        /// シートリストを再構築する
-        /// </summary>
         public void PopulateSheets(List<string> allVehicleSheets, string previousSelection)
         {
             NormalSheets.Clear();
@@ -223,7 +234,9 @@ namespace HansoInputTool.ViewModels
                 values["深夜時間(K)"] = lateVal;
             }
 
-            var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet);
+            // 年・月を取得してバリデーションに渡す（月末日チェック用）
+            var (valYear, valMonth) = _getYearMonth?.Invoke() ?? (0, 0);
+            var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet, valYear, valMonth);
             if (!validationResult.IsValid)
             {
                 MessageBox.Show($"入力内容にエラーがあります:\n\n{validationResult.GetErrorMessage()}",
@@ -241,15 +254,15 @@ namespace HansoInputTool.ViewModels
 
             try
             {
-                var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, IsKoryo, IsEmbalming);
+                var flagStates = GetFlagStates();
+                var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, flagStates);
                 _updatePreview?.Invoke();
                 _excelHandler.Save();
                 if (!string.IsNullOrEmpty(insertInfo)) _log?.Invoke($"[{SelectedNormalSheet}] {insertInfo}");
                 _log?.Invoke($"[{SelectedNormalSheet}] の {targetRow}行目にデータを登録しました。");
 
                 Day = YuryoKm = MuryoKm = LateValue = string.Empty;
-                IsKoryo = false;
-                IsEmbalming = false;
+                ResetFlags();
                 ClearValidationErrors();
 
                 await Task.Delay(50);
@@ -275,4 +288,30 @@ namespace HansoInputTool.ViewModels
             return false;
         }
     }
+
+    /// <summary>
+    /// チェックボックス1件をXAMLにバインドするためのVM
+    /// </summary>
+    public class FlagCheckBoxItem : ObservableObject
+    {
+        public string Id          { get; }
+        public string DisplayName { get; }
+        public FlagType Type      { get; }
+
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set => SetProperty(ref _isChecked, value);
+        }
+
+        public FlagCheckBoxItem(FlagDefinition def)
+        {
+            Id          = def.Id;
+            DisplayName = def.DisplayName;
+            Type        = def.Type;
+        }
+    }
 }
+
+

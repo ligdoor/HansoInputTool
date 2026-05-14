@@ -276,6 +276,140 @@
                         </StackPanel>
                     </Grid>
                 </TabItem>
+                <!-- フラグ管理タブ -->
+                <TabItem Header="フラグ管理">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Foreground="{StaticResource SubTextBrush}"
+                                   Text="チェックボックスの項目を管理します。順番はドラッグではなく↑↓ボタンで変更できます。"/>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 左: フラグ一覧 + ボタン -->
+                            <DockPanel Grid.Column="0">
+                                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                                            HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Button Content="↑"  Command="{Binding FlagSettingsVM.MoveUpCommand}"
+                                            Style="{StaticResource NormalButton}" Width="36"/>
+                                    <Button Content="↓"  Command="{Binding FlagSettingsVM.MoveDownCommand}"
+                                            Style="{StaticResource NormalButton}" Width="36" Margin="4,0"/>
+                                    <Button Content="追加" Command="{Binding FlagSettingsVM.AddCommand}"
+                                            Style="{StaticResource NormalButton}" MinWidth="50"/>
+                                    <Button Content="削除" Command="{Binding FlagSettingsVM.DeleteCommand}"
+                                            Background="{StaticResource RedBrush}"
+                                            Style="{StaticResource NormalButton}" MinWidth="50" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <ListBox ItemsSource="{Binding FlagSettingsVM.FlagItems}"
+                                         SelectedItem="{Binding FlagSettingsVM.SelectedItem}"
+                                         DisplayMemberPath="DisplayName"
+                                         Background="{StaticResource PanelBackgroundBrush}"
+                                         BorderBrush="{StaticResource InputBorderBrush}"/>
+                            </DockPanel>
+
+                            <!-- 右: 詳細編集（SelectedItemがないときは非表示）-->
+                            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <!-- 未選択時メッセージ -->
+                                    <TextBlock Text="左のリストからフラグを選択してください。"
+                                               Foreground="{StaticResource SubTextBrush}"
+                                               Margin="8,20,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <!-- 選択時: 詳細編集フォーム（バインディングはすべて FlagSettingsVM.SelectedItem.xxx）-->
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+
+                                        <Label Content="表示名" FontWeight="Bold"/>
+                                        <TextBox Text="{Binding FlagSettingsVM.SelectedItem.DisplayName, UpdateSourceTrigger=PropertyChanged}"
+                                                 Margin="0,0,0,10"/>
+
+                                        <Label Content="種類" FontWeight="Bold"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <RadioButton Content="回数のみ（チェックの有無のみ記録）"
+                                                         IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTypeCountOnly}"
+                                                         GroupName="FlagTypeGroup" Margin="0,0,15,0"/>
+                                            <RadioButton Content="金額あり"
+                                                         IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTypeWithAmount}"
+                                                         GroupName="FlagTypeGroup"/>
+                                        </StackPanel>
+
+                                        <!-- 金額ありのみ表示 -->
+                                        <StackPanel Visibility="{Binding FlagSettingsVM.SelectedItem.IsWithAmount,
+                                                                          Converter={StaticResource BoolToVis}}">
+                                            <Label Content="金額タイプ" FontWeight="Bold"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                <RadioButton Content="倍率（例: 0.5 = 基本料金の半額）"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsAmountTypeRate}"
+                                                             GroupName="AmountTypeGroup" Margin="0,0,15,0"/>
+                                                <RadioButton Content="固定金額（円）"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsAmountTypeFixed}"
+                                                             GroupName="AmountTypeGroup"/>
+                                            </StackPanel>
+
+                                            <Label FontWeight="Bold">
+                                                <Label.Style>
+                                                    <Style TargetType="Label">
+                                                        <Setter Property="Content" Value="固定金額（円）"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsRate}" Value="True">
+                                                                <Setter Property="Content" Value="倍率"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Label.Style>
+                                            </Label>
+                                            <TextBox Text="{Binding FlagSettingsVM.SelectedItem.AmountValueText,
+                                                                     UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,4"/>
+                                            <TextBlock Foreground="{StaticResource SubTextBrush}" TextWrapping="Wrap">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="例: 5000（5000円固定）"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsRate}" Value="True">
+                                                                <Setter Property="Text" Value="例: 0.5（基本料金の半額）"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+                </TabItem>
+
                 <TabItem Header="バックアップ">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>

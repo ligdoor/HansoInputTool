@@ -146,8 +146,7 @@ namespace HansoInputTool.ViewModels
                 _normalSheet.YuryoKm  = item.YuryoKm;
                 _normalSheet.MuryoKm  = item.MuryoKm;
                 _normalSheet.LateValue = string.IsNullOrEmpty(item.ShinyaMinutes) ? "0" : item.ShinyaMinutes;
-                _normalSheet.IsKoryo  = false;
-                _normalSheet.IsEmbalming = false;
+                _normalSheet.ResetFlags();
 
                 await Task.Delay(100);
 
@@ -214,6 +213,13 @@ namespace HansoInputTool.ViewModels
             MuryoKm      = data.MuryoKm?.ToString() ?? "";
             ShinyaMinutes = (data.ShinyaMinutes.HasValue && data.ShinyaMinutes > 0)
                             ? data.ShinyaMinutes.ToString() : "";
+
+            // リトライ全失敗の場合は専用メッセージを表示
+            if (data.RetryFailed)
+            {
+                StatusText = $"❌ 読み取り失敗（リトライ済）: {data.RetryMessage}";
+                return;
+            }
 
             var (isValid, missing) = data.ValidateRequired();
             StatusText = isValid ? "✅ 確認してください" : $"⚠️ 要確認: {missing}";

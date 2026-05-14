@@ -33,6 +33,9 @@ namespace HansoInputTool.Services
         private ExcelPackage _templatePackage;
         private readonly Dictionary<string, List<RowData>> _dataCache = new();
 
+        // 動的フラグ管理サービス（外部から注入）
+        public FlagDefinitionService FlagService { get; set; }
+
         public ExcelHandler(string inputFilePath, string templateFilePath, ColumnMapping columnMap)
         {
             _inputFilePath    = inputFilePath;
@@ -89,10 +92,15 @@ namespace HansoInputTool.Services
             var data       = new List<RowData>();
             var map        = _columnMap.NormalSheet;
             bool isOotsuki = sheetName.Contains("大月");
+            var flags      = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
 
             for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
             {
                 if (ws.Cells[rowIndex, map.Day].Value == null && ws.Cells[rowIndex, map.YuryoKm].Value == null) continue;
+
+                var flagValues = new Dictionary<string, int?>();
+                foreach (var flag in flags)
+                    flagValues[flag.Id] = GetNullableInt(ws.Cells[rowIndex, flag.ExcelColumn].Value);
 
                 var rowData = new RowData
                 {
@@ -103,8 +111,8 @@ namespace HansoInputTool.Services
                     E_MuryoKm        = GetNullableInt(ws.Cells[rowIndex, map.MuryoKm].Value),
                     H_LateFeeOotsuki = GetNullableInt(ws.Cells[rowIndex, map.ShinyaFee].Value),
                     K_LateMinutes    = GetNullableInt(ws.Cells[rowIndex, map.ShinyaMinutes].Value),
-                    L_IsKoryo        = GetNullableInt(ws.Cells[rowIndex, map.IsKoryo].Value),
-                    M_IsEmbalming    = GetNullableInt(ws.Cells[rowIndex, map.IsEmbalming].Value)
+                    FlagValues       = flagValues,
+                    FlagDefinitions  = flags
                 };
                 rowData.LateValueText = isOotsuki
                     ? rowData.H_LateFeeOotsuki?.ToString()
@@ -120,7 +128,10 @@ namespace HansoInputTool.Services
 
         #region データ書き込み
 
-        public (int targetRow, string insertInfo) RegisterNormalData(string sheetName, Dictionary<string, double?> values, bool isKoryo, bool isEmbalming)
+        public (int targetRow, string insertInfo) RegisterNormalData(
+            string sheetName,
+            Dictionary<string, double?> values,
+            Dictionary<string, bool> flagStates)
         {
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
@@ -142,16 +153,23 @@ namespace HansoInputTool.Services
                 insertInfo = "空き行がないため、合計行の上に新しい行を挿入します。";
             }
 
-            WriteNormalValues(ws, targetRow, map, values, isKoryo, isEmbalming, sheetName.Contains("大月"));
+            WriteNormalValues(ws, targetRow, map, values, flagStates, sheetName.Contains("大月"));
             InvalidateCache(sheetName);
             return (targetRow, insertInfo);
         }
 
-        public void UpdateNormalData(string sheetName, int rowIndex, Dictionary<string, double?> values, bool isKoryo, bool isEmbalming)
+        public void UpdateNormalData(
+            string sheetName,
+            int rowIndex,
+            Dictionary<string, double?> values,
+            Dictionary<string, bool> flagStates)
         {
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
-            WriteNormalValues(_inputPackage.Workbook.Worksheets[sheetName], rowIndex, _columnMap.NormalSheet, values, isKoryo, isEmbalming, sheetName.Contains("大月"));
+            WriteNormalValues(
+                _inputPackage.Workbook.Worksheets[sheetName],
+                rowIndex, _columnMap.NormalSheet, values, flagStates,
+                sheetName.Contains("大月"));
             InvalidateCache(sheetName);
         }
 
@@ -183,6 +201,12 @@ namespace HansoInputTool.Services
             var logMessages = new List<string>();
             var normalMap   = _columnMap.NormalSheet;
             var eastMap     = _columnMap.EastSheet;
+            var flags       = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
+
+            // 固定列＋動的フラグ列の一覧を作成
+            var fixedCols  = new[] { normalMap.Day, normalMap.HansoCount, normalMap.YuryoKm, normalMap.MuryoKm, normalMap.ShinyaFee, normalMap.ShinyaMinutes };
+            var flagCols   = flags.Select(f => f.ExcelColumn).ToArray();
+            var clearCols  = fixedCols.Concat(flagCols).Where(c => c > 0).Distinct().ToArray();
 
             foreach (var ws in _inputPackage.Workbook.Worksheets)
             {
@@ -192,8 +216,8 @@ namespace HansoInputTool.Services
                     if (totalRowIndex != -1)
                     {
                         for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
-                            foreach (int col in new[] { normalMap.Day, normalMap.HansoCount, normalMap.YuryoKm, normalMap.MuryoKm, normalMap.ShinyaFee, normalMap.ShinyaMinutes, normalMap.IsKoryo, normalMap.IsEmbalming })
-                                if (col > 0) ws.Cells[rowIndex, col].Value = null;
+                            foreach (int col in clearCols)
+                                ws.Cells[rowIndex, col].Value = null;
                         logMessages.Add($"[{ws.Name}] の入力値をクリアしました。");
                     }
                 }
@@ -233,6 +257,84 @@ namespace HansoInputTool.Services
             };
         }
 
+        /// <summary>
+        /// フラグ定義の変更をInput.xlsxの全通常シートに反映する。
+        /// 追加されたフラグ → 対象列を追加してヘッダーを書く
+        /// 削除されたフラグ → 対象列を削除する
+        /// 順番変更は列には反映しない
+        /// </summary>
+        public void SyncFlagColumns(
+            IReadOnlyList<FlagDefinition> oldFlags,
+            IReadOnlyList<FlagDefinition> newFlags)
+        {
+            // 追加されたフラグ（新規IDのもの）
+            var addedFlags = newFlags
+                .Where(n => !oldFlags.Any(o => o.Id == n.Id))
+                .OrderBy(f => f.ExcelColumn)
+                .ToList();
+
+            // 削除されたフラグ（旧IDで新フラグに存在しないもの）
+            var removedFlags = oldFlags
+                .Where(o => !newFlags.Any(n => n.Id == o.Id))
+                .OrderByDescending(f => f.ExcelColumn) // 後ろから削除して列番号ずれを防ぐ
+                .ToList();
+
+            if (addedFlags.Count == 0 && removedFlags.Count == 0) return;
+
+            // 対象シート：寝台車・霊柩車・CH系（東日本・集計系は除外）
+            var targetSheets = _inputPackage.Workbook.Worksheets
+                .Where(ws => ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+                .ToList();
+
+            foreach (var ws in targetSheets)
+            {
+                // --- 追加処理 ---
+                foreach (var flag in addedFlags)
+                {
+                    int col = flag.ExcelColumn;
+
+                    // 1列挿入
+                    ws.InsertColumn(col, 1);
+
+                    // 左隣の列（col-1）から書式・罫線をコピー
+                    int srcCol = col - 1;
+                    int totalRow = FindTotalRow(ws);
+                    int lastRow = totalRow > 0 ? totalRow : ws.Dimension?.End.Row ?? 50;
+
+                    for (int row = 1; row <= lastRow; row++)
+                    {
+                        var srcCell  = ws.Cells[row, srcCol];
+                        var destCell = ws.Cells[row, col];
+
+                        // 書式コピー
+                        destCell.StyleID = srcCell.StyleID;
+                    }
+
+                    // 2行目（ヘッダー行）に表示名を記入
+                    ws.Cells[2, col].Value = flag.DisplayName;
+
+                    // データ行はクリア（書式だけ残す）
+                    int dataStart = 3;
+                    for (int row = dataStart; row <= lastRow; row++)
+                        ws.Cells[row, col].Value = null;
+
+                    Logger.Info($"[{ws.Name}] 列{col} にフラグ「{flag.DisplayName}」を追加しました。");
+                }
+
+                // --- 削除処理 ---
+                foreach (var flag in removedFlags)
+                {
+                    int col = flag.ExcelColumn;
+                    if (col < 1 || col > (ws.Dimension?.End.Column ?? 0)) continue;
+
+                    ws.DeleteColumn(col);
+                    Logger.Info($"[{ws.Name}] 列{col}（フラグ「{flag.DisplayName}」）を削除しました。");
+                }
+            }
+
+            _dataCache.Clear();
+        }
+
         public bool CheckRemainingData()
         {
             var map = _columnMap.NormalSheet;
@@ -248,7 +350,7 @@ namespace HansoInputTool.Services
         #region 内部ヘルパー（他のpartialファイルからも使用）
 
         private void WriteNormalValues(ExcelWorksheet ws, int row, SheetColumnMap map,
-            Dictionary<string, double?> values, bool isKoryo, bool isEmbalming, bool isOotsuki)
+            Dictionary<string, double?> values, Dictionary<string, bool> flagStates, bool isOotsuki)
         {
             double? yuryoVal = values.GetValueOrDefault("有料キロ(D)");
             int hansoVal     = (yuryoVal.HasValue && yuryoVal > 0) ? 1 : 0;
@@ -257,8 +359,14 @@ namespace HansoInputTool.Services
             ws.Cells[row, map.HansoCount].Value = hansoVal;
             ws.Cells[row, map.YuryoKm].Value    = yuryoVal;
             ws.Cells[row, map.MuryoKm].Value    = values.GetValueOrDefault("無料キロ(E)");
-            ws.Cells[row, map.IsKoryo].Value     = isKoryo ? 1 : (object)null;
-            ws.Cells[row, map.IsEmbalming].Value = isEmbalming ? 1 : (object)null;
+
+            // 動的フラグを書き込む
+            var flags = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
+            foreach (var flag in flags)
+            {
+                bool isOn = flagStates != null && flagStates.TryGetValue(flag.Id, out bool v) && v;
+                ws.Cells[row, flag.ExcelColumn].Value = isOn ? 1 : (object)null;
+            }
 
             if (isOotsuki)
             {
@@ -278,19 +386,26 @@ namespace HansoInputTool.Services
         }
 
         /// <summary>
-        /// 指定シートのエンバーミング件数（M列=1 の行数）を返す
+        /// 指定シートの指定フラグ列がON(=1)の行数を返す
         /// </summary>
-        public int GetEmbalmingCount(string sheetName)
+        public int GetFlagCount(string sheetName, int excelColumn)
         {
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName)) return 0;
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
             var totalRowIndex = FindTotalRow(ws);
             if (totalRowIndex == -1) return 0;
             int count = 0;
-            int col = _columnMap.NormalSheet.IsEmbalming;
             for (int r = 3; r < totalRowIndex; r++)
-                if (GetNullableInt(ws.Cells[r, col].Value) == 1) count++;
+                if (GetNullableInt(ws.Cells[r, excelColumn].Value) == 1) count++;
             return count;
+        }
+
+        /// <summary>後方互換：エンバーミング件数</summary>
+        public int GetEmbalmingCount(string sheetName)
+        {
+            var embFlag = FlagService?.Flags.FirstOrDefault(f => f.Id == "embalming");
+            int col = embFlag?.ExcelColumn ?? _columnMap.NormalSheet.IsEmbalming;
+            return GetFlagCount(sheetName, col);
         }
 
         internal static int FindTotalRow(ExcelWorksheet ws)
