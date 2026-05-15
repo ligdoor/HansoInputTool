@@ -281,12 +281,22 @@ namespace HansoInputTool.Services
 
             if (addedFlags.Count == 0 && removedFlags.Count == 0) return;
 
-            // 対象シート：寝台車・霊柩車・CH系（東日本・集計系は除外）
-            var targetSheets = _inputPackage.Workbook.Worksheets
-                .Where(ws => ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+            // ── Input.xlsx 対象シート ──────────────────────────────────────
+            // 通常系（寝台車・霊柩車・CH）シート ＋ Input.xlsx末尾のTemplate1（ひな形シート）
+            // 登録シート・月間集計は除外。Template1はひな形なので必ず含める。
+            var allTargetSheets = _inputPackage.Workbook.Worksheets
+                .Where(ws => !ws.Name.Contains("登録")
+                          && ws.Name != "月間集計"
+                          && (ws.Name.Contains("寝台車")
+                           || ws.Name.Contains("霊柩車")
+                           || ws.Name.Contains("CH")
+                           || IsTemplateSheet(ws.Name)))  // Template1 を含む
                 .ToList();
 
-            foreach (var ws in targetSheets)
+            Logger.Info($"SyncFlagColumns: 追加={addedFlags.Count}件, 削除={removedFlags.Count}件, " +
+                        $"対象シート={allTargetSheets.Count}枚");
+
+            foreach (var ws in allTargetSheets)
             {
                 // --- 追加処理 ---
                 foreach (var flag in addedFlags)
@@ -309,6 +319,9 @@ namespace HansoInputTool.Services
                         // 書式コピー
                         destCell.StyleID = srcCell.StyleID;
                     }
+
+                    // 左隣と同じ列幅を設定（StyleIDでは列幅がコピーされないため個別に設定）
+                    ws.Column(col).Width = ws.Column(srcCol).Width;
 
                     // 2行目（ヘッダー行）に表示名を記入
                     ws.Cells[2, col].Value = flag.DisplayName;

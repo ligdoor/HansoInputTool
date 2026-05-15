@@ -240,8 +240,22 @@ namespace HansoInputTool.ViewModels
                         return;
                     }
 
-                    // 変更前のフラグ一覧を保存（差分検出用）
-                    var oldFlags = _flagService.Flags.ToList();
+                    // 変更前のフラグ一覧をディープコピーで保存（差分検出用）
+                    // ※ FlagDefinitionは参照型のため ToList() だけでは不十分。
+                    //   ApplyChanges→RebuildColumns で同一オブジェクトのプロパティが
+                    //   書き換わり oldFlags と newFlags が同じ内容になるのを防ぐ。
+                    var oldFlags = _flagService.Flags
+                        .Select(f => new HansoInputTool.Models.FlagDefinition
+                        {
+                            Id          = f.Id,
+                            DisplayName = f.DisplayName,
+                            Type        = f.Type,
+                            AmountType  = f.AmountType,
+                            AmountValue = f.AmountValue,
+                            Order       = f.Order,
+                            ExcelColumn = f.ExcelColumn
+                        })
+                        .ToList();
 
                     FlagSettingsVM.ApplyChanges();
 
