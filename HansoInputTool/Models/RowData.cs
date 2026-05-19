@@ -7,6 +7,9 @@ namespace HansoInputTool.Models
     public class RowData : ObservableObject
     {
         public int RowIndex { get; set; }
+
+        /// <summary>SQLite の主キー（DB使用時のみ設定。Excel使用時は 0）</summary>
+        public long DbId { get; set; }
         public int? B_Day { get; set; }
         public int? C_Hanso { get; set; }
         public int? D_YuryoKm { get; set; }

@@ -365,9 +365,10 @@
                                         <!-- 金額ありのみ表示 -->
                                         <StackPanel Visibility="{Binding FlagSettingsVM.SelectedItem.IsWithAmount,
                                                                           Converter={StaticResource BoolToVis}}">
+                                            <!-- 金額タイプ -->
                                             <Label Content="金額タイプ" FontWeight="Bold"/>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                                <RadioButton Content="倍率（例: 0.5 = 基本料金の半額）"
+                                                <RadioButton Content="倍率"
                                                              IsChecked="{Binding FlagSettingsVM.SelectedItem.IsAmountTypeRate}"
                                                              GroupName="AmountTypeGroup" Margin="0,0,15,0"/>
                                                 <RadioButton Content="固定金額（円）"
@@ -397,6 +398,36 @@
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsRate}" Value="True">
                                                                 <Setter Property="Text" Value="例: 0.5（基本料金の半額）"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- 適用対象料金 -->
+                                            <Label Content="適用対象料金" FontWeight="Bold" Margin="0,10,0,0"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <RadioButton Content="基本料金"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTargetBaseFee}"
+                                                             GroupName="TargetFeeGroup" Margin="0,0,15,0"/>
+                                                <RadioButton Content="走行距離料金"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTargetMileageFee}"
+                                                             GroupName="TargetFeeGroup" Margin="0,0,15,0"/>
+                                                <RadioButton Content="両方"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTargetBoth}"
+                                                             GroupName="TargetFeeGroup"/>
+                                            </StackPanel>
+                                            <TextBlock Foreground="{StaticResource SubTextBrush}" TextWrapping="Wrap"
+                                                       Margin="0,0,0,4">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="基本料金に倍率・金額を適用します"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsTargetMileageFee}" Value="True">
+                                                                <Setter Property="Text" Value="走行距離料金に倍率・金額を適用します"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsTargetBoth}" Value="True">
+                                                                <Setter Property="Text" Value="基本料金・走行距離料金の両方に適用します"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>

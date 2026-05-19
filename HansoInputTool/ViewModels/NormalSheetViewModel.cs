@@ -10,6 +10,12 @@ using HansoInputTool.Models;
 using HansoInputTool.Services;
 using HansoInputTool.ViewModels.Base;
 
+
+// WPF型を明示（WindowsAPICodePack経由のSystem.Windows.Forms競合を解消）
+using Control      = System.Windows.Controls.Control;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using TextBox      = System.Windows.Controls.TextBox;
+using DataObject   = System.Windows.DataObject;
 namespace HansoInputTool.ViewModels
 {
     /// <summary>
@@ -257,7 +263,8 @@ namespace HansoInputTool.ViewModels
                 var flagStates = GetFlagStates();
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, flagStates);
                 _updatePreview?.Invoke();
-                _excelHandler.Save();
+                // DB使用時はSave()不要（DBへの書き込みは即時コミット済み）
+                if (_excelHandler.DbService == null) _excelHandler.Save();
                 if (!string.IsNullOrEmpty(insertInfo)) _log?.Invoke($"[{SelectedNormalSheet}] {insertInfo}");
                 _log?.Invoke($"[{SelectedNormalSheet}] の {targetRow}行目にデータを登録しました。");
 

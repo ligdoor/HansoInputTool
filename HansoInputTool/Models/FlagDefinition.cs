@@ -21,6 +21,16 @@ namespace HansoInputTool.Models
     }
 
     /// <summary>
+    /// 金額ありタイプの適用対象料金
+    /// </summary>
+    public enum TargetFee
+    {
+        BaseFee,     // 基本料金のみ
+        MileageFee,  // 走行距離料金のみ
+        Both         // 両方
+    }
+
+    /// <summary>
     /// チェックボックスフラグ1件の定義
     /// </summary>
     public class FlagDefinition
@@ -39,6 +49,9 @@ namespace HansoInputTool.Models
 
         /// <summary>金額ありタイプのみ：値（Rate=倍率、Fixed=円）</summary>
         public double? AmountValue { get; set; }
+
+        /// <summary>金額ありタイプのみ：適用対象料金（BaseFee/MileageFee/Both）</summary>
+        public TargetFee TargetFee { get; set; } = TargetFee.BaseFee;
 
         /// <summary>表示順（1始まり）</summary>
         public int Order { get; set; }

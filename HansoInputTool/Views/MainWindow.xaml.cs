@@ -4,6 +4,12 @@ using System.Windows.Input;
 using HansoInputTool.Messaging;
 using HansoInputTool.ViewModels;
 
+
+// WPF型を明示（WindowsAPICodePack経由のSystem.Windows.Forms競合を解消）
+using Control      = System.Windows.Controls.Control;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using TextBox      = System.Windows.Controls.TextBox;
+using DataObject   = System.Windows.DataObject;
 namespace HansoInputTool.Views
 {
     public partial class MainWindow : Window
@@ -92,6 +98,13 @@ namespace HansoInputTool.Views
                 }
                 e.Handled = true;
             }
+        }
+
+        /// <summary>ログ末尾に自動スクロール</summary>
+        private void LogTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb)
+                tb.ScrollToEnd();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

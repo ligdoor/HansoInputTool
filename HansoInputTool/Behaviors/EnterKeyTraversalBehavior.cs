@@ -1,8 +1,14 @@
-﻿using Microsoft.Xaml.Behaviors;
+using Microsoft.Xaml.Behaviors;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
+
+// WPF型を明示（WindowsAPICodePack経由のSystem.Windows.Forms競合を解消）
+using Control      = System.Windows.Controls.Control;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using TextBox      = System.Windows.Controls.TextBox;
+using DataObject   = System.Windows.DataObject;
 namespace HansoInputTool.Behaviors
 {
     public class EnterKeyTraversalBehavior : Behavior<Control>

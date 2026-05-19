@@ -33,15 +33,18 @@ namespace HansoInputTool.ViewModels
         private const string ReleasesPageUrl = "https://github.com/ligdoor/HansoInputTool/releases";
         private const int MaxLogLines = 200;
 
-        private static readonly string BaseDataPath             = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
-        private static readonly string VersionFilePath          = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.json");
-        private static readonly string RatesFilePath            = Path.Combine(BaseDataPath, "rates.json");
-        private static readonly string InputFilePath            = Path.Combine(BaseDataPath, "Input.xlsx");
-        private static readonly string TemplateFilePath         = Path.Combine(BaseDataPath, "Template.xlsx");
-        private static readonly string ColumnMapFilePath        = Path.Combine(BaseDataPath, "column_map.json");
-        private static readonly string HelpFilePath             = Path.Combine(BaseDataPath, "readme.pdf");
-        private static readonly string ShortcutSettingsFilePath = Path.Combine(BaseDataPath, "shortcuts.json");
-        private static readonly string CustomFlagsFilePath      = Path.Combine(BaseDataPath, "custom_flags.json");
+        // データパスは App.OnStartup で DataSetupService によって確定済み
+        private static string BaseDataPath               => App.DataPath
+                                                            ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
+        private static readonly string VersionFilePath   = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.json");
+        private static string RatesFilePath              => Path.Combine(BaseDataPath, "rates.json");
+        private static string InputFilePath              => Path.Combine(BaseDataPath, "Input.xlsx");
+        private static string TemplateFilePath           => Path.Combine(BaseDataPath, "Template.xlsx");
+        private static string ColumnMapFilePath          => Path.Combine(BaseDataPath, "column_map.json");
+        private static string CustomFlagsFilePath        => Path.Combine(BaseDataPath, "custom_flags.json");
+        private static string DatabaseFilePath           => Path.Combine(BaseDataPath, "hanso_data.db");
+        private static string HelpFilePath               => Path.Combine(BaseDataPath, "readme.pdf");
+        private static string ShortcutSettingsFilePath   => Path.Combine(BaseDataPath, "shortcuts.json");
 
         #endregion
 
@@ -51,6 +54,7 @@ namespace HansoInputTool.ViewModels
         private readonly ValidationService _validationService;
         private ShortcutService _shortcutService;
         private ExcelHandler _excelHandler;
+        private DatabaseService _dbService;
         private ColumnMapping _columnMap;
         private List<string> _allSheetNames;
         private FlagDefinitionService _flagService;
@@ -179,6 +183,13 @@ namespace HansoInputTool.ViewModels
                 _flagService     = new FlagDefinitionService(CustomFlagsFilePath);
                 _excelHandler    = new ExcelHandler(InputFilePath, TemplateFilePath, _columnMap);
                 _shortcutService = new ShortcutService(ShortcutSettingsFilePath);
+
+                // SQLiteサービスを初期化してExcelHandlerに注入
+                _dbService = new DatabaseService(DatabaseFilePath);
+                _excelHandler.DbService = _dbService;
+
+                // 起動時フラグ自動同期
+                _excelHandler.SyncFlagsOnStartup(_flagService);
                 Log("ショートカット設定を読み込みました。");
 
                 // 月末日チェック用に年・月を渡す（Month は "1"〜"12" の文字列）
@@ -244,7 +255,7 @@ namespace HansoInputTool.ViewModels
         {
             _excelHandler.UpdateNormalData(sheetName, rowIndex, newValues, flagStates);
             UpdatePreview();
-            _excelHandler.Save();
+            if (_dbService == null) _excelHandler.Save();
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。");
         }
 
@@ -268,9 +279,18 @@ namespace HansoInputTool.ViewModels
         private void ClearInputData(bool showSuccessMessage)
         {
             Log("--- 入力データをクリアします ---");
-            foreach (var msg in _excelHandler.ClearData()) Log(msg);
+            if (_dbService != null)
+            {
+                _dbService.ClearAllData();
+                _excelHandler.InvalidateCacheAll();
+                Log("[DB] 全入力データをクリアしました。");
+            }
+            else
+            {
+                foreach (var msg in _excelHandler.ClearData()) Log(msg);
+                _excelHandler.Save();
+            }
             EastSheet.ClearRegisteredSheets();
-            _excelHandler.Save();
             UpdatePreview();
             if (showSuccessMessage)
                 MessageBox.Show("入力データをクリアしました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -362,8 +382,10 @@ namespace HansoInputTool.ViewModels
             var progressWindow = new ProgressWindow(progressVM) { Owner = Application.Current.MainWindow };
             var progress = new Progress<TransferProgressReport>(report =>
             {
-                if (!string.IsNullOrEmpty(report.Message)) progressVM.AppendLog(report.Message);
-                if (report.Total > 0) progressVM.UpdateProgress(report.Current, report.Total, "");
+                if (report.Total > 0)
+                    progressVM.UpdateProgress(report.Current, report.Total, report.Message ?? "");
+                else if (!string.IsNullOrEmpty(report.Message))
+                    progressVM.AppendLog(report.Message);
             });
             progressWindow.Show();
 
@@ -372,12 +394,21 @@ namespace HansoInputTool.ViewModels
                 _excelHandler.Save();
                 await new TransferService().ExecuteAsync(
                     InputFilePath, TemplateFilePath, outputDir,
-                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService);
+                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService);
 
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
                 progressVM.Complete("2つのファイルの作成が完了しました。");
-                ClearInputData(false);
+                if (_dbService != null)
+                {
+                    _excelHandler.InvalidateCacheAll();
+                    EastSheet.ClearRegisteredSheets();
+                    UpdatePreview();
+                }
+                else
+                {
+                    ClearInputData(false);
+                }
             }
             catch (Exception ex)
             {
@@ -589,12 +620,13 @@ namespace HansoInputTool.ViewModels
             if (SelectedRow == null) return;
             var sheet    = NormalSheet.SelectedNormalSheet;
             var rowIndex = SelectedRow.RowIndex;
+            int idToDelete = (SelectedRow.DbId > 0) ? (int)SelectedRow.DbId : rowIndex;
             if (MessageBox.Show($"選択した行({rowIndex}行目)を削除しますか？\nこの操作は元に戻せません。",
                     "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
-                _excelHandler.DeleteRows(sheet, new List<int> { rowIndex });
+                _excelHandler.DeleteRows(sheet, new List<int> { idToDelete });
                 UpdatePreview();
-                _excelHandler.Save();
+                if (_dbService == null) _excelHandler.Save();
                 Log($"[{sheet}] から {rowIndex}行目のデータを削除しました。");
             }
         }
@@ -651,7 +683,7 @@ namespace HansoInputTool.ViewModels
 
         public void Dispose()
         {
-            if (!_disposed) { _excelHandler?.Dispose(); _disposed = true; }
+            if (!_disposed) { _excelHandler?.Dispose(); _dbService?.Dispose(); _disposed = true; }
         }
     }
 }

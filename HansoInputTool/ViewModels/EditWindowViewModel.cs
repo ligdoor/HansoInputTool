@@ -13,7 +13,8 @@ namespace HansoInputTool.ViewModels
     {
         private readonly MainViewModel _mainViewModel;
         private readonly string _sheetName;
-        private readonly int _rowIndex;
+        private readonly int _rowIndex;   // Excel使用時の行番号
+        private readonly long _dbId;       // DB使用時の主キー
 
         public string WindowTitle { get; }
         public bool IsOotsukiSheet { get; }
@@ -40,9 +41,10 @@ namespace HansoInputTool.ViewModels
             _mainViewModel = mainViewModel;
             _sheetName     = sheetName;
             _rowIndex      = rowData.RowIndex;
+            _dbId          = rowData.DbId;   // DB使用時の主キー
 
             IsOotsukiSheet = sheetName.Contains("大月");
-            WindowTitle    = $"行 {rowData.RowIndex} を編集 - {sheetName}";
+            WindowTitle    = $"行 {rowData.B_Day}日 を編集 - {sheetName}";
 
             Day       = rowData.B_Day?.ToString();
             YuryoKm   = rowData.D_YuryoKm?.ToString();
@@ -99,7 +101,9 @@ namespace HansoInputTool.ViewModels
             }
 
             var flagStates = FlagItems.ToDictionary(f => f.Id, f => f.IsChecked);
-            _mainViewModel.UpdateRowData(_sheetName, _rowIndex, values, flagStates);
+            // DB使用時は DbId を、Excel使用時は RowIndex を渡す
+            int idToPass = (_dbId > 0) ? (int)_dbId : _rowIndex;
+            _mainViewModel.UpdateRowData(_sheetName, idToPass, values, flagStates);
             ((Window)parameter).Close();
         }
 

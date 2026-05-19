@@ -36,6 +36,9 @@ namespace HansoInputTool.Services
         // 動的フラグ管理サービス（外部から注入）
         public FlagDefinitionService FlagService { get; set; }
 
+        // SQLiteデータベースサービス（外部から注入。nullのときはExcel読み書きにフォールバック）
+        public DatabaseService DbService { get; set; }
+
         public ExcelHandler(string inputFilePath, string templateFilePath, ColumnMapping columnMap)
         {
             _inputFilePath    = inputFilePath;
@@ -53,6 +56,103 @@ namespace HansoInputTool.Services
             _inputPackage    = new ExcelPackage(new FileInfo(_inputFilePath));
             _templatePackage = new ExcelPackage(new FileInfo(_templateFilePath));
             _dataCache.Clear();
+        }
+
+        /// <summary>
+        /// 起動時にcustom_flags.jsonとInput.xlsxのヘッダー行を比較し、
+        /// 差分があれば自動でフラグ列を同期する。
+        /// バージョンアップ後の初回起動時に新旧フラグ構造を自動修復する。
+        /// </summary>
+        public void SyncFlagsOnStartup(FlagDefinitionService flagService)
+        {
+            if (flagService == null) return;
+            var expectedFlags = flagService.Flags;
+            if (expectedFlags.Count == 0) return;
+
+            // 代表シート（最初の通常系シート）のヘッダー行を読んで現状を把握
+            var targetSheets = _inputPackage.Workbook.Worksheets
+                .Where(ws => (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車")
+                           || ws.Name.Contains("CH") || IsTemplateSheet(ws.Name))
+                          && !ws.Name.Contains("登録")
+                          && ws.Name != "月間集計")
+                .ToList();
+
+            if (targetSheets.Count == 0) return;
+
+            bool needsSave = false;
+            foreach (var ws in targetSheets)
+            {
+                var addedFlags   = new List<FlagDefinition>();
+                var removedFlags = new List<FlagDefinition>();
+
+                // ヘッダー行（2行目）から現在のフラグ列を読む
+                int lastCol = ws.Dimension?.End.Column ?? 0;
+                var headerValues = new Dictionary<int, string>();
+                for (int c = 1; c <= lastCol; c++)
+                {
+                    var v = ws.Cells[2, c].Value?.ToString();
+                    if (!string.IsNullOrEmpty(v)) headerValues[c] = v;
+                }
+
+                // expectedFlags にあるがヘッダーにない → 追加が必要
+                foreach (var flag in expectedFlags)
+                {
+                    if (!headerValues.Values.Contains(flag.DisplayName))
+                        addedFlags.Add(flag);
+                }
+
+                // ヘッダーにある（フラグ列範囲内）がexpectedFlagsにない → 削除が必要
+                int firstFlagCol = expectedFlags.Min(f => f.ExcelColumn);
+                foreach (var kv in headerValues.Where(kv => kv.Key >= firstFlagCol))
+                {
+                    if (!expectedFlags.Any(f => f.DisplayName == kv.Value))
+                        removedFlags.Add(new FlagDefinition
+                        {
+                            DisplayName = kv.Value,
+                            ExcelColumn = kv.Key
+                        });
+                }
+
+                if (addedFlags.Count == 0 && removedFlags.Count == 0) continue;
+
+                Logger.Info($"[{ws.Name}] 起動時フラグ同期: 追加={addedFlags.Count}件, 削除={removedFlags.Count}件");
+
+                // 削除（降順）
+                foreach (var flag in removedFlags.OrderByDescending(f => f.ExcelColumn))
+                {
+                    int col = flag.ExcelColumn;
+                    if (col >= 1 && col <= (ws.Dimension?.End.Column ?? 0))
+                    {
+                        ws.DeleteColumn(col);
+                        Logger.Info($"[{ws.Name}] 列{col}（{flag.DisplayName}）を削除");
+                    }
+                }
+
+                // 追加（昇順）
+                foreach (var flag in addedFlags.OrderBy(f => f.ExcelColumn))
+                {
+                    int col    = flag.ExcelColumn;
+                    int srcCol = col - 1;
+                    ws.InsertColumn(col, 1);
+                    int lastRow = ws.Dimension?.End.Row ?? 50;
+                    for (int row = 1; row <= lastRow; row++)
+                        ws.Cells[row, col].StyleID = ws.Cells[row, srcCol].StyleID;
+                    ws.Column(col).Width    = ws.Column(srcCol).Width;
+                    ws.Cells[2, col].Value  = flag.DisplayName;
+                    int dataStart = 3;
+                    for (int row = dataStart; row <= lastRow; row++)
+                        ws.Cells[row, col].Value = null;
+                    Logger.Info($"[{ws.Name}] 列{col}（{flag.DisplayName}）を追加");
+                }
+
+                needsSave = true;
+            }
+
+            if (needsSave)
+            {
+                _inputPackage.Save();
+                Logger.Info("起動時フラグ同期: Input.xlsxを保存しました。");
+            }
         }
 
         public void Save()
@@ -81,7 +181,21 @@ namespace HansoInputTool.Services
 
         public List<RowData> GetSheetDataForPreview(string sheetName)
         {
-            if (sheetName == null || !_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
+            if (sheetName == null) return new List<RowData>();
+
+            // DBが注入済みの場合はDBから読み取る
+            // ただし東日本シートはDBに保存されないためExcelから読む
+            if (DbService != null && !sheetName.Contains("東日本"))
+            {
+                if (_dataCache.ContainsKey(sheetName)) return _dataCache[sheetName];
+                var flags  = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
+                var result = DbService.GetSheetData(sheetName, flags);
+                _dataCache[sheetName] = result;
+                return result;
+            }
+
+            // DB未注入時はExcelから読み取る（フォールバック）
+            if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 return new List<RowData>();
             if (_dataCache.ContainsKey(sheetName)) return _dataCache[sheetName];
 
@@ -92,14 +206,14 @@ namespace HansoInputTool.Services
             var data       = new List<RowData>();
             var map        = _columnMap.NormalSheet;
             bool isOotsuki = sheetName.Contains("大月");
-            var flags      = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
+            var flagDefs   = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
 
             for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
             {
                 if (ws.Cells[rowIndex, map.Day].Value == null && ws.Cells[rowIndex, map.YuryoKm].Value == null) continue;
 
                 var flagValues = new Dictionary<string, int?>();
-                foreach (var flag in flags)
+                foreach (var flag in flagDefs)
                     flagValues[flag.Id] = GetNullableInt(ws.Cells[rowIndex, flag.ExcelColumn].Value);
 
                 var rowData = new RowData
@@ -112,7 +226,7 @@ namespace HansoInputTool.Services
                     H_LateFeeOotsuki = GetNullableInt(ws.Cells[rowIndex, map.ShinyaFee].Value),
                     K_LateMinutes    = GetNullableInt(ws.Cells[rowIndex, map.ShinyaMinutes].Value),
                     FlagValues       = flagValues,
-                    FlagDefinitions  = flags
+                    FlagDefinitions  = flagDefs
                 };
                 rowData.LateValueText = isOotsuki
                     ? rowData.H_LateFeeOotsuki?.ToString()
@@ -133,6 +247,16 @@ namespace HansoInputTool.Services
             Dictionary<string, double?> values,
             Dictionary<string, bool> flagStates)
         {
+            // DBが注入済みの場合はDBに書き込む
+            if (DbService != null)
+            {
+                long dbId = DbService.InsertRecord(sheetName, values, flagStates, sheetName.Contains("大月"));
+                InvalidateCache(sheetName);
+                // rowIndexの代わりにdbIdを返す（呼び出し側はinsertInfoを表示するだけなので互換あり）
+                return ((int)dbId, "");
+            }
+
+            // DB未注入時はExcelに書き込む（フォールバック）
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
 
@@ -164,6 +288,15 @@ namespace HansoInputTool.Services
             Dictionary<string, double?> values,
             Dictionary<string, bool> flagStates)
         {
+            // DBが注入済みの場合はDBを更新（rowIndexをdbIdとして使用）
+            if (DbService != null)
+            {
+                DbService.UpdateRecord((long)rowIndex, sheetName, values, flagStates, sheetName.Contains("大月"));
+                InvalidateCache(sheetName);
+                return;
+            }
+
+            // DB未注入時はExcelを更新（フォールバック）
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
             WriteNormalValues(
@@ -188,6 +321,16 @@ namespace HansoInputTool.Services
 
         public void DeleteRows(string sheetName, List<int> rowIndices)
         {
+            // DBが注入済みの場合はDBから削除（rowIndexをdbIdとして使用）
+            if (DbService != null)
+            {
+                foreach (var dbId in rowIndices)
+                    DbService.DeleteRecord((long)dbId);
+                InvalidateCache(sheetName);
+                return;
+            }
+
+            // DB未注入時はExcelから削除（フォールバック）
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))
                 throw new ArgumentException($"シートが見つかりません: {sheetName}");
             var ws = _inputPackage.Workbook.Worksheets[sheetName];
@@ -350,6 +493,11 @@ namespace HansoInputTool.Services
 
         public bool CheckRemainingData()
         {
+            // DBが注入済みの場合はDBで確認
+            if (DbService != null)
+                return DbService.HasAnyData();
+
+            // DB未注入時はExcelで確認（フォールバック）
             var map = _columnMap.NormalSheet;
             foreach (var ws in _inputPackage.Workbook.Worksheets)
                 if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
@@ -396,6 +544,12 @@ namespace HansoInputTool.Services
         private void InvalidateCache(string sheetName)
         {
             if (_dataCache.ContainsKey(sheetName)) _dataCache.Remove(sheetName);
+        }
+
+        /// <summary>全シートのキャッシュを破棄する（DBクリア後などに使用）</summary>
+        public void InvalidateCacheAll()
+        {
+            _dataCache.Clear();
         }
 
         /// <summary>

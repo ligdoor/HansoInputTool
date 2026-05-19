@@ -142,6 +142,7 @@ namespace HansoInputTool.ViewModels
                     Type        = item.Type,
                     AmountType  = item.Type == FlagType.WithAmount ? item.AmountType : null,
                     AmountValue = item.Type == FlagType.WithAmount ? item.AmountValue : null,
+                    TargetFee   = item.Type == FlagType.WithAmount ? item.TargetFee : Models.TargetFee.BaseFee,
                     Order       = i + 1
                 };
 
@@ -242,6 +243,29 @@ namespace HansoInputTool.ViewModels
             set { if (value) AmountType = Models.AmountType.Fixed; }
         }
 
+        // 適用対象料金 RadioButton バインディング用
+        private Models.TargetFee _targetFee = Models.TargetFee.BaseFee;
+        public Models.TargetFee TargetFee
+        {
+            get => _targetFee;
+            set => SetProperty(ref _targetFee, value);
+        }
+        public bool IsTargetBaseFee
+        {
+            get => TargetFee == Models.TargetFee.BaseFee;
+            set { if (value) TargetFee = Models.TargetFee.BaseFee; }
+        }
+        public bool IsTargetMileageFee
+        {
+            get => TargetFee == Models.TargetFee.MileageFee;
+            set { if (value) TargetFee = Models.TargetFee.MileageFee; }
+        }
+        public bool IsTargetBoth
+        {
+            get => TargetFee == Models.TargetFee.Both;
+            set { if (value) TargetFee = Models.TargetFee.Both; }
+        }
+
         // 新規作成用
         public FlagEditItem()
         {
@@ -258,6 +282,7 @@ namespace HansoInputTool.ViewModels
             _amountType      = def.AmountType;
             _amountValue     = def.AmountValue;
             _amountValueText = def.AmountValue?.ToString() ?? string.Empty;
+            _targetFee       = def.TargetFee;
         }
     }
 }
