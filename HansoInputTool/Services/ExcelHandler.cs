@@ -172,8 +172,38 @@ namespace HansoInputTool.Services
         public List<string> GetVehicleSheetNames()
             => _inputPackage.Workbook.Worksheets
                 .Where(s => !s.Name.Contains("登録") && !IsTemplateSheet(s.Name))
-                .Select(s => s.Name)
+                .Select(ws =>
+                {
+                    var numStr = System.Text.RegularExpressions.Regex.Match(ws.Name, @"\d+$").Value;
+                    int num    = int.TryParse(numStr, out var n) ? n : 0;
+                    return new { Name = ws.Name, CategoryOrder = GetCategoryOrder(ws.Name), Num = num };
+                })
+                .OrderBy(v => v.CategoryOrder)
+                .ThenBy(v => v.Num)
+                .Select(v => v.Name)
                 .ToList();
+
+        /// <summary>
+        /// 車両シートの並び順を変更してInput.xlsxのシート順も同期する。
+        /// fromName のシートを toName の前後に移動する。
+        /// </summary>
+        public void MoveVehicleSheet(string fromName, string toName, bool insertBefore)
+        {
+            if (fromName == toName) return;
+            try
+            {
+                if (insertBefore)
+                    _inputPackage.Workbook.Worksheets.MoveBefore(fromName, toName);
+                else
+                    _inputPackage.Workbook.Worksheets.MoveAfter(fromName, toName);
+                _inputPackage.Save();
+                Logger.Info($"シート順変更: {fromName} → {(insertBefore ? "前" : "後")} of {toName}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, $"シート順変更失敗: {fromName}");
+            }
+        }
 
         #endregion
 
@@ -550,6 +580,74 @@ namespace HansoInputTool.Services
         public void InvalidateCacheAll()
         {
             _dataCache.Clear();
+        }
+
+        /// <summary>
+        /// 読み込んだExcel（Input.xlsx）の通常系シートのデータをDBに一括インポートする。
+        /// 「実績月報を読み込む」機能でExcelを差し替えた後に呼ぶ。
+        /// DBの既存データはクリアしてからインポートする。
+        /// </summary>
+        public void ImportFromExcelToDb(DatabaseService dbService, FlagDefinitionService flagService)
+        {
+            if (dbService == null) return;
+
+            var map   = _columnMap.NormalSheet;
+            var flags = flagService?.Flags ?? new System.Collections.ObjectModel.ReadOnlyCollection<Models.FlagDefinition>(new System.Collections.Generic.List<Models.FlagDefinition>());
+
+            // 通常系シートのみ対象（東日本・登録・テンプレート系は除外）
+            var targetSheets = _inputPackage.Workbook.Worksheets
+                .Where(ws => (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+                          && !ws.Name.Contains("登録")
+                          && !IsTemplateSheet(ws.Name))
+                .ToList();
+
+            if (targetSheets.Count == 0) return;
+
+            // 既存DBデータをクリア
+            dbService.ClearAllData();
+            Logger.Info($"ExcelからDBへインポート開始: {targetSheets.Count}シート");
+
+            int totalRows = 0;
+            foreach (var ws in targetSheets)
+            {
+                bool isOotsuki   = ws.Name.Contains("大月");
+                int  totalRowIdx = FindTotalRow(ws);
+                if (totalRowIdx == -1) continue;
+
+                for (int row = 3; row < totalRowIdx; row++)
+                {
+                    // 日付も有料キロも空なら空行 → スキップ
+                    if (ws.Cells[row, map.Day].Value == null &&
+                        ws.Cells[row, map.YuryoKm].Value == null) continue;
+
+                    var values = new System.Collections.Generic.Dictionary<string, double?>
+                    {
+                        ["日(B)"]      = GetNullableDoubleFromCell(ws.Cells[row, map.Day].Value),
+                        ["有料キロ(D)"] = GetNullableDoubleFromCell(ws.Cells[row, map.YuryoKm].Value),
+                        ["無料キロ(E)"] = GetNullableDoubleFromCell(ws.Cells[row, map.MuryoKm].Value),
+                        ["深夜料金(H)"] = isOotsuki ? GetNullableDoubleFromCell(ws.Cells[row, map.ShinyaFee].Value) : null,
+                        ["深夜時間(K)"] = !isOotsuki ? GetNullableDoubleFromCell(ws.Cells[row, map.ShinyaMinutes].Value) : null,
+                    };
+
+                    var flagStates = new System.Collections.Generic.Dictionary<string, bool>();
+                    foreach (var flag in flags)
+                        flagStates[flag.Id] = GetNullableInt(ws.Cells[row, flag.ExcelColumn].Value) == 1;
+
+                    dbService.InsertRecord(ws.Name, values, flagStates, isOotsuki);
+                    totalRows++;
+                }
+            }
+
+            _dataCache.Clear();
+            Logger.Info($"ExcelからDBへインポート完了: {totalRows}行");
+        }
+
+        private static double? GetNullableDoubleFromCell(object cellValue)
+        {
+            if (cellValue == null) return null;
+            if (cellValue is double d) return d;
+            if (double.TryParse(cellValue.ToString(), out var result)) return result;
+            return null;
         }
 
         /// <summary>

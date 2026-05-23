@@ -25,7 +25,19 @@ namespace HansoInputTool.ViewModels
         public ObservableCollection<VehicleSheetViewModel> VehicleSheetList { get; set; }
 
         private VehicleSheetViewModel _selectedVehicle;
-        public VehicleSheetViewModel SelectedVehicle { get => _selectedVehicle; set => SetProperty(ref _selectedVehicle, value); }
+        public VehicleSheetViewModel SelectedVehicle
+        {
+            get => _selectedVehicle;
+            set
+            {
+                if (SetProperty(ref _selectedVehicle, value))
+                {
+                    OnPropertyChanged(nameof(CanMoveUp));
+                    OnPropertyChanged(nameof(CanMoveDown));
+                    CommandManager.InvalidateRequerySuggested();
+                }
+            }
+        }
 
         // ショートカット設定
         public ShortcutSettingsViewModel ShortcutSettingsVM { get; }
@@ -56,8 +68,10 @@ namespace HansoInputTool.ViewModels
             set => SetProperty(ref _selectedTabIndex, value);
         }
 
-        public ICommand AddVehicleCommand { get; }
+        public ICommand AddVehicleCommand    { get; }
         public ICommand DeleteVehicleCommand { get; }
+        public ICommand MoveUpCommand        { get; }
+        public ICommand MoveDownCommand      { get; }
         public ICommand SaveCommand { get; }
         public ICommand CancelCommand { get; }
         public ICommand ResetShortcutsCommand { get; }
@@ -94,6 +108,8 @@ namespace HansoInputTool.ViewModels
 
             AddVehicleCommand    = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
+            MoveUpCommand        = new RelayCommand(_ => MoveVehicle(-1), _ => CanMoveUp);
+            MoveDownCommand      = new RelayCommand(_ => MoveVehicle(1),  _ => CanMoveDown);
             SaveCommand          = new RelayCommand(p => SaveSettings(p));
             CancelCommand        = new RelayCommand(p => ((Window)p).Close());
             ResetShortcutsCommand = new RelayCommand(p => ResetShortcuts());
@@ -107,6 +123,29 @@ namespace HansoInputTool.ViewModels
             MainViewModel mainViewModel)
             : this(currentRates, excelHandler, ratesFilePath, mainViewModel, null, null, null)
         {
+        }
+
+        public bool CanMoveUp   => SelectedVehicle != null && VehicleSheetList.IndexOf(SelectedVehicle) > 0;
+        public bool CanMoveDown => SelectedVehicle != null && VehicleSheetList.IndexOf(SelectedVehicle) < VehicleSheetList.Count - 1;
+
+        private void MoveVehicle(int direction)
+        {
+            if (SelectedVehicle == null) return;
+            int idx    = VehicleSheetList.IndexOf(SelectedVehicle);
+            int newIdx = idx + direction;
+            if (newIdx < 0 || newIdx >= VehicleSheetList.Count) return;
+
+            var moving = SelectedVehicle;
+            VehicleSheetList.Move(idx, newIdx);
+
+            // 既存シートの場合はExcelのシート順も即時同期
+            var neighbor = VehicleSheetList[direction > 0 ? newIdx - 1 : newIdx + 1];
+            if (moving.OriginalSheetName != null && neighbor.OriginalSheetName != null)
+                _excelHandler.MoveVehicleSheet(moving.OriginalSheetName, neighbor.OriginalSheetName, direction < 0);
+
+            OnPropertyChanged(nameof(CanMoveUp));
+            OnPropertyChanged(nameof(CanMoveDown));
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void AddVehicle()

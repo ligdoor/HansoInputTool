@@ -248,7 +248,15 @@ namespace HansoInputTool.ViewModels
         public Models.TargetFee TargetFee
         {
             get => _targetFee;
-            set => SetProperty(ref _targetFee, value);
+            set
+            {
+                if (SetProperty(ref _targetFee, value))
+                {
+                    OnPropertyChanged(nameof(IsTargetBaseFee));
+                    OnPropertyChanged(nameof(IsTargetMileageFee));
+                    OnPropertyChanged(nameof(IsTargetBoth));
+                }
+            }
         }
         public bool IsTargetBaseFee
         {

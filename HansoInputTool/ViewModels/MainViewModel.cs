@@ -436,6 +436,15 @@ namespace HansoInputTool.ViewModels
             try
             {
                 File.Copy(dialog.FileName, InputFilePath, true);
+                _excelHandler.Load();
+
+                // DB使用時: 読み込んだExcelの通常系データをDBにインポート
+                if (_dbService != null)
+                {
+                    _excelHandler.ImportFromExcelToDb(_dbService, _flagService);
+                    Log($"[DB] 通常系シートのデータをDBにインポートしました。");
+                }
+
                 ReloadAllData();
                 Log($"実績月報 '{Path.GetFileName(dialog.FileName)}' を読み込みました。");
                 MessageBox.Show("実績月報のデータを読み込みました。", "読み込み完了", MessageBoxButton.OK, MessageBoxImage.Information);
