@@ -123,6 +123,56 @@ namespace HansoInputTool.Services
         }
 
         /// <summary>
+        /// 複数レコードを1トランザクションで一括登録する（インポート用）。
+        /// 1件ずつInsertRecordを呼ぶより大幅に高速。
+        /// </summary>
+        public void BulkInsert(IEnumerable<(string sheetName, Dictionary<string, double?> values, Dictionary<string, bool> flagStates, bool isOotsuki)> records)
+        {
+            using var transaction = _connection.BeginTransaction();
+            try
+            {
+                foreach (var (sheetName, values, flagStates, isOotsuki) in records)
+                {
+                    var flagsJson = SerializeFlags(flagStates);
+                    using var cmd = _connection.CreateCommand();
+                    cmd.Transaction = transaction;
+                    cmd.CommandText = @"
+                        INSERT INTO transport_records
+                            (sheet_name, day, hanso_count, yuryo_km, muryo_km,
+                             shinya_fee, shinya_minutes, flags_json)
+                        VALUES
+                            ($sheet, $day, $hanso, $yuryo, $muryo,
+                             $fee, $minutes, $flags);
+                    ";
+
+                    double? yuryo = values.GetValueOrDefault("有料キロ(D)");
+                    int hanso = (yuryo.HasValue && yuryo > 0) ? 1 : 0;
+
+                    cmd.Parameters.AddWithValue("$sheet",   sheetName);
+                    cmd.Parameters.AddWithValue("$day",     (object)values.GetValueOrDefault("日(B)") ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("$hanso",   hanso);
+                    cmd.Parameters.AddWithValue("$yuryo",   (object)yuryo ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("$muryo",   (object)values.GetValueOrDefault("無料キロ(E)") ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("$fee",     isOotsuki
+                        ? (object)(values.GetValueOrDefault("深夜料金(H)") ?? (object)DBNull.Value)
+                        : DBNull.Value);
+                    cmd.Parameters.AddWithValue("$minutes", !isOotsuki
+                        ? (object)(values.GetValueOrDefault("深夜時間(K)") ?? (object)DBNull.Value)
+                        : DBNull.Value);
+                    cmd.Parameters.AddWithValue("$flags",   flagsJson);
+                    cmd.ExecuteNonQuery();
+                }
+                transaction.Commit();
+                Logger.Info($"BulkInsert完了");
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 既存レコードを更新する（EditWindowからの修正用）。
         /// </summary>
         public void UpdateRecord(

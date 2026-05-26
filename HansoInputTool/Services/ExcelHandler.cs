@@ -607,7 +607,9 @@ namespace HansoInputTool.Services
             dbService.ClearAllData();
             Logger.Info($"ExcelからDBへインポート開始: {targetSheets.Count}シート");
 
-            int totalRows = 0;
+            // 全シートのデータを収集してBulkInsertで一括登録（トランザクション）
+            var allRecords = new System.Collections.Generic.List<(string, System.Collections.Generic.Dictionary<string, double?>, System.Collections.Generic.Dictionary<string, bool>, bool)>();
+
             foreach (var ws in targetSheets)
             {
                 bool isOotsuki   = ws.Name.Contains("大月");
@@ -616,7 +618,6 @@ namespace HansoInputTool.Services
 
                 for (int row = 3; row < totalRowIdx; row++)
                 {
-                    // 日付も有料キロも空なら空行 → スキップ
                     if (ws.Cells[row, map.Day].Value == null &&
                         ws.Cells[row, map.YuryoKm].Value == null) continue;
 
@@ -633,13 +634,14 @@ namespace HansoInputTool.Services
                     foreach (var flag in flags)
                         flagStates[flag.Id] = GetNullableInt(ws.Cells[row, flag.ExcelColumn].Value) == 1;
 
-                    dbService.InsertRecord(ws.Name, values, flagStates, isOotsuki);
-                    totalRows++;
+                    allRecords.Add((ws.Name, values, flagStates, isOotsuki));
                 }
             }
 
+            // 1トランザクションで一括コミット（1件ずつより大幅に高速）
+            dbService.BulkInsert(allRecords);
             _dataCache.Clear();
-            Logger.Info($"ExcelからDBへインポート完了: {totalRows}行");
+            Logger.Info($"ExcelからDBへインポート完了: {allRecords.Count}行");
         }
 
         private static double? GetNullableDoubleFromCell(object cellValue)
