@@ -307,6 +307,9 @@ namespace HansoInputTool.ViewModels
 
                     // NormalSheetのチェックボックスを再構築
                     _mainViewModel.NormalSheet.RebuildFlagItems();
+
+                    // フラグショートカットをShortcutServiceに同期
+                    _mainViewModel.SyncFlagShortcuts();
                 }
 
                 _mainViewModel.UpdateRatesAndReload(Rates);

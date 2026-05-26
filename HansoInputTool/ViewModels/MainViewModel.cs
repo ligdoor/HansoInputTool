@@ -324,8 +324,45 @@ namespace HansoInputTool.ViewModels
                 case "EditRow":      return TryExecute(EditRowCommand);
                 case "DeleteRow":    return TryExecute(DeleteRowCommand);
                 case "CreateBackup": return TryExecute(CreateBackupCommand);
+                default:
+                    // Flag_{flagId} 形式のアクション → 対応フラグをトグル
+                    if (actionName.StartsWith("Flag_"))
+                    {
+                        var flagId = actionName.Substring(5);
+                        return NormalSheet.ToggleFlag(flagId);
+                    }
+                    break;
             }
             return false;
+        }
+
+        /// <summary>
+        /// フラグ定義のショートカット設定を ShortcutService に同期する。
+        /// フラグ追加・削除・変更時に呼ぶ。
+        /// </summary>
+        public void SyncFlagShortcuts()
+        {
+            if (_shortcutService == null || _flagService == null) return;
+            var shortcuts = _shortcutService.CurrentSettings.Shortcuts;
+
+            // 既存の Flag_ エントリを一旦削除
+            var flagKeys = shortcuts.Keys.Where(k => k.StartsWith("Flag_")).ToList();
+            foreach (var k in flagKeys) shortcuts.Remove(k);
+
+            // 現在のフラグ定義からショートカットを登録
+            foreach (var flag in _flagService.Flags)
+            {
+                if (!flag.HasShortcut) continue;
+                shortcuts[$"Flag_{flag.Id}"] = new Models.ShortcutKey
+                {
+                    Key         = flag.ShortcutKey,
+                    Modifiers   = flag.ShortcutModifiers,
+                    Description = $"フラグ: {flag.DisplayName}"
+                };
+            }
+
+            _shortcutService.Save();
+            Logger.Info("フラグショートカットを同期しました");
         }
 
         private static bool TryExecute(ICommand cmd)

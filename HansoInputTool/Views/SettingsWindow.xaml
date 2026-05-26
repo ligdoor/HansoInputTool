@@ -75,16 +75,8 @@
                         </Grid.ColumnDefinitions>
                         <DockPanel Grid.Column="0" Margin="0,0,10,0">
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                                <StackPanel Orientation="Vertical">
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <Button Content="追加 (+)" Command="{Binding AddVehicleCommand}" Style="{StaticResource NormalButton}" MinWidth="80"/>
-                                        <Button Content="削除 (-)" Command="{Binding DeleteVehicleCommand}" Background="{StaticResource RedBrush}" Margin="6,0,0,0" Style="{StaticResource NormalButton}" MinWidth="80"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="▲ 上へ" Command="{Binding MoveUpCommand}" Style="{StaticResource NormalButton}" MinWidth="80"/>
-                                        <Button Content="▼ 下へ" Command="{Binding MoveDownCommand}" Margin="6,0,0,0" Style="{StaticResource NormalButton}" MinWidth="80"/>
-                                    </StackPanel>
-                                </StackPanel>
+                                <Button Content="追加 (+)" Command="{Binding AddVehicleCommand}" Style="{StaticResource NormalButton}" MinWidth="80"/>
+                                <Button Content="削除 (-)" Command="{Binding DeleteVehicleCommand}" Background="{StaticResource RedBrush}" Margin="10,0,0,0" Style="{StaticResource NormalButton}" MinWidth="80"/>
                             </StackPanel>
                             <Label DockPanel.Dock="Top" Content="車両リスト" FontWeight="Bold"/>
                             <ListView ItemsSource="{Binding VehicleSheetList}" 
@@ -360,6 +352,16 @@
                                         <TextBox Text="{Binding FlagSettingsVM.SelectedItem.DisplayName, UpdateSourceTrigger=PropertyChanged}"
                                                  Margin="0,0,0,10"/>
 
+                                        <!-- ショートカットキー設定 -->
+                                        <Label Content="ショートカットキー" FontWeight="Bold"/>
+                                        <controls:ShortcutKeyBox
+                                            ShortcutKey="{Binding FlagSettingsVM.SelectedItem.ShortcutKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            ShortcutModifiers="{Binding FlagSettingsVM.SelectedItem.ShortcutModifiers, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Margin="0,0,0,4"/>
+                                        <TextBlock Foreground="{StaticResource SubTextBrush}"
+                                                   Text="{Binding FlagSettingsVM.SelectedItem.ShortcutDisplayString}"
+                                                   Margin="0,0,0,10"/>
+
                                         <Label Content="種類" FontWeight="Bold"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                                             <RadioButton Content="回数のみ（チェックの有無のみ記録）"
@@ -405,6 +407,35 @@
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsRate}" Value="True">
                                                                 <Setter Property="Text" Value="例: 0.5（基本料金の半額）"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- 適用対象料金 -->
+                                            <Label Content="適用対象料金" FontWeight="Bold" Margin="0,10,0,0"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                <RadioButton Content="基本料金"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTargetBaseFee}"
+                                                             GroupName="TargetFeeGroup" Margin="0,0,15,0"/>
+                                                <RadioButton Content="走行距離料金"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTargetMileageFee}"
+                                                             GroupName="TargetFeeGroup" Margin="0,0,15,0"/>
+                                                <RadioButton Content="両方"
+                                                             IsChecked="{Binding FlagSettingsVM.SelectedItem.IsTargetBoth}"
+                                                             GroupName="TargetFeeGroup"/>
+                                            </StackPanel>
+                                            <TextBlock Foreground="{StaticResource SubTextBrush}" TextWrapping="Wrap" Margin="0,0,0,4">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="基本料金に倍率・金額を適用します"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsTargetMileageFee}" Value="True">
+                                                                <Setter Property="Text" Value="走行距離料金に倍率・金額を適用します"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding FlagSettingsVM.SelectedItem.IsTargetBoth}" Value="True">
+                                                                <Setter Property="Text" Value="基本料金・走行距離料金の両方に適用します"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>

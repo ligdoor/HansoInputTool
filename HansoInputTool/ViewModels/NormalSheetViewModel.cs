@@ -104,6 +104,15 @@ namespace HansoInputTool.ViewModels
             foreach (var item in FlagItems) item.IsChecked = false;
         }
 
+        /// <summary>指定IDのフラグをON/OFFトグルする（ショートカット用）</summary>
+        public bool ToggleFlag(string flagId)
+        {
+            var item = FlagItems.FirstOrDefault(f => f.Id == flagId);
+            if (item == null) return false;
+            item.IsChecked = !item.IsChecked;
+            return true;
+        }
+
         /// <summary>フラグ定義が変更されたときにFlagItemsを再構築する</summary>
         public void RebuildFlagItems()
         {

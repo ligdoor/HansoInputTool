@@ -117,8 +117,11 @@ namespace HansoInputTool.ViewModels
         {
             return new ShortcutSettingItem
             {
-                ActionName = actionName,
-                DisplayName = ShortcutSettings.GetActionDisplayName(actionName),
+                ActionName  = actionName,
+                // Flag_xxx はDescriptionに「フラグ: 表示名」が入っているのでそちらを優先
+                DisplayName = actionName.StartsWith("Flag_")
+                    ? (shortcutKey.Description ?? ShortcutSettings.GetActionDisplayName(actionName))
+                    : ShortcutSettings.GetActionDisplayName(actionName),
                 Description = shortcutKey.Description,
                 Key = shortcutKey.Key,
                 Modifiers = shortcutKey.Modifiers

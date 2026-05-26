@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using System.Collections.Generic;
 
 namespace HansoInputTool.Models
@@ -52,6 +53,20 @@ namespace HansoInputTool.Models
 
         /// <summary>金額ありタイプのみ：適用対象料金（BaseFee/MileageFee/Both）</summary>
         public TargetFee TargetFee { get; set; } = TargetFee.BaseFee;
+
+        /// <summary>このフラグに割り当てるショートカットキー</summary>
+        public Key ShortcutKey { get; set; } = Key.None;
+
+        /// <summary>このフラグに割り当てる修飾キー</summary>
+        public ModifierKeys ShortcutModifiers { get; set; } = ModifierKeys.None;
+
+        /// <summary>ショートカットのアクション名（"Flag_" + Id）</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string ShortcutActionName => $"Flag_{Id}";
+
+        /// <summary>ショートカットが設定されているか</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool HasShortcut => ShortcutKey != Key.None;
 
         /// <summary>表示順（1始まり）</summary>
         public int Order { get; set; }

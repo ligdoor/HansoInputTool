@@ -143,6 +143,8 @@ namespace HansoInputTool.ViewModels
                     AmountType  = item.Type == FlagType.WithAmount ? item.AmountType : null,
                     AmountValue = item.Type == FlagType.WithAmount ? item.AmountValue : null,
                     TargetFee   = item.Type == FlagType.WithAmount ? item.TargetFee : Models.TargetFee.BaseFee,
+                    ShortcutKey       = item.ShortcutKey,
+                    ShortcutModifiers = item.ShortcutModifiers,
                     Order       = i + 1
                 };
 
@@ -274,6 +276,36 @@ namespace HansoInputTool.ViewModels
             set { if (value) TargetFee = Models.TargetFee.Both; }
         }
 
+        // ショートカットキー設定
+        private System.Windows.Input.Key _shortcutKey = System.Windows.Input.Key.None;
+        private System.Windows.Input.ModifierKeys _shortcutModifiers = System.Windows.Input.ModifierKeys.None;
+
+        public System.Windows.Input.Key ShortcutKey
+        {
+            get => _shortcutKey;
+            set { if (SetProperty(ref _shortcutKey, value)) OnPropertyChanged(nameof(ShortcutDisplayString)); }
+        }
+        public System.Windows.Input.ModifierKeys ShortcutModifiers
+        {
+            get => _shortcutModifiers;
+            set { if (SetProperty(ref _shortcutModifiers, value)) OnPropertyChanged(nameof(ShortcutDisplayString)); }
+        }
+
+        /// <summary>表示用 例: "Ctrl+F1"</summary>
+        public string ShortcutDisplayString
+        {
+            get
+            {
+                if (_shortcutKey == System.Windows.Input.Key.None) return "未設定";
+                var parts = new System.Collections.Generic.List<string>();
+                if (_shortcutModifiers.HasFlag(System.Windows.Input.ModifierKeys.Control)) parts.Add("Ctrl");
+                if (_shortcutModifiers.HasFlag(System.Windows.Input.ModifierKeys.Alt))     parts.Add("Alt");
+                if (_shortcutModifiers.HasFlag(System.Windows.Input.ModifierKeys.Shift))   parts.Add("Shift");
+                parts.Add(_shortcutKey.ToString());
+                return string.Join("+", parts);
+            }
+        }
+
         // 新規作成用
         public FlagEditItem()
         {
@@ -290,7 +322,9 @@ namespace HansoInputTool.ViewModels
             _amountType      = def.AmountType;
             _amountValue     = def.AmountValue;
             _amountValueText = def.AmountValue?.ToString() ?? string.Empty;
-            _targetFee       = def.TargetFee;
+            _targetFee               = def.TargetFee;
+            _shortcutKey       = def.ShortcutKey;
+            _shortcutModifiers = def.ShortcutModifiers;
         }
     }
 }

@@ -58,6 +58,9 @@ namespace HansoInputTool.Models
                 "EditRow" => "行を編集",
                 "DeleteRow" => "行を削除",
                 "CreateBackup" => "バックアップ作成",
+                // Flag_xxx 形式はそのまま渡すとIDになるため
+                // 呼び出し元でDescriptionを使うためここではプレフィックスだけ除去
+                _ when actionName.StartsWith("Flag_") => actionName.Substring(5),
                 _ => actionName
             };
         }
