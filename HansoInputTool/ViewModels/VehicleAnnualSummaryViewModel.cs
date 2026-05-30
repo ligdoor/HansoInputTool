@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Input;
 using HansoInputTool.Services;
 using HansoInputTool.ViewModels.Base;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
 namespace HansoInputTool.ViewModels
@@ -78,27 +79,59 @@ namespace HansoInputTool.ViewModels
 
         private void SelectFolder()
         {
-            // WPF標準のOpenFileDialogを使ってフォルダ選択
-            // （UseWindowsFormsが不要なためクラッシュしない）
-            var dialog = new OpenFileDialog
+            string selected = ShowFolderBrowserDialog("集計ファイルが入った最上位フォルダを選択してください");
+            if (!string.IsNullOrEmpty(selected))
             {
-                Title = "集計ファイルが入った最上位フォルダを選択（フォルダ内の任意のファイルを選択してください）",
-                CheckFileExists = false,
-                CheckPathExists = true,
-                FileName = "フォルダを選択",
-                Filter = "フォルダ|*.",
-                ValidateNames = false
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                string selectedFolder = Path.GetDirectoryName(dialog.FileName);
-                if (!string.IsNullOrEmpty(selectedFolder))
-                {
-                    FolderPath = selectedFolder;
-                    StatusMessage = $"フォルダ選択済み: {FolderPath}";
-                }
+                FolderPath = selected;
+                StatusMessage = $"フォルダ選択済み: {FolderPath}";
             }
+        }
+
+        private static string ShowFolderBrowserDialog(string title)
+        {
+            var dialog = (IFileOpenDialog2)new FileOpenDialog2();
+            try
+            {
+                dialog.SetOptions(0x00000020 | 0x00000040);
+                dialog.SetTitle(title);
+                int hr = dialog.Show(IntPtr.Zero);
+                if (hr < 0) return null;
+                dialog.GetResult(out IShellItem2 item);
+                item.GetDisplayName(0x80058000, out string path);
+                return path;
+            }
+            finally { Marshal.ReleaseComObject(dialog); }
+        }
+
+        [ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+        private class FileOpenDialog2 { }
+
+        [ComImport, Guid("42F85136-DB7E-439C-85F1-E4075D135FC8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IFileOpenDialog2
+        {
+            [PreserveSig] int Show(IntPtr p);
+            void SetFileTypes(uint c, IntPtr r); void SetFileTypeIndex(uint i); void GetFileTypeIndex(out uint i);
+            void Advise(IntPtr p, out uint c); void Unadvise(uint c); void SetOptions(uint f); void GetOptions(out uint f);
+            void SetDefaultFolder(IShellItem2 p); void SetFolder(IShellItem2 p); void GetFolder(out IShellItem2 p);
+            void GetCurrentSelection(out IShellItem2 p);
+            void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string n);
+            void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string n);
+            void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string t);
+            void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string t);
+            void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string l);
+            void GetResult(out IShellItem2 p); void AddPlace(IShellItem2 p, int f);
+            void SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string e);
+            void Close(int h); void SetClientGuid(ref Guid g); void ClearClientData(); void SetFilter(IntPtr f);
+            void GetResults(out IntPtr p); void GetSelectedItems(out IntPtr p);
+        }
+
+        [ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IShellItem2
+        {
+            void BindToHandler(IntPtr p, ref Guid b, ref Guid r, out IntPtr v);
+            void GetParent(out IShellItem2 p);
+            void GetDisplayName(uint s, [MarshalAs(UnmanagedType.LPWStr)] out string n);
+            void GetAttributes(uint m, out uint a); void Compare(IShellItem2 p, uint h, out int o);
         }
 
         private async void Execute()

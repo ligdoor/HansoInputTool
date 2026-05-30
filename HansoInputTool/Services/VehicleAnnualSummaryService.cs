@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,7 +15,7 @@ namespace HansoInputTool.Services
         public int Month { get; set; }
         public string ShishaName { get; set; } = "";   // B列：支社名
         public string VehicleNo { get; set; } = "";   // C列：車両番号
-        public string VehicleKey => $"{ShishaName}_{VehicleNo}";
+        public string VehicleKey   => $"{ShishaName}_{VehicleNo}";
         public string VehicleLabel => $"{ShishaName} {VehicleNo}";
         public double? Unshu { get; set; }             // K列：運輸実績
     }
@@ -33,7 +33,7 @@ namespace HansoInputTool.Services
         // ファイル名パターン: "#期 #月 R# アルス搬送・霊柩車　実績月報集計.xlsx"
         // 例: "44期 5月 R6 アルス搬送・霊柩車　実績月報集計.xlsx"
         private static readonly Regex FilePattern = new Regex(
-            @"\d+期\s+(\d+)月\s+R(\d+)\s+アルス搬送・霊柩車[\s　]+実績月報集計\.xlsx$",
+            @"\d+期\s+(\d+)月\s+R(\d+)\s+アルス搬送・霊柩車\u3000実績月報集計\.xlsx$",
             RegexOptions.Compiled);
 
         /// <summary>
@@ -76,35 +76,33 @@ namespace HansoInputTool.Services
                     ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
                     using var pkg = new ExcelPackage(new FileInfo(filePath));
 
-                    var ws = pkg.Workbook.Worksheets
-                        .FirstOrDefault(s => s.Name == TargetSheetName);
-                    if (ws == null)
+                    // 月間集計シートの式セルは保存時0になるため各車両シートから直接K4を読む
+                    // シート名をパースして支社名・車番を取得（B4セルは誤りがある場合があるため使わない）
+                    foreach (var vehicleSheet in pkg.Workbook.Worksheets)
                     {
-                        Logger.Warn($"「{TargetSheetName}」シートなし: {fileName}");
-                        continue;
-                    }
+                        var sname = vehicleSheet.Name;
+                        if (sname == TargetSheetName) continue;
+                        if (sname.Contains("登録") || sname == "Template" ||
+                            sname == "月間集計") continue;
 
-                    for (int row = DataStartRow; ; row++)
-                    {
-                        var shisha = ws.Cells[row, ColShisha].Value?.ToString()?.Trim() ?? "";
+                        if (!TryParseSheetName(sname, out var shisha, out var vehicleNo))
+                        {
+                            Logger.Warn($"未知のシート名: [{sname}] ({fileName})");
+                            continue;
+                        }
 
-                        // 空行で終了
-                        if (string.IsNullOrEmpty(shisha)) break;
-
-                        // 「合計」行はスキップ
-                        if (shisha.Contains("合計") || shisha.Contains("合　計")) continue;
-
-                        var vehicleNo = ws.Cells[row, ColVehicle].Value?.ToString()?.Trim() ?? "";
-                        var unshu = GetDouble(ws.Cells[row, ColUnshu].Value);
+                        var unshu = GetDouble(vehicleSheet.Cells[DataStartRow, ColUnshu].Value);
+                        if (unshu == null) continue;
 
                         result.Add(new MonthlyRecord
                         {
-                            Year = year,
-                            Month = month,
+                            Year       = year,
+                            Month      = month,
                             ShishaName = shisha,
-                            VehicleNo = vehicleNo,
-                            Unshu = unshu,
+                            VehicleNo  = vehicleNo,
+                            Unshu      = unshu,
                         });
+                        Logger.Info($"  {sname}: {shisha} {vehicleNo} → {unshu:N0}円");
                     }
                 }
                 catch (Exception ex)
@@ -135,7 +133,8 @@ namespace HansoInputTool.Services
             var vehicles = allData
                 .Select(d => (d.VehicleKey, d.VehicleLabel, d.ShishaName, d.VehicleNo))
                 .Distinct()
-                .OrderBy(v => v.ShishaName)
+                .OrderBy(v => CategoryOrder.TryGetValue(v.ShishaName, out int cat) ? cat : 99)
+                .ThenBy(v => int.TryParse(v.VehicleNo, out int n) ? n : 0)
                 .ThenBy(v => v.VehicleNo)
                 .ToList();
 
@@ -263,10 +262,52 @@ namespace HansoInputTool.Services
             return list;
         }
 
+        // 短縮シート名 → (支社名, 車番) マッピング
+        private static readonly System.Collections.Generic.Dictionary<string, (string Shisha, string VehicleNo)> SheetNameMap =
+            new System.Collections.Generic.Dictionary<string, (string, string)>
+            {
+                ["寝台車 29"]        = ("CH富士吉田", "29"),
+                ["寝台車 30"]        = ("CH富士吉田", "30"),
+                ["霊柩車 40"]        = ("CH富士吉田", "40"),
+                ["霊柩車 223"]       = ("CH富士吉田", "223"),
+                ["大月 寝台車 1603"] = ("CH大月", "1603"),
+                ["大月 霊柩車 2577"] = ("CH大月", "2577"),
+                ["東日本セレモニー 2"] = ("東日本セレモニー", "2"),
+            };
+
+        // 完全シート名パターン: "CH富士吉田 寝台車 29" / "東日本セレモニー 1961"
+        private static readonly System.Text.RegularExpressions.Regex FullSheetPattern =
+            new System.Text.RegularExpressions.Regex(
+                @"^(CH富士吉田|CH大月|CH東富士|東日本セレモニー)(?:\s+(?:寝台車|霊柩車))?\s+(\d+)$");
+
+        // 支社名のカテゴリ順
+        private static readonly System.Collections.Generic.Dictionary<string, int> CategoryOrder =
+            new System.Collections.Generic.Dictionary<string, int>
+            {
+                ["CH富士吉田"]       = 1,
+                ["CH大月"]           = 2,
+                ["CH東富士"]         = 3,
+                ["東日本セレモニー"] = 4,
+            };
+
         private static double? GetDouble(object val)
         {
             if (val == null) return null;
-            return double.TryParse(val.ToString(), out double d) ? d : null;
+            var s = val.ToString();
+            if (s.StartsWith("=")) return null;
+            return double.TryParse(s, out double d) ? d : null;
+        }
+
+        private static bool TryParseSheetName(string sname, out string shisha, out string vehicleNo)
+        {
+            shisha = null; vehicleNo = null;
+            if (SheetNameMap.TryGetValue(sname, out var mapped))
+            {
+                shisha = mapped.Shisha; vehicleNo = mapped.VehicleNo; return true;
+            }
+            var m = FullSheetPattern.Match(sname);
+            if (!m.Success) return false;
+            shisha = m.Groups[1].Value; vehicleNo = m.Groups[2].Value; return true;
         }
 
         private static void SetHeaderStyle(ExcelRange cell)

@@ -57,7 +57,7 @@ namespace HansoInputTool.Models
             var fileName = Path.GetFileName(filePath);
             var folderName = Path.GetFileName(Path.GetDirectoryName(filePath));
 
-            // ファイル名パターン: ##期#月R#アルス搬送・霊柩車　実績月報.xls
+            // ファイル名パターン: ##期#月R#アルス搬送・霊柩車　実績月報.xlsx
             var pattern = @"(\d+)期\s+(\d+)月\s+R(\d+)\s+アルス搬送・霊柩車\s+実績月報\.xlsx";
             var match = Regex.Match(fileName, pattern);
             
