@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -34,17 +35,17 @@ namespace HansoInputTool.ViewModels
         private const int MaxLogLines = 200;
 
         // データパスは App.OnStartup で DataSetupService によって確定済み
-        private static string BaseDataPath               => App.DataPath
+        private static string BaseDataPath => App.DataPath
                                                             ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
-        private static readonly string VersionFilePath   = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.json");
-        private static string RatesFilePath              => Path.Combine(BaseDataPath, "rates.json");
-        private static string InputFilePath              => Path.Combine(BaseDataPath, "Input.xlsx");
-        private static string TemplateFilePath           => Path.Combine(BaseDataPath, "Template.xlsx");
-        private static string ColumnMapFilePath          => Path.Combine(BaseDataPath, "column_map.json");
-        private static string CustomFlagsFilePath        => Path.Combine(BaseDataPath, "custom_flags.json");
-        private static string DatabaseFilePath           => Path.Combine(BaseDataPath, "hanso_data.db");
-        private static string HelpFilePath               => Path.Combine(BaseDataPath, "readme.pdf");
-        private static string ShortcutSettingsFilePath   => Path.Combine(BaseDataPath, "shortcuts.json");
+        private static readonly string VersionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.json");
+        private static string RatesFilePath => Path.Combine(BaseDataPath, "rates.json");
+        private static string InputFilePath => Path.Combine(BaseDataPath, "Input.xlsx");
+        private static string TemplateFilePath => Path.Combine(BaseDataPath, "Template.xlsx");
+        private static string ColumnMapFilePath => Path.Combine(BaseDataPath, "column_map.json");
+        private static string CustomFlagsFilePath => Path.Combine(BaseDataPath, "custom_flags.json");
+        private static string DatabaseFilePath => Path.Combine(BaseDataPath, "hanso_data.db");
+        private static string HelpFilePath => Path.Combine(BaseDataPath, "readme.pdf");
+        private static string ShortcutSettingsFilePath => Path.Combine(BaseDataPath, "shortcuts.json");
 
         #endregion
 
@@ -124,32 +125,32 @@ namespace HansoInputTool.ViewModels
 
         // XAMLバインディング互換のため子VMのコマンドを公開
         public ICommand RegisterNormalCommand => NormalSheet.RegisterCommand;
-        public ICommand RegisterEastCommand   => EastSheet.RegisterCommand;
+        public ICommand RegisterEastCommand => EastSheet.RegisterCommand;
 
         #endregion
 
         public MainViewModel()
         {
-            _backupService     = new BackupService();
+            _backupService = new BackupService();
             _validationService = new ValidationService();
             NormalSheet = new NormalSheetViewModel(_validationService);
-            EastSheet   = new EastSheetViewModel(_validationService);
+            EastSheet = new EastSheetViewModel(_validationService);
 
-            OpenSettingsCommand               = new RelayCommand(p => OpenSettings(),              p => !IsBusy);
-            OpenHelpCommand                   = new RelayCommand(p => OpenHelp(),                  p => !IsBusy);
-            CreateBackupCommand               = new RelayCommand(p => CreateManualBackup(),        p => !IsBusy);
-            RestoreBackupCommand              = new RelayCommand(p => OpenRestoreBackupWindow(),   p => !IsBusy);
-            OpenBackupFolderCommand           = new RelayCommand(p => _backupService.OpenBackupFolder(), p => !IsBusy);
-            EditRowCommand                    = new RelayCommand(p => OpenEditWindow(),            p => SelectedRow != null && !IsBusy);
-            DeleteRowCommand                  = new RelayCommand(p => DeleteSelectedRow(),         p => SelectedRow != null && !IsBusy);
-            LoadGeppoFileCommand              = new RelayCommand(p => LoadGeppoFile(),             p => !IsBusy);
-            SaveInputCommand                  = new RelayCommand(p => SaveInputFile(),             p => !IsBusy);
-            TransferCommand                   = new RelayCommand(async p => await StartTransfer(), p => !IsBusy);
-            OnLoadedCommand                   = new RelayCommand(async p => await OnWindowLoaded());
-            OnClosingCommand                  = new RelayCommand(p => { });
+            OpenSettingsCommand = new RelayCommand(p => OpenSettings(), p => !IsBusy);
+            OpenHelpCommand = new RelayCommand(p => OpenHelp(), p => !IsBusy);
+            CreateBackupCommand = new RelayCommand(p => CreateManualBackup(), p => !IsBusy);
+            RestoreBackupCommand = new RelayCommand(p => OpenRestoreBackupWindow(), p => !IsBusy);
+            OpenBackupFolderCommand = new RelayCommand(p => _backupService.OpenBackupFolder(), p => !IsBusy);
+            EditRowCommand = new RelayCommand(p => OpenEditWindow(), p => SelectedRow != null && !IsBusy);
+            DeleteRowCommand = new RelayCommand(p => DeleteSelectedRow(), p => SelectedRow != null && !IsBusy);
+            LoadGeppoFileCommand = new RelayCommand(p => LoadGeppoFile(), p => !IsBusy);
+            SaveInputCommand = new RelayCommand(p => SaveInputFile(), p => !IsBusy);
+            TransferCommand = new RelayCommand(async p => await StartTransfer(), p => !IsBusy);
+            OnLoadedCommand = new RelayCommand(async p => await OnWindowLoaded());
+            OnClosingCommand = new RelayCommand(p => { });
             OpenMonthlyReportDashboardCommand = new RelayCommand(_ => OpenWindow<MonthlyReportDashboardWindow>("月報統計ダッシュボード"));
-            OpenVehicleAnnualSummaryCommand   = new RelayCommand(_ => OpenWindow<VehicleAnnualSummaryWindow>("車両別年度集計"));
-            OpenPdfImportCommand              = new RelayCommand(_ => OpenPdfImport(), _ => !IsBusy);
+            OpenVehicleAnnualSummaryCommand = new RelayCommand(_ => OpenWindow<VehicleAnnualSummaryWindow>("車両別年度集計"));
+            OpenPdfImportCommand = new RelayCommand(_ => OpenPdfImport(), _ => !IsBusy);
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
@@ -180,8 +181,8 @@ namespace HansoInputTool.ViewModels
                 var columnMapJson = await File.ReadAllTextAsync(ColumnMapFilePath);
                 _columnMap = JsonConvert.DeserializeObject<ColumnMapping>(columnMapJson);
 
-                _flagService     = new FlagDefinitionService(CustomFlagsFilePath);
-                _excelHandler    = new ExcelHandler(InputFilePath, TemplateFilePath, _columnMap);
+                _flagService = new FlagDefinitionService(CustomFlagsFilePath);
+                _excelHandler = new ExcelHandler(InputFilePath, TemplateFilePath, _columnMap);
                 _shortcutService = new ShortcutService(ShortcutSettingsFilePath);
 
                 // SQLiteサービスを初期化してExcelHandlerに注入
@@ -314,15 +315,15 @@ namespace HansoInputTool.ViewModels
             if (IsBusy) return false;
             switch (actionName)
             {
-                case "Save":         return TryExecute(SaveInputCommand);
-                case "Register":     return SelectedTabIndex == 0 ? TryExecute(RegisterNormalCommand) : TryExecute(RegisterEastCommand);
-                case "NextSheet":    MoveSheet(+1); return true;
-                case "PrevSheet":    MoveSheet(-1); return true;
-                case "Transfer":     return TryExecute(TransferCommand);
+                case "Save": return TryExecute(SaveInputCommand);
+                case "Register": return SelectedTabIndex == 0 ? TryExecute(RegisterNormalCommand) : TryExecute(RegisterEastCommand);
+                case "NextSheet": MoveSheet(+1); return true;
+                case "PrevSheet": MoveSheet(-1); return true;
+                case "Transfer": return TryExecute(TransferCommand);
                 case "OpenSettings": return TryExecute(OpenSettingsCommand);
-                case "SwitchTab":    SelectedTabIndex = (SelectedTabIndex + 1) % 2; return true;
-                case "EditRow":      return TryExecute(EditRowCommand);
-                case "DeleteRow":    return TryExecute(DeleteRowCommand);
+                case "SwitchTab": SelectedTabIndex = (SelectedTabIndex + 1) % 2; return true;
+                case "EditRow": return TryExecute(EditRowCommand);
+                case "DeleteRow": return TryExecute(DeleteRowCommand);
                 case "CreateBackup": return TryExecute(CreateBackupCommand);
                 default:
                     // Flag_{flagId} 形式のアクション → 対応フラグをトグル
@@ -355,8 +356,8 @@ namespace HansoInputTool.ViewModels
                 if (!flag.HasShortcut) continue;
                 shortcuts[$"Flag_{flag.Id}"] = new Models.ShortcutKey
                 {
-                    Key         = flag.ShortcutKey,
-                    Modifiers   = flag.ShortcutModifiers,
+                    Key = flag.ShortcutKey,
+                    Modifiers = flag.ShortcutModifiers,
                     Description = $"フラグ: {flag.DisplayName}"
                 };
             }
@@ -405,14 +406,8 @@ namespace HansoInputTool.ViewModels
             new TransferConfirmationWindow(confirmVM) { Owner = Application.Current.MainWindow }.ShowDialog();
             if (!shouldContinue) { Log("転記処理がキャンセルされました。"); return; }
 
-            var dialog = new OpenFileDialog
-            {
-                Title = "出力先のベースフォルダを選択してください",
-                CheckFileExists = false, CheckPathExists = true,
-                FileName = "フォルダを選択", Filter = "Folder|.", ValidateNames = false, DereferenceLinks = true
-            };
-            if (dialog.ShowDialog() != true) { Log("フォルダ選択がキャンセルされました。"); return; }
-            string outputDir = Path.GetDirectoryName(dialog.FileName);
+            string outputDir = ShowFolderBrowserDialog("出力先のベースフォルダを選択してください");
+            if (outputDir == null) { Log("フォルダ選択がキャンセルされました。"); return; }
 
             IsBusy = true;
             var progressVM = new ProgressWindowViewModel();
@@ -518,7 +513,7 @@ namespace HansoInputTool.ViewModels
         {
             try
             {
-                var inputBackup    = _backupService.CreateManualBackup(InputFilePath,    "手動保存");
+                var inputBackup = _backupService.CreateManualBackup(InputFilePath, "手動保存");
                 var templateBackup = _backupService.CreateManualBackup(TemplateFilePath, "手動保存");
                 if (inputBackup != null && templateBackup != null)
                 {
@@ -591,7 +586,7 @@ namespace HansoInputTool.ViewModels
 
         // AES暗号化用の固定キー（変更しないこと）
         private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("HansoTool!AES256Key#2025$Secure!"); // 32バイト
-        private static readonly byte[] AesIv  = System.Text.Encoding.UTF8.GetBytes("HansoIV!16Bytes!"); // 16バイト
+        private static readonly byte[] AesIv = System.Text.Encoding.UTF8.GetBytes("HansoIV!16Bytes!"); // 16バイト
 
         private string LoadApiKey()
         {
@@ -605,7 +600,7 @@ namespace HansoInputTool.ViewModels
 
                 using var aes = System.Security.Cryptography.Aes.Create();
                 aes.Key = AesKey;
-                aes.IV  = AesIv;
+                aes.IV = AesIv;
                 using var decryptor = aes.CreateDecryptor();
                 var encryptedBytes = Convert.FromBase64String(encrypted);
                 using var ms = new MemoryStream(encryptedBytes);
@@ -622,7 +617,7 @@ namespace HansoInputTool.ViewModels
             {
                 using var aes = System.Security.Cryptography.Aes.Create();
                 aes.Key = AesKey;
-                aes.IV  = AesIv;
+                aes.IV = AesIv;
                 using var encryptor = aes.CreateEncryptor();
                 using var ms = new MemoryStream();
                 using var cs = new System.Security.Cryptography.CryptoStream(ms, encryptor, System.Security.Cryptography.CryptoStreamMode.Write);
@@ -643,7 +638,7 @@ namespace HansoInputTool.ViewModels
             try
             {
                 if (File.Exists(HelpFilePath))
-                    { Process.Start(new ProcessStartInfo(HelpFilePath) { UseShellExecute = true }); Log("ヘルプファイルを開きました。"); }
+                { Process.Start(new ProcessStartInfo(HelpFilePath) { UseShellExecute = true }); Log("ヘルプファイルを開きました。"); }
                 else
                     MessageBox.Show("ヘルプファイル (readme.pdf) が見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -664,7 +659,7 @@ namespace HansoInputTool.ViewModels
         private void DeleteSelectedRow()
         {
             if (SelectedRow == null) return;
-            var sheet    = NormalSheet.SelectedNormalSheet;
+            var sheet = NormalSheet.SelectedNormalSheet;
             var rowIndex = SelectedRow.RowIndex;
             int idToDelete = (SelectedRow.DbId > 0) ? (int)SelectedRow.DbId : rowIndex;
             if (MessageBox.Show($"選択した行({rowIndex}行目)を削除しますか？\nこの操作は元に戻せません。",
@@ -731,5 +726,77 @@ namespace HansoInputTool.ViewModels
         {
             if (!_disposed) { _excelHandler?.Dispose(); _dbService?.Dispose(); _disposed = true; }
         }
+
+        #region COM フォルダ選択ダイアログ
+
+        private string ShowFolderBrowserDialog(string title)
+        {
+            var dialog = (IFileOpenDialog_MV)new FileOpenDialog_MV();
+            try
+            {
+                dialog.SetOptions(FOS_PICKFOLDERS_MV | FOS_FORCEFILESYSTEM_MV);
+                dialog.SetTitle(title);
+                int hr = dialog.Show(IntPtr.Zero);
+                if (hr < 0) return null;
+                dialog.GetResult(out IShellItem_MV item);
+                item.GetDisplayName(SIGDN_FILESYSPATH_MV, out string path);
+                return path;
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(dialog);
+            }
+        }
+
+        private const uint FOS_PICKFOLDERS_MV = 0x00000020;
+        private const uint FOS_FORCEFILESYSTEM_MV = 0x00000040;
+        private const uint SIGDN_FILESYSPATH_MV = 0x80058000;
+
+        [ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+        private class FileOpenDialog_MV { }
+
+        [ComImport, Guid("42F85136-DB7E-439C-85F1-E4075D135FC8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IFileOpenDialog_MV
+        {
+            [PreserveSig] int Show(IntPtr parent);
+            void SetFileTypes(uint cFileTypes, IntPtr rgFilterSpec);
+            void SetFileTypeIndex(uint iFileType);
+            void GetFileTypeIndex(out uint piFileType);
+            void Advise(IntPtr pfde, out uint pdwCookie);
+            void Unadvise(uint dwCookie);
+            void SetOptions(uint fos);
+            void GetOptions(out uint pfos);
+            void SetDefaultFolder(IShellItem_MV psi);
+            void SetFolder(IShellItem_MV psi);
+            void GetFolder(out IShellItem_MV ppsi);
+            void GetCurrentSelection(out IShellItem_MV ppsi);
+            void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+            void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
+            void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
+            void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string pszText);
+            void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
+            void GetResult(out IShellItem_MV ppsi);
+            void AddPlace(IShellItem_MV psi, int fdap);
+            void SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string pszDefaultExtension);
+            void Close(int hr);
+            void SetClientGuid(ref Guid guid);
+            void ClearClientData();
+            void SetFilter(IntPtr pFilter);
+            void GetResults(out IntPtr ppenum);
+            void GetSelectedItems(out IntPtr ppsai);
+        }
+
+        [ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IShellItem_MV
+        {
+            void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv);
+            void GetParent(out IShellItem_MV ppsi);
+            void GetDisplayName(uint sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
+            void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+            void Compare(IShellItem_MV psi, uint hint, out int piOrder);
+        }
+
+        #endregion
+
     }
 }
