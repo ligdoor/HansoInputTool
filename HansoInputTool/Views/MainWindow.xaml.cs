@@ -74,6 +74,16 @@ namespace HansoInputTool.Views
             }
         }
 
+        // RNumberTextBox: EnterでNormalDayTextBoxに直接フォーカス
+        private void RNumberTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                NormalDayTextBox.Focus();
+                e.Handled = true;
+            }
+        }
+
         // 通常シートの最後の入力欄でEnterキーを押したら登録する処理
         private void LastNormalTextBox_KeyDown(object sender, KeyEventArgs e)
         {

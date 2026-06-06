@@ -122,7 +122,7 @@ namespace HansoInputTool.Services
 
         // ===== シート種別の一元判定ヘルパー =====
         private static readonly string[] NormalSheetKeywords = { "寝台車", "霊柩車", "CH富士吉田", "CH大月", "CH東富士" };
-        private static readonly string[] EastSheetKeywords = { "東日本セレモニー", "東日本" };
+        private static readonly string[] EastSheetKeywords  = { "東日本セレモニー", "東日本" };
 
         private static bool IsNormalSheet(string sheetName) =>
             NormalSheetKeywords.Any(kw => sheetName.Contains(kw));
@@ -159,26 +159,26 @@ namespace HansoInputTool.Services
             // ── DB使用時：DBからデータを読んでwsGeppoに書き込む ──
             if (dbService != null)
             {
-                var flags = flagService?.Flags ?? new System.Collections.ObjectModel.ReadOnlyCollection<FlagDefinition>(new List<FlagDefinition>());
-                var dbRows = dbService.GetSheetData(sheetName, flags);
+                var flags   = flagService?.Flags ?? new System.Collections.ObjectModel.ReadOnlyCollection<FlagDefinition>(new List<FlagDefinition>());
+                var dbRows  = dbService.GetSheetData(sheetName, flags);
                 int writeRow = 3;
                 foreach (var dbRow in dbRows)
                 {
-                    int hansoVal = dbRow.C_Hanso ?? 0;
-                    double yuryoKm = dbRow.D_YuryoKm ?? 0;
-                    double muryoKm = dbRow.E_MuryoKm ?? 0;
+                    int hansoVal    = dbRow.C_Hanso ?? 0;
+                    double yuryoKm  = dbRow.D_YuryoKm ?? 0;
+                    double muryoKm  = dbRow.E_MuryoKm ?? 0;
                     double rowKihon = 0, rowSoko = 0, rowShinya = 0;
 
                     // Excelのwsに値を書き込む（geppoの行として）
-                    wsGeppo.Cells[writeRow, normalMap.Day].Value = dbRow.B_Day;
-                    wsGeppo.Cells[writeRow, normalMap.HansoCount].Value = hansoVal > 0 ? hansoVal : (object)null;
-                    wsGeppo.Cells[writeRow, normalMap.YuryoKm].Value = yuryoKm > 0 ? yuryoKm : (object)null;
-                    wsGeppo.Cells[writeRow, normalMap.MuryoKm].Value = muryoKm > 0 ? muryoKm : (object)null;
+                    wsGeppo.Cells[writeRow, normalMap.Day].Value       = dbRow.B_Day;
+                    wsGeppo.Cells[writeRow, normalMap.HansoCount].Value = (object)hansoVal;
+                    wsGeppo.Cells[writeRow, normalMap.YuryoKm].Value   = (object)yuryoKm;
+                    wsGeppo.Cells[writeRow, normalMap.MuryoKm].Value   = (object)muryoKm;
 
                     if (isOotsuki)
-                        wsGeppo.Cells[writeRow, normalMap.ShinyaFee].Value = dbRow.H_LateFeeOotsuki > 0 ? dbRow.H_LateFeeOotsuki : (object)null;
+                        wsGeppo.Cells[writeRow, normalMap.ShinyaFee].Value = (object)(dbRow.H_LateFeeOotsuki ?? 0);
                     else
-                        wsGeppo.Cells[writeRow, normalMap.ShinyaMinutes].Value = dbRow.K_LateMinutes > 0 ? dbRow.K_LateMinutes : (object)null;
+                        wsGeppo.Cells[writeRow, normalMap.ShinyaMinutes].Value = (object)(dbRow.K_LateMinutes ?? 0);
 
                     // フラグ書き込み
                     foreach (var flag in flags)
@@ -198,18 +198,18 @@ namespace HansoInputTool.Services
                             bool flagOn = (dbRow.FlagValues?.GetValueOrDefault(flag.Id) == 1);
                             if (!flagOn) continue;
 
-                            bool applyBase = flag.TargetFee == TargetFee.BaseFee || flag.TargetFee == TargetFee.Both;
+                            bool applyBase    = flag.TargetFee == TargetFee.BaseFee || flag.TargetFee == TargetFee.Both;
                             bool applyMileage = flag.TargetFee == TargetFee.MileageFee || flag.TargetFee == TargetFee.Both;
 
                             if (flag.AmountType == AmountType.Rate && flag.AmountValue.HasValue)
                             {
-                                if (applyBase) rowKihon = Math.Floor(ratesForSheet.BaseFee * flag.AmountValue.Value);
-                                if (applyMileage) rowSoko = Math.Floor(rowSoko * flag.AmountValue.Value);
+                                if (applyBase)    rowKihon = Math.Floor(ratesForSheet.BaseFee * flag.AmountValue.Value);
+                                if (applyMileage) rowSoko  = Math.Floor(rowSoko               * flag.AmountValue.Value);
                             }
                             else if (flag.AmountType == AmountType.Fixed && flag.AmountValue.HasValue)
                             {
-                                if (applyBase) rowKihon = flag.AmountValue.Value;
-                                if (applyMileage) rowSoko = flag.AmountValue.Value;
+                                if (applyBase)    rowKihon = flag.AmountValue.Value;
+                                if (applyMileage) rowSoko  = flag.AmountValue.Value;
                             }
                         }
                         if (isOotsuki)
@@ -219,90 +219,90 @@ namespace HansoInputTool.Services
                             double shinyaMin = dbRow.K_LateMinutes ?? 0;
                             if (shinyaMin > 0)
                             {
-                                double numBlocks = Math.Floor(shinyaMin / 30) + 1;
+                                double numBlocks  = Math.Floor(shinyaMin / 30) + 1;
                                 double variableRyo = numBlocks * ratesForSheet.LateNightUnitFee;
                                 rowShinya = variableRyo + ratesForSheet.LateNightFixedFee;
                             }
                         }
                     }
 
-                    wsGeppo.Cells[writeRow, normalMap.KihonFee].Value = rowKihon > 0 ? rowKihon : (object)null;
-                    wsGeppo.Cells[writeRow, normalMap.SokoFee].Value = rowSoko > 0 ? rowSoko : (object)null;
-                    wsGeppo.Cells[writeRow, normalMap.ShinyaFee].Value = rowShinya > 0 ? rowShinya : (object)null;
+                    wsGeppo.Cells[writeRow, normalMap.KihonFee].Value  = (object)rowKihon;
+                    wsGeppo.Cells[writeRow, normalMap.SokoFee].Value   = (object)rowSoko;
+                    wsGeppo.Cells[writeRow, normalMap.ShinyaFee].Value = (object)rowShinya;
                     double rowTotal = rowKihon + rowSoko + rowShinya;
-                    wsGeppo.Cells[writeRow, normalMap.TotalFee].Value = rowTotal > 0 ? rowTotal : (object)null;
+                    wsGeppo.Cells[writeRow, normalMap.TotalFee].Value  = (object)rowTotal;
 
-                    totalKihon += rowKihon;
-                    totalSoko += rowSoko;
+                    totalKihon  += rowKihon;
+                    totalSoko   += rowSoko;
                     totalShinya += rowShinya;
-                    totalSum += rowTotal;
+                    totalSum    += rowTotal;
                     writeRow++;
                 }
             }
             else
             {
-                // ── Excel使用時（従来）：wsInから直接読む ──
-                for (int row = 3; row < totalRowIdx; row++)
+            // ── Excel使用時（従来）：wsInから直接読む ──
+            for (int row = 3; row < totalRowIdx; row++)
+            {
+                int hansoVal = GetInt(wsIn.Cells[row, normalMap.HansoCount].Value);
+                double rowKihon = 0, rowSoko = 0, rowShinya = 0;
+
+                if (hansoVal > 0)
                 {
-                    int hansoVal = GetInt(wsIn.Cells[row, normalMap.HansoCount].Value);
-                    double rowKihon = 0, rowSoko = 0, rowShinya = 0;
+                    double yuryoKmVal = GetDouble(wsIn.Cells[row, normalMap.YuryoKm].Value);
 
-                    if (hansoVal > 0)
+                    // 動的フラグによる基本料金計算
+                    rowKihon = ratesForSheet.BaseFee;
+                    if (yuryoKmVal > 0)
+                        rowSoko = (Math.Floor(yuryoKmVal / 10) + 1) * ratesForSheet.MileageFee;
+
+                    foreach (var flag in withAmountFlags)
                     {
-                        double yuryoKmVal = GetDouble(wsIn.Cells[row, normalMap.YuryoKm].Value);
+                        bool flagOn = GetInt(wsIn.Cells[row, flag.ExcelColumn].Value) == 1;
+                        if (!flagOn) continue;
 
-                        // 動的フラグによる基本料金計算
-                        rowKihon = ratesForSheet.BaseFee;
-                        if (yuryoKmVal > 0)
-                            rowSoko = (Math.Floor(yuryoKmVal / 10) + 1) * ratesForSheet.MileageFee;
+                        bool applyBase    = flag.TargetFee == TargetFee.BaseFee || flag.TargetFee == TargetFee.Both;
+                        bool applyMileage = flag.TargetFee == TargetFee.MileageFee || flag.TargetFee == TargetFee.Both;
 
-                        foreach (var flag in withAmountFlags)
+                        if (flag.AmountType == AmountType.Rate && flag.AmountValue.HasValue)
                         {
-                            bool flagOn = GetInt(wsIn.Cells[row, flag.ExcelColumn].Value) == 1;
-                            if (!flagOn) continue;
-
-                            bool applyBase = flag.TargetFee == TargetFee.BaseFee || flag.TargetFee == TargetFee.Both;
-                            bool applyMileage = flag.TargetFee == TargetFee.MileageFee || flag.TargetFee == TargetFee.Both;
-
-                            if (flag.AmountType == AmountType.Rate && flag.AmountValue.HasValue)
-                            {
-                                if (applyBase) rowKihon = Math.Floor(ratesForSheet.BaseFee * flag.AmountValue.Value);
-                                if (applyMileage) rowSoko = Math.Floor(rowSoko * flag.AmountValue.Value);
-                            }
-                            else if (flag.AmountType == AmountType.Fixed && flag.AmountValue.HasValue)
-                            {
-                                if (applyBase) rowKihon = flag.AmountValue.Value;
-                                if (applyMileage) rowSoko = flag.AmountValue.Value;
-                            }
+                            if (applyBase)    rowKihon = Math.Floor(ratesForSheet.BaseFee   * flag.AmountValue.Value);
+                            if (applyMileage) rowSoko  = Math.Floor(rowSoko                  * flag.AmountValue.Value);
                         }
-
-                        if (isOotsuki)
+                        else if (flag.AmountType == AmountType.Fixed && flag.AmountValue.HasValue)
                         {
-                            rowShinya = GetDouble(wsIn.Cells[row, normalMap.ShinyaFee].Value);
-                        }
-                        else
-                        {
-                            double shinyaMin = GetDouble(wsIn.Cells[row, normalMap.ShinyaMinutes].Value);
-                            if (shinyaMin > 0)
-                            {
-                                double numBlocks = Math.Floor(shinyaMin / 30) + 1;
-                                double variableRyo = numBlocks * ratesForSheet.LateNightUnitFee;
-                                rowShinya = variableRyo + ratesForSheet.LateNightFixedFee;
-                            }
+                            if (applyBase)    rowKihon = flag.AmountValue.Value;
+                            if (applyMileage) rowSoko  = flag.AmountValue.Value;
                         }
                     }
 
-                    wsGeppo.Cells[row, normalMap.KihonFee].Value = rowKihon > 0 ? rowKihon : null;
-                    wsGeppo.Cells[row, normalMap.SokoFee].Value = rowSoko > 0 ? rowSoko : null;
-                    wsGeppo.Cells[row, normalMap.ShinyaFee].Value = rowShinya > 0 ? rowShinya : null;
-                    double rowTotal = rowKihon + rowSoko + rowShinya;
-                    wsGeppo.Cells[row, normalMap.TotalFee].Value = rowTotal > 0 ? rowTotal : null;
-
-                    totalKihon += rowKihon;
-                    totalSoko += rowSoko;
-                    totalShinya += rowShinya;
-                    totalSum += rowTotal;
+                    if (isOotsuki)
+                    {
+                        rowShinya = GetDouble(wsIn.Cells[row, normalMap.ShinyaFee].Value);
+                    }
+                    else
+                    {
+                        double shinyaMin = GetDouble(wsIn.Cells[row, normalMap.ShinyaMinutes].Value);
+                        if (shinyaMin > 0)
+                        {
+                            double numBlocks = Math.Floor(shinyaMin / 30) + 1;
+                            double variableRyo = numBlocks * ratesForSheet.LateNightUnitFee;
+                            rowShinya = variableRyo + ratesForSheet.LateNightFixedFee;
+                        }
+                    }
                 }
+
+                wsGeppo.Cells[row, normalMap.KihonFee].Value = rowKihon > 0 ? rowKihon : null;
+                wsGeppo.Cells[row, normalMap.SokoFee].Value = rowSoko > 0 ? rowSoko : null;
+                wsGeppo.Cells[row, normalMap.ShinyaFee].Value = rowShinya > 0 ? rowShinya : null;
+                double rowTotal = rowKihon + rowSoko + rowShinya;
+                wsGeppo.Cells[row, normalMap.TotalFee].Value = rowTotal > 0 ? rowTotal : null;
+
+                totalKihon += rowKihon;
+                totalSoko += rowSoko;
+                totalShinya += rowShinya;
+                totalSum += rowTotal;
+            }
             } // end Excel使用時
 
             wsGeppo.Cells[totalRowIdx, normalMap.KihonFee].Value = totalKihon > 0 ? totalKihon : null;

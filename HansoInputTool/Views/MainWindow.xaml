@@ -184,7 +184,7 @@
                         <StackPanel Orientation="Horizontal" Margin="8,6">
                             <Label Content="R" Padding="0" VerticalAlignment="Center"/>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="RNumberTextBox_KeyDown"/>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
