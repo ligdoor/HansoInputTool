@@ -60,6 +60,14 @@ namespace HansoInputTool.ViewModels
             set => SetProperty(ref _maxManualBackupFiles, Math.Max(1, Math.Min(100, value)));
         }
 
+        // 元号設定
+        private string _eraName;
+        public string EraName
+        {
+            get => _eraName;
+            set => SetProperty(ref _eraName, value);
+        }
+
         // 選択中のタブインデックス
         private int _selectedTabIndex;
         public int SelectedTabIndex
@@ -105,6 +113,7 @@ namespace HansoInputTool.ViewModels
             // バックアップ設定の初期値を読み込み
             MaxAutoBackupFiles   = _backupService?.MaxBackupFiles       ?? 10;
             MaxManualBackupFiles = _backupService?.MaxManualBackupFiles ?? 20;
+            EraName = Services.DataSetupService.ReadEraNameFromSettings();
 
             AddVehicleCommand    = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
@@ -311,6 +320,11 @@ namespace HansoInputTool.ViewModels
                     // フラグショートカットをShortcutServiceに同期
                     _mainViewModel.SyncFlagShortcuts();
                 }
+
+                // 元号設定の保存
+                var saveEra = string.IsNullOrWhiteSpace(EraName) ? "R" : EraName.Trim();
+                Services.DataSetupService.SaveEraNameToSettings(saveEra);
+                _mainViewModel.EraName = saveEra;
 
                 _mainViewModel.UpdateRatesAndReload(Rates);
 

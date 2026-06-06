@@ -100,6 +100,9 @@ namespace HansoInputTool.ViewModels
         private string _rNumber;
         public string RNumber { get => _rNumber; set => SetProperty(ref _rNumber, value); }
 
+        private string _eraName = "R";
+        public string EraName { get => _eraName; set => SetProperty(ref _eraName, value); }
+
         private bool _isBusy;
         public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
 
@@ -192,6 +195,9 @@ namespace HansoInputTool.ViewModels
                 // 起動時フラグ自動同期
                 _excelHandler.SyncFlagsOnStartup(_flagService);
                 Log("ショートカット設定を読み込みました。");
+
+                // EraName（元号）をappsettings.jsonから読み込む
+                EraName = Services.DataSetupService.ReadEraNameFromSettings();
 
                 // 月末日チェック用に年・月を渡す（Month は "1"〜"12" の文字列）
                 NormalSheet.Initialize(_excelHandler, Log, UpdatePreview, _flagService,
@@ -426,7 +432,7 @@ namespace HansoInputTool.ViewModels
                 _excelHandler.Save();
                 await new TransferService().ExecuteAsync(
                     InputFilePath, TemplateFilePath, outputDir,
-                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService);
+                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService, EraName);
 
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;

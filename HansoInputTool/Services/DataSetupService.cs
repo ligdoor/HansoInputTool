@@ -255,6 +255,49 @@ namespace HansoInputTool.Services
             catch { return null; }
         }
 
+        public static string ReadEraNameFromSettings()
+        {
+            try
+            {
+                if (!File.Exists(SettingsPath)) return "R";
+                var json = File.ReadAllText(SettingsPath);
+                var lines = json.Split('\n');
+                var noComment = string.Join("\n",
+                    System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
+                var obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
+                var era = obj["EraName"]?.ToString();
+                return string.IsNullOrWhiteSpace(era) ? "R" : era;
+            }
+            catch { return "R"; }
+        }
+
+        public static void SaveEraNameToSettings(string eraName)
+        {
+            try
+            {
+                JObject obj;
+                if (File.Exists(SettingsPath))
+                {
+                    var existing = File.ReadAllText(SettingsPath);
+                    var lines = existing.Split('\n');
+                    var noComment = string.Join("\n",
+                        System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
+                    obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
+                }
+                else
+                {
+                    obj = new JObject();
+                }
+                obj["EraName"] = eraName;
+                File.WriteAllText(SettingsPath, obj.ToString(Newtonsoft.Json.Formatting.Indented));
+                Logger.Info($"appsettings.json に EraName を保存: {eraName}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "appsettings.json の EraName 保存に失敗しました");
+            }
+        }
+
         public static void SaveDataPathToSettings(string dataPath)
         {
             try

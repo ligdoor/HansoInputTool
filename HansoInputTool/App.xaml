@@ -18,6 +18,14 @@
             <SolidColorBrush x:Key="InactiveTabBrush" Color="#1e293b"/>
 
             <!-- Control Styles -->
+            <Style TargetType="ToolTip">
+                <Setter Property="Background" Value="#1e293b"/>
+                <Setter Property="Foreground" Value="#e6eef8"/>
+                <Setter Property="BorderBrush" Value="#2b6fd6"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
             <Style TargetType="TextBlock">
                 <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             </Style>

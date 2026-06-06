@@ -98,38 +98,44 @@
                         </Button.Effect>
                         <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📄 PDF読込"/>
                     </Button>
+                    <!-- 区切り線 -->
+                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"
+                               Margin="4,4,8,4" Width="1"
+                               Background="{StaticResource InputBorderBrush}"/>
                     <Button Command="{Binding CreateBackupCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
-                            Padding="8,6"
-                            ToolTip="手動でバックアップを作成">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="💾 バックアップ"/>
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
+                            Padding="7,6" Width="32"
+                            ToolTip="バックアップを作成">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="💾" ToolTip="バックアップを作成"/>
                     </Button>
                     <Button Command="{Binding RestoreBackupCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
-                            Padding="8,6"
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
+                            Padding="7,6" Width="32"
                             ToolTip="バックアップから復元">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📂 復元"/>
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📂" ToolTip="バックアップから復元"/>
                     </Button>
                     <Button Command="{Binding OpenBackupFolderCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
-                            Padding="8,6"
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
+                            Padding="7,6" Width="32"
                             ToolTip="バックアップフォルダを開く">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📁 フォルダ"/>
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📁" ToolTip="バックアップフォルダを開く"/>
                     </Button>
                     <Button Command="{Binding OpenHelpCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,8,0"
-                            Padding="8,6">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="❔ HELP"/>
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
+                            Padding="7,6" Width="32"
+                            ToolTip="ヘルプを開く">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="❔" ToolTip="ヘルプを開く"/>
                     </Button>
                     <Button Command="{Binding OpenSettingsCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
                             Foreground="{StaticResource SubTextBrush}"
-                            Padding="8,6">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="⚙️ 設定"/>
+                            Padding="7,6" Width="32"
+                            ToolTip="設定を開く">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="⚙️" ToolTip="設定を開く"/>
                     </Button>
                 </StackPanel>
             </DockPanel>
@@ -140,7 +146,7 @@
                         <StackPanel Orientation="Horizontal" Margin="8,6">
                             <Label Content="期" Padding="0" VerticalAlignment="Center"/>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="PeriodTextBox" Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}" Width="50" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                <TextBox x:Name="PeriodTextBox" Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}" Width="50" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="1"/>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -162,7 +168,7 @@
                         <StackPanel Orientation="Horizontal" Margin="8,6">
                             <Label Content="月" Padding="0" VerticalAlignment="Center"/>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="MonthTextBox" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                <TextBox x:Name="MonthTextBox" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="2"/>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -182,9 +188,13 @@
                 <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,8,0">
                     <Grid>
                         <StackPanel Orientation="Horizontal" Margin="8,6">
-                            <Label Content="R" Padding="0" VerticalAlignment="Center"/>
+                            <Label Content="{Binding EraName}" Padding="0" VerticalAlignment="Center">
+                                <Label.ToolTip>
+                                    <ToolTip Content="元号（設定画面⚙️で変更できます）"/>
+                                </Label.ToolTip>
+                            </Label>
                             <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="RNumberTextBox_KeyDown"/>
+                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="RNumberTextBox_KeyDown" TabIndex="3"/>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -211,7 +221,7 @@
                 <TabControl Grid.Column="0" Margin="0,0,10,0" SelectedIndex="{Binding SelectedTabIndex}">
                     <TabItem Header="通常シート">
                         <StackPanel Margin="10" DataContext="{Binding NormalSheet}">
-                            <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10"/>
+                            <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10" TabIndex="4"/>
                             
                             <!-- 日(B) -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
@@ -219,7 +229,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="日(B)" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalDayTextBox" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalDayTextBox" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="5"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -247,7 +257,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="有料キロ(D)" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="6"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -275,7 +285,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="無料キロ(E)" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="7"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -304,7 +314,7 @@
                                         <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
                                         <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                                         <Grid>
-                                            <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown"/>
+                                            <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown" TabIndex="8"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -358,7 +368,7 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Right" Style="{StaticResource NormalButton}" Height="22" Width="38" Margin="0,40,125,0"/>
+                            <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Stretch" Style="{StaticResource NormalButton}" Height="32" Margin="0,16,0,0" TabIndex="9"/>
                         </StackPanel>
                     </TabItem>
                     
@@ -540,7 +550,7 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <DataGrid ItemsSource="{Binding PreviewDataView}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedRow}" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single">
+                    <DataGrid ItemsSource="{Binding PreviewDataView}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedRow}" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" RowHeight="32">
                         <DataGrid.Resources>
                             <converters:BindingProxy x:Key="Proxy" Data="{Binding}"/>
                         </DataGrid.Resources>
@@ -563,7 +573,7 @@
 
             <Grid Grid.Row="3" Margin="0,10,0,0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="100"/>
+                    <RowDefinition Height="Auto" MinHeight="80" MaxHeight="150"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBox Grid.Row="0" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"

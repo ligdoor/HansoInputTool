@@ -33,20 +33,21 @@ namespace HansoInputTool.Services
             ColumnMapping columnMap,
             IProgress<TransferProgressReport> progress,
             FlagDefinitionService flagService = null,
-            DatabaseService dbService = null)
+            DatabaseService dbService = null,
+            string eraName = "R")
         {
             await Task.Run(() =>
             {
-                string folderName = $"{period}期 {month}月 R{rNum} アルス搬送・霊柩車　実績月報";
+                string folderName = $"{period}期 {month}月 {eraName}{rNum} アルス搬送・霊柩車　実績月報";
                 string finalOutputDir = Path.Combine(outputDir, folderName);
                 Directory.CreateDirectory(finalOutputDir);
 
-                string geppoFilename = $"{period}期 {month}月 R{rNum} アルス搬送・霊柩車　実績月報.xlsx";
+                string geppoFilename = $"{period}期 {month}月 {eraName}{rNum} アルス搬送・霊柩車　実績月報.xlsx";
                 string geppoFilepath = Path.Combine(finalOutputDir, geppoFilename);
                 File.Copy(workInputFile, geppoFilepath, true);
                 Logger.Info($"実績月報ファイルをコピーしました: {geppoFilepath}");
 
-                string shukeiFilename = $"{period}期 {month}月 R{rNum} アルス搬送・霊柩車　実績月報集計.xlsx";
+                string shukeiFilename = $"{period}期 {month}月 {eraName}{rNum} アルス搬送・霊柩車　実績月報集計.xlsx";
                 string shukeiFilepath = Path.Combine(finalOutputDir, shukeiFilename);
                 File.Copy(bundledTemplateFile, shukeiFilepath, true);
                 Logger.Info($"集計ファイルをコピーしました: {shukeiFilepath}");
@@ -86,15 +87,15 @@ namespace HansoInputTool.Services
                 progress.Report(new TransferProgressReport { Current = processedCount, Total = totalSheets, Message = $"全{totalSheets}シートの転記が完了しました。保存中..." });
 
                 // 全ての車両シート（寝台車・霊柩車・CH系）に対して
-                // A1=R{rNum}、B1=月 を書き込む（C1=期はファイル名に使用するのみ・セルへの記入は不要）
+                // A1={eraName}{rNum}、B1=月 を書き込む（C1=期はファイル名に使用するのみ・セルへの記入は不要）
                 foreach (var sheetWs in wbShukei.Workbook.Worksheets)
                 {
                     string sn = sheetWs.Name;
                     if (IsNormalSheet(sn) || IsEastSheet(sn))
                     {
-                        sheetWs.Cells["A1"].Value = $"R{rNum}";
+                        sheetWs.Cells["A1"].Value = $"{eraName}{rNum}";
                         sheetWs.Cells["B1"].Value = month;
-                        Logger.Info($"集計ファイル [{sn}] に A1=R{rNum}, B1={month} を書き込みました。");
+                        Logger.Info($"集計ファイル [{sn}] に A1={eraName}{rNum}, B1={month} を書き込みました。");
                     }
                 }
                 foreach (var sheetWs in wbGeppo.Workbook.Worksheets)
@@ -102,9 +103,9 @@ namespace HansoInputTool.Services
                     string sn = sheetWs.Name;
                     if (IsNormalSheet(sn) || IsEastSheet(sn))
                     {
-                        sheetWs.Cells["A1"].Value = $"R{rNum}";
+                        sheetWs.Cells["A1"].Value = $"{eraName}{rNum}";
                         sheetWs.Cells["B1"].Value = month;
-                        Logger.Info($"月報ファイル [{sn}] に A1=R{rNum}, B1={month} を書き込みました。");
+                        Logger.Info($"月報ファイル [{sn}] に A1={eraName}{rNum}, B1={month} を書き込みました。");
                     }
                 }
 
