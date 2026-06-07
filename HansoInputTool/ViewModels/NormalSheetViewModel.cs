@@ -46,6 +46,7 @@ namespace HansoInputTool.ViewModels
             {
                 if (SetProperty(ref _selectedNormalSheet, value))
                 {
+                    ClearValidationErrors();
                     _updatePreview?.Invoke();
                     OnPropertyChanged(nameof(IsOotsukiSheet));
                     ClearValidationErrors();

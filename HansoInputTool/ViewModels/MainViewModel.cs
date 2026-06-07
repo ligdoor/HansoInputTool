@@ -439,9 +439,11 @@ namespace HansoInputTool.ViewModels
                 progressVM.Complete("2つのファイルの作成が完了しました。");
                 if (_dbService != null)
                 {
+                    _dbService.ClearAllData();
                     _excelHandler.InvalidateCacheAll();
                     EastSheet.ClearRegisteredSheets();
                     UpdatePreview();
+                    Log("[DB] 転記完了につきDBデータをクリアしました。");
                 }
                 else
                 {
