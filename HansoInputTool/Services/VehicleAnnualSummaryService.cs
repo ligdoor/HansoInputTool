@@ -25,15 +25,16 @@ namespace HansoInputTool.Services
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private const string TargetSheetName = "月間集計";
-        private const int DataStartRow = 4;   // 4行目からデータ開始
-        private const int ColShisha = 2;   // B列：支社名
-        private const int ColVehicle = 3;   // C列：車両番号
-        private const int ColUnshu = 11;  // K列：運輸実績
+        private const int DataStartRow = 4;
+        private const int ColShisha = 2;
+        private const int ColVehicle = 3;
+        private const int ColUnshu = 11;
 
-        // ファイル名パターン: "#期 #月 R# アルス搬送・霊柩車　実績月報集計.xlsx"
+        // ファイル名パターン: 元号記号を任意の文字列（1〜3文字）として受け付ける
         // 例: "44期 5月 R6 アルス搬送・霊柩車　実績月報集計.xlsx"
+        //     "44期 5月 S1 アルス搬送・霊柩車　実績月報集計.xlsx"（将来の新元号）
         private static readonly Regex FilePattern = new Regex(
-            @"\d+期\s+(\d+)月\s+R(\d+)\s+アルス搬送・霊柩車\u3000実績月報集計\.xlsx$",
+            @"\d+期\s+(\d+)月\s+([A-Za-z]{1,3})(\d+)\s+アルス搬送・霊柩車\u3000実績月報集計\.xlsx$",
             RegexOptions.Compiled);
 
         /// <summary>
@@ -52,6 +53,10 @@ namespace HansoInputTool.Services
                 return result;
             }
 
+            // appsettings から元号記号・開始西暦を取得
+            string eraName      = DataSetupService.ReadEraNameFromSettings();
+            int    eraStartYear = DataSetupService.ReadEraStartYearFromSettings();
+
             // 全サブフォルダを再帰的に検索
             var files = Directory.GetFiles(rootFolder, "*実績月報集計*.xlsx",
                                            SearchOption.AllDirectories);
@@ -62,14 +67,22 @@ namespace HansoInputTool.Services
                 var match = FilePattern.Match(fileName);
                 if (!match.Success) continue;
 
-                int month = int.Parse(match.Groups[1].Value);  // 第1グループ：月
-                int reiwa = int.Parse(match.Groups[2].Value);  // 第2グループ：令和年
-                int year = 2018 + reiwa;  // 令和→西暦
+                int month      = int.Parse(match.Groups[1].Value);  // 第1グループ：月
+                string fileEra = match.Groups[2].Value;             // 第2グループ：元号記号
+                int eraNum     = int.Parse(match.Groups[3].Value);  // 第3グループ：元号年
+
+                // 元号記号から開始西暦を決定
+                // 現在設定中の元号と一致すればappsettingsの値を使用
+                // 異なる元号（過去分など）はR固定で2019年として扱う
+                int baseYear = fileEra.Equals(eraName, StringComparison.OrdinalIgnoreCase)
+                    ? eraStartYear - 1   // 例：令和なら2019-1=2018（2018+1=2019年）
+                    : 2018;              // 過去データのR（令和）フォールバック
+                int year = baseYear + eraNum;
 
                 if (!IsInRange(year, month, startYear, startMonth, endYear, endMonth))
                     continue;
 
-                Logger.Info($"読み込み: {filePath} ({year}年{month}月)");
+                Logger.Info($"読み込み: {filePath} ({year}年{month}月 {fileEra}{eraNum})");
 
                 try
                 {
