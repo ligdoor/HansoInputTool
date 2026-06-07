@@ -444,6 +444,11 @@ namespace HansoInputTool.ViewModels
                     EastSheet.ClearRegisteredSheets();
                     UpdatePreview();
                     Log("[DB] 転記完了につきDBデータをクリアしました。");
+
+                    // Input.xlsxにも残存データがあるためクリアして保存
+                    foreach (var msg in _excelHandler.ClearData()) Log(msg);
+                    _excelHandler.Save();
+                    Log("[Excel] Input.xlsxのデータをクリアしました。");
                 }
                 else
                 {
