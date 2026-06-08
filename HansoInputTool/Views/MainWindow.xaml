@@ -215,7 +215,7 @@
 
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="320"/>
+                    <ColumnDefinition MinWidth="300" MaxWidth="380" Width="320"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <TabControl Grid.Column="0" Margin="0,0,10,0" SelectedIndex="{Binding SelectedTabIndex}">
@@ -255,7 +255,7 @@
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
                                 <Grid>
                                     <StackPanel Margin="5">
-                                        <Label Content="有料キロ(D)" Padding="0,0,0,2"/>
+                                        <Label Content="有料キロ(D)" Padding="0,0,0,2" ToolTip="高速道路・有料道路の走行距離（km）"/>
                                         <Grid>
                                             <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="6"/>
                                             <TextBlock>
@@ -283,7 +283,7 @@
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
                                 <Grid>
                                     <StackPanel Margin="5">
-                                        <Label Content="無料キロ(E)" Padding="0,0,0,2"/>
+                                        <Label Content="無料キロ(E)" Padding="0,0,0,2" ToolTip="一般道の走行距離（km）"/>
                                         <Grid>
                                             <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="7"/>
                                             <TextBlock>
@@ -374,7 +374,7 @@
                     
                     <TabItem Header="東日本シート">
                         <StackPanel Margin="10" DataContext="{Binding EastSheet}">
-                            <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}" Margin="0,0,0,10"/>
+                            <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}" Margin="0,0,0,10" TabIndex="10"/>
                             
                             <!-- 延実働車輌数 -->
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
@@ -382,7 +382,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="延実働車輌数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastJitsudoTextBox" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastJitsudoTextBox" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="11"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -410,7 +410,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="搬送回数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastHansoTextBox" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastHansoTextBox" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="12"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -438,7 +438,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="有料キロ数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="13"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -466,7 +466,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="無料キロ数" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown"/>
+                                            <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="14"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -494,7 +494,7 @@
                                     <StackPanel Margin="5">
                                         <Label Content="運輸実績" Padding="0,0,0,2"/>
                                         <Grid>
-                                            <TextBox x:Name="EastUnsoTextBox" Text="{Binding Unso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown"/>
+                                            <TextBox x:Name="EastUnsoTextBox" Text="{Binding Unso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown" TabIndex="15"/>
                                             <TextBlock>
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
@@ -529,8 +529,8 @@
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <Button Content="登録" Command="{Binding RegisterEastCommand}" Style="{StaticResource NormalButton}" Height="22" Width="45"/>
                             </DockPanel>
+                            <Button Content="登録" Command="{Binding RegisterEastCommand}" HorizontalAlignment="Stretch" Style="{StaticResource NormalButton}" Height="32" Margin="0,8,0,0" TabIndex="16"/>
                         </StackPanel>
                     </TabItem>
                 </TabControl>
@@ -582,7 +582,7 @@
                          Background="{StaticResource PanelBackgroundBrush}"
                          TextChanged="LogTextBox_TextChanged"/>
                 <DockPanel Grid.Row="1" Margin="0,10,0,0">
-                    <Button Content="転記実行" DockPanel.Dock="Right" Background="{StaticResource GreenBrush}" Command="{Binding TransferCommand}" Style="{StaticResource NormalButton}" Height="25" Width="60"/>
+                    <Button Content="転記実行" DockPanel.Dock="Right" Background="{StaticResource GreenBrush}" Command="{Binding TransferCommand}" Style="{StaticResource NormalButton}" Height="32" Width="90" FontWeight="SemiBold"/>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="実績月報を読み込む" Background="#4f46e5" Command="{Binding LoadGeppoFileCommand}" Style="{StaticResource NormalButton}"/>
                         <Button Content="入力内容を保存" Background="{StaticResource ButtonSecondaryBgBrush}" Command="{Binding SaveInputCommand}" Margin="5,0,0,0" Style="{StaticResource NormalButton}"/>
