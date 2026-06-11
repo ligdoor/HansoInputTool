@@ -311,8 +311,8 @@
                             <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
                                 <Grid>
                                     <StackPanel Margin="5">
-                                        <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
-                                        <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                                        <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsFeeMode, Converter={StaticResource BoolToVis}}"/>
+                                        <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsFeeMode, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                                         <Grid>
                                             <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown" TabIndex="8"/>
                                             <TextBlock>
@@ -321,11 +321,10 @@
                                                         <Setter Property="Text" Value="例:90"/>
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
-                                                            <!-- TextBoxが空 かつ 大月シートでない（深夜時間モード）のときだけ表示 -->
                                                             <MultiDataTrigger>
                                                                 <MultiDataTrigger.Conditions>
                                                                     <Condition Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value=""/>
-                                                                    <Condition Binding="{Binding IsOotsukiSheet}" Value="False"/>
+                                                                    <Condition Binding="{Binding IsFeeMode}" Value="False"/>
                                                                 </MultiDataTrigger.Conditions>
                                                                 <Setter Property="Visibility" Value="Visible"/>
                                                             </MultiDataTrigger>
@@ -339,11 +338,10 @@
                                                         <Setter Property="Text" Value="例:3000"/>
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                         <Style.Triggers>
-                                                            <!-- TextBoxが空 かつ 大月シート（深夜料金モード）のときだけ表示 -->
                                                             <MultiDataTrigger>
                                                                 <MultiDataTrigger.Conditions>
                                                                     <Condition Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value=""/>
-                                                                    <Condition Binding="{Binding IsOotsukiSheet}" Value="True"/>
+                                                                    <Condition Binding="{Binding IsFeeMode}" Value="True"/>
                                                                 </MultiDataTrigger.Conditions>
                                                                 <Setter Property="Visibility" Value="Visible"/>
                                                             </MultiDataTrigger>
@@ -561,7 +559,7 @@
                             <DataGridTextColumn Header="無料km" Binding="{Binding E_MuryoKm, StringFormat={}{0:N0}}" Width="*"/>
                             <DataGridTextColumn Header="フラグ" Binding="{Binding FlagSummaryText}" Width="100"/>
                             <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="*" Visibility="{Binding Data.NormalSheet.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
-                            <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="*" Visibility="{Binding Data.NormalSheet.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                            <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="*" Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">

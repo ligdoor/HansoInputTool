@@ -156,6 +156,14 @@ namespace HansoInputTool.Services
                 File.WriteAllText(flagsDest, "[]");
                 Logger.Info("custom_flags.json を作成しました（空）");
             }
+
+            // vehicle_settings.json は空の状態で作成（既存は保持）
+            var vehicleDest = Path.Combine(hansoDataPath, "vehicle_settings.json");
+            if (!File.Exists(vehicleDest))
+            {
+                File.WriteAllText(vehicleDest, "{}");
+                Logger.Info("vehicle_settings.json を作成しました（空）");
+            }
         }
 
         // ─────────────────────────────────────────────────
@@ -339,6 +347,63 @@ namespace HansoInputTool.Services
             {
                 Logger.Error(ex, "appsettings.json の EraStartYear 保存に失敗しました");
             }
+        }
+
+        private static string ColumnMapPath
+        {
+            get
+            {
+                var dataPath = ReadDataPathFromSettings();
+                return string.IsNullOrEmpty(dataPath)
+                    ? null
+                    : Path.Combine(dataPath, "column_map.json");
+            }
+        }
+
+        public static HansoInputTool.Models.ColumnMapping ReadColumnMap()
+        {
+            try
+            {
+                var path = ColumnMapPath;
+                if (path != null && File.Exists(path))
+                {
+                    var json = File.ReadAllText(path);
+                    var cm = Newtonsoft.Json.JsonConvert.DeserializeObject<HansoInputTool.Models.ColumnMapping>(json);
+                    if (cm != null) return cm;
+                }
+            }
+            catch (Exception ex) { Logger.Error(ex, "column_map.json の読み込みに失敗しました"); }
+
+            // デフォルト値
+            return new HansoInputTool.Models.ColumnMapping
+            {
+                NormalSheet = new HansoInputTool.Models.SheetColumnMap
+                {
+                    Day = 2, HansoCount = 3, YuryoKm = 4, MuryoKm = 5,
+                    KihonFee = 6, SokoFee = 7, ShinyaFee = 8, TotalFee = 9, ShinyaMinutes = 11
+                },
+                EastSheet = new HansoInputTool.Models.CellAddressMap
+                {
+                    Jitsudo = "E4", Hanso = "G4", YuryoKm = "H4", MuryoKm = "I4", UnsoJisseki = "K4"
+                },
+                ShukeiSheet = new HansoInputTool.Models.CellAddressMap
+                {
+                    Days = "E4", Hanso = "G4", YuryoKm = "H4", MuryoKm = "I4", Total = "K4"
+                }
+            };
+        }
+
+        public static void SaveColumnMap(HansoInputTool.Models.ColumnMapping cm)
+        {
+            try
+            {
+                var path = ColumnMapPath;
+                if (path == null) return;
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(cm, Newtonsoft.Json.Formatting.Indented);
+                File.WriteAllText(path, json);
+                Logger.Info("column_map.json を保存しました");
+            }
+            catch (Exception ex) { Logger.Error(ex, "column_map.json の保存に失敗しました"); }
         }
 
         public static void SaveDataPathToSettings(string dataPath)

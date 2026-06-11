@@ -28,7 +28,7 @@ namespace HansoInputTool.Services
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly string _inputFilePath;
         private readonly string _templateFilePath;
-        private readonly ColumnMapping _columnMap;
+        private ColumnMapping _columnMap;
         private ExcelPackage _inputPackage;
         private ExcelPackage _templatePackage;
         private readonly Dictionary<string, List<RowData>> _dataCache = new();
@@ -38,6 +38,15 @@ namespace HansoInputTool.Services
 
         // SQLiteデータベースサービス（外部から注入。nullのときはExcel読み書きにフォールバック）
         public DatabaseService DbService { get; set; }
+        public VehicleSettingsService VehicleSettingsService { get; set; }
+
+        private bool IsFeeMode(string sheetName)
+            => VehicleSettingsService?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
+
+        public void UpdateColumnMap(ColumnMapping newMap)
+        {
+            _columnMap = newMap;
+        }
 
         public ExcelHandler(string inputFilePath, string templateFilePath, ColumnMapping columnMap)
         {
@@ -235,7 +244,7 @@ namespace HansoInputTool.Services
 
             var data       = new List<RowData>();
             var map        = _columnMap.NormalSheet;
-            bool isOotsuki = sheetName.Contains("大月");
+            bool isOotsuki = IsFeeMode(sheetName);
             var flagDefs   = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
 
             for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
@@ -280,7 +289,7 @@ namespace HansoInputTool.Services
             // DBが注入済みの場合はDBに書き込む
             if (DbService != null)
             {
-                long dbId = DbService.InsertRecord(sheetName, values, flagStates, sheetName.Contains("大月"));
+                long dbId = DbService.InsertRecord(sheetName, values, flagStates, IsFeeMode(sheetName));
                 InvalidateCache(sheetName);
                 // rowIndexの代わりにdbIdを返す（呼び出し側はinsertInfoを表示するだけなので互換あり）
                 return ((int)dbId, "");
@@ -307,7 +316,7 @@ namespace HansoInputTool.Services
                 insertInfo = "空き行がないため、合計行の上に新しい行を挿入します。";
             }
 
-            WriteNormalValues(ws, targetRow, map, values, flagStates, sheetName.Contains("大月"));
+            WriteNormalValues(ws, targetRow, map, values, flagStates, IsFeeMode(sheetName));
             InvalidateCache(sheetName);
             return (targetRow, insertInfo);
         }
@@ -321,7 +330,7 @@ namespace HansoInputTool.Services
             // DBが注入済みの場合はDBを更新（rowIndexをdbIdとして使用）
             if (DbService != null)
             {
-                DbService.UpdateRecord((long)rowIndex, sheetName, values, flagStates, sheetName.Contains("大月"));
+                DbService.UpdateRecord((long)rowIndex, sheetName, values, flagStates, IsFeeMode(sheetName));
                 InvalidateCache(sheetName);
                 return;
             }
@@ -332,7 +341,7 @@ namespace HansoInputTool.Services
             WriteNormalValues(
                 _inputPackage.Workbook.Worksheets[sheetName],
                 rowIndex, _columnMap.NormalSheet, values, flagStates,
-                sheetName.Contains("大月"));
+                IsFeeMode(sheetName));
             InvalidateCache(sheetName);
         }
 
@@ -376,8 +385,14 @@ namespace HansoInputTool.Services
             var eastMap     = _columnMap.EastSheet;
             var flags       = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
 
-            // 固定列＋動的フラグ列の一覧を作成
-            var fixedCols  = new[] { normalMap.Day, normalMap.HansoCount, normalMap.YuryoKm, normalMap.MuryoKm, normalMap.ShinyaFee, normalMap.ShinyaMinutes };
+            // 固定列＋動的フラグ列の一覧を作成（基本料・走行料・合計も含める）
+            var fixedCols  = new[] {
+                normalMap.Day, normalMap.HansoCount,
+                normalMap.YuryoKm, normalMap.MuryoKm,
+                normalMap.KihonFee, normalMap.SokoFee,
+                normalMap.ShinyaFee, normalMap.TotalFee,
+                normalMap.ShinyaMinutes
+            };
             var flagCols   = flags.Select(f => f.ExcelColumn).ToArray();
             var clearCols  = fixedCols.Concat(flagCols).Where(c => c > 0).Distinct().ToArray();
 
@@ -388,9 +403,15 @@ namespace HansoInputTool.Services
                     var totalRowIndex = FindTotalRow(ws);
                     if (totalRowIndex != -1)
                     {
+                        // データ行（3行目〜合計行の直前）をクリア
                         for (int rowIndex = 3; rowIndex < totalRowIndex; rowIndex++)
                             foreach (int col in clearCols)
                                 ws.Cells[rowIndex, col].Value = null;
+
+                        // 合計行（103行目相当）もクリア
+                        foreach (int col in clearCols)
+                            ws.Cells[totalRowIndex, col].Value = null;
+
                         logMessages.Add($"[{ws.Name}] の入力値をクリアしました。");
                     }
                 }
@@ -612,7 +633,7 @@ namespace HansoInputTool.Services
 
             foreach (var ws in targetSheets)
             {
-                bool isOotsuki   = ws.Name.Contains("大月");
+                bool isOotsuki   = IsFeeMode(ws.Name);
                 int  totalRowIdx = FindTotalRow(ws);
                 if (totalRowIdx == -1) continue;
 

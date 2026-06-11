@@ -30,6 +30,7 @@ namespace HansoInputTool.ViewModels
         private Action<string> _log;
         private Action _updatePreview;
         private FlagDefinitionService _flagService;
+        private VehicleSettingsService _vehicleSettingsService;
 
         // 入力対象の年・月を取得するデリゲート（月末日チェックに使用）
         private Func<(int year, int month)> _getYearMonth;
@@ -49,12 +50,16 @@ namespace HansoInputTool.ViewModels
                     ClearValidationErrors();
                     _updatePreview?.Invoke();
                     OnPropertyChanged(nameof(IsOotsukiSheet));
+                    OnPropertyChanged(nameof(IsFeeMode));
+                    OnPropertyChanged(nameof(LateInputLabel));
                     ClearValidationErrors();
                 }
             }
         }
 
-        public bool IsOotsukiSheet => SelectedNormalSheet?.Contains("大月") ?? false;
+        public bool IsOotsukiSheet => IsFeeMode; // 後方互換のため残す
+        public bool IsFeeMode => _vehicleSettingsService?.IsFeeMode(SelectedNormalSheet ?? "") ?? (SelectedNormalSheet?.Contains("大月") ?? false);
+        public string LateInputLabel => IsFeeMode ? "深夜料金(H)" : "深夜時間(K)";
 
         #endregion
 
@@ -168,13 +173,21 @@ namespace HansoInputTool.ViewModels
                 p => !HasValidationErrors);
         }
 
-        public void Initialize(ExcelHandler excelHandler, Action<string> log, Action updatePreview, FlagDefinitionService flagService = null, Func<(int year, int month)> getYearMonth = null)
+        public void RefreshFeeMode()
         {
-            _excelHandler  = excelHandler;
-            _log           = log;
-            _updatePreview = updatePreview;
-            _flagService   = flagService;
-            _getYearMonth  = getYearMonth;
+            OnPropertyChanged(nameof(IsFeeMode));
+            OnPropertyChanged(nameof(IsOotsukiSheet));
+            OnPropertyChanged(nameof(LateInputLabel));
+        }
+
+        public void Initialize(ExcelHandler excelHandler, Action<string> log, Action updatePreview, FlagDefinitionService flagService = null, VehicleSettingsService vehicleSettingsService = null, Func<(int year, int month)> getYearMonth = null)
+        {
+            _excelHandler           = excelHandler;
+            _log                    = log;
+            _updatePreview          = updatePreview;
+            _flagService            = flagService;
+            _vehicleSettingsService = vehicleSettingsService;
+            _getYearMonth           = getYearMonth;
             RebuildFlagItems();
         }
 
@@ -194,7 +207,7 @@ namespace HansoInputTool.ViewModels
         private void ValidateInput()
         {
             var result = _inputValidator.ValidateNormalSheet(
-                Day, YuryoKm, MuryoKm, LateValue, IsOotsukiSheet, SelectedNormalSheet);
+                Day, YuryoKm, MuryoKm, LateValue, IsFeeMode, SelectedNormalSheet);
 
             DayError = result.DayError;
             YuryoKmError = result.YuryoKmError;
@@ -239,7 +252,7 @@ namespace HansoInputTool.ViewModels
             if (!TryParseValue(MuryoKm, "無料キロ(E)", out var muryoKmVal)) return;
             values["無料キロ(E)"] = muryoKmVal.HasValue ? Math.Round(muryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
 
-            if (IsOotsukiSheet)
+            if (IsFeeMode)
             {
                 if (!TryParseValue(LateValue, "深夜料金(H)", out var lateVal)) return;
                 values["深夜料金(H)"] = lateVal;

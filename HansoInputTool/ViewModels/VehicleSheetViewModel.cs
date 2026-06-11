@@ -9,6 +9,27 @@ namespace HansoInputTool.ViewModels
     {
         public string OriginalSheetName { get; private set; }
 
+        // 深夜入力方式: "time"=深夜時間（分）、"fee"=深夜料金（円）
+        public List<string> 深夜入力方式リスト { get; } = new() { "time", "fee" };
+
+        private string _lateInputMode = "time";
+        public string LateInputMode
+        {
+            get => _lateInputMode;
+            set => SetProperty(ref _lateInputMode, value);
+        }
+
+        public bool IsLateTimeModeChecked
+        {
+            get => LateInputMode == "time";
+            set { if (value) LateInputMode = "time"; OnPropertyChanged(nameof(IsLateFeeModeChecked)); }
+        }
+        public bool IsLateFeeModeChecked
+        {
+            get => LateInputMode == "fee";
+            set { if (value) LateInputMode = "fee"; OnPropertyChanged(nameof(IsLateTimeModeChecked)); }
+        }
+
         // 「通常」を追加し、これをデフォルトとする
         public List<string> 事業所カテゴリリスト { get; } = new() { "通常", "CH富士吉田", "CH大月", "CH東富士", "東日本セレモニー" };
         public List<string> 車種リスト { get; } = new() { "寝台車", "霊柩車" };

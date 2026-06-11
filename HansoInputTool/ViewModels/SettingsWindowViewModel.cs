@@ -16,6 +16,7 @@ namespace HansoInputTool.ViewModels
     {
         private readonly MainViewModel _mainViewModel;
         private readonly ExcelHandler _excelHandler;
+        private readonly VehicleSettingsService _vehicleSettingsService;
         private readonly string _ratesFilePath;
         private readonly ShortcutService _shortcutService;
         private readonly BackupService _backupService;
@@ -75,6 +76,61 @@ namespace HansoInputTool.ViewModels
             set => SetProperty(ref _eraStartYear, value);
         }
 
+        // 列マッピング（通常シート）
+        private int _cmDay;           public int CmDay           { get => _cmDay;           set { SetProperty(ref _cmDay, value);           UpdateColLabel(ref _cmDayLabel,           value); } }
+        private int _cmHansoCount;    public int CmHansoCount    { get => _cmHansoCount;    set { SetProperty(ref _cmHansoCount, value);    UpdateColLabel(ref _cmHansoCountLabel,    value); } }
+        private int _cmYuryoKm;       public int CmYuryoKm       { get => _cmYuryoKm;       set { SetProperty(ref _cmYuryoKm, value);       UpdateColLabel(ref _cmYuryoKmLabel,       value); } }
+        private int _cmMuryoKm;       public int CmMuryoKm       { get => _cmMuryoKm;       set { SetProperty(ref _cmMuryoKm, value);       UpdateColLabel(ref _cmMuryoKmLabel,       value); } }
+        private int _cmKihonFee;      public int CmKihonFee      { get => _cmKihonFee;      set { SetProperty(ref _cmKihonFee, value);      UpdateColLabel(ref _cmKihonFeeLabel,      value); } }
+        private int _cmSokoFee;       public int CmSokoFee       { get => _cmSokoFee;       set { SetProperty(ref _cmSokoFee, value);       UpdateColLabel(ref _cmSokoFeeLabel,       value); } }
+        private int _cmShinyaFee;     public int CmShinyaFee     { get => _cmShinyaFee;     set { SetProperty(ref _cmShinyaFee, value);     UpdateColLabel(ref _cmShinyaFeeLabel,     value); } }
+        private int _cmTotalFee;      public int CmTotalFee      { get => _cmTotalFee;      set { SetProperty(ref _cmTotalFee, value);      UpdateColLabel(ref _cmTotalFeeLabel,      value); } }
+        private int _cmShinyaMinutes; public int CmShinyaMinutes { get => _cmShinyaMinutes; set { SetProperty(ref _cmShinyaMinutes, value); UpdateColLabel(ref _cmShinyaMinutesLabel, value); } }
+
+        // → 列名ラベル（A,B,C…）
+        private string _cmDayLabel;           public string CmDayLabel           { get => _cmDayLabel;           set => SetProperty(ref _cmDayLabel, value); }
+        private string _cmHansoCountLabel;    public string CmHansoCountLabel    { get => _cmHansoCountLabel;    set => SetProperty(ref _cmHansoCountLabel, value); }
+        private string _cmYuryoKmLabel;       public string CmYuryoKmLabel       { get => _cmYuryoKmLabel;       set => SetProperty(ref _cmYuryoKmLabel, value); }
+        private string _cmMuryoKmLabel;       public string CmMuryoKmLabel       { get => _cmMuryoKmLabel;       set => SetProperty(ref _cmMuryoKmLabel, value); }
+        private string _cmKihonFeeLabel;      public string CmKihonFeeLabel      { get => _cmKihonFeeLabel;      set => SetProperty(ref _cmKihonFeeLabel, value); }
+        private string _cmSokoFeeLabel;       public string CmSokoFeeLabel       { get => _cmSokoFeeLabel;       set => SetProperty(ref _cmSokoFeeLabel, value); }
+        private string _cmShinyaFeeLabel;     public string CmShinyaFeeLabel     { get => _cmShinyaFeeLabel;     set => SetProperty(ref _cmShinyaFeeLabel, value); }
+        private string _cmTotalFeeLabel;      public string CmTotalFeeLabel      { get => _cmTotalFeeLabel;      set => SetProperty(ref _cmTotalFeeLabel, value); }
+        private string _cmShinyaMinutesLabel; public string CmShinyaMinutesLabel { get => _cmShinyaMinutesLabel; set => SetProperty(ref _cmShinyaMinutesLabel, value); }
+
+        // 列マッピング（東日本シート・集計シート）セルアドレス
+        private string _cmEastJitsudo;     public string CmEastJitsudo     { get => _cmEastJitsudo;     set => SetProperty(ref _cmEastJitsudo, value); }
+        private string _cmEastHanso;       public string CmEastHanso       { get => _cmEastHanso;       set => SetProperty(ref _cmEastHanso, value); }
+        private string _cmEastYuryoKm;     public string CmEastYuryoKm     { get => _cmEastYuryoKm;     set => SetProperty(ref _cmEastYuryoKm, value); }
+        private string _cmEastMuryoKm;     public string CmEastMuryoKm     { get => _cmEastMuryoKm;     set => SetProperty(ref _cmEastMuryoKm, value); }
+        private string _cmEastUnsoJisseki; public string CmEastUnsoJisseki { get => _cmEastUnsoJisseki; set => SetProperty(ref _cmEastUnsoJisseki, value); }
+        private string _cmShukeiDays;      public string CmShukeiDays      { get => _cmShukeiDays;      set => SetProperty(ref _cmShukeiDays, value); }
+        private string _cmShukeiHanso;     public string CmShukeiHanso     { get => _cmShukeiHanso;     set => SetProperty(ref _cmShukeiHanso, value); }
+        private string _cmShukeiYuryoKm;   public string CmShukeiYuryoKm   { get => _cmShukeiYuryoKm;   set => SetProperty(ref _cmShukeiYuryoKm, value); }
+        private string _cmShukeiMuryoKm;   public string CmShukeiMuryoKm   { get => _cmShukeiMuryoKm;   set => SetProperty(ref _cmShukeiMuryoKm, value); }
+        private string _cmShukeiTotal;     public string CmShukeiTotal     { get => _cmShukeiTotal;     set => SetProperty(ref _cmShukeiTotal, value); }
+
+        private static string ColNumToLetter(int col)
+        {
+            if (col < 1) return "?";
+            string result = "";
+            while (col > 0) { col--; result = (char)('A' + col % 26) + result; col /= 26; }
+            return result;
+        }
+        private void UpdateColLabel(ref string field, int col)
+        {
+            field = $"→ {ColNumToLetter(col)}列";
+            OnPropertyChanged(nameof(CmDayLabel));
+            OnPropertyChanged(nameof(CmHansoCountLabel));
+            OnPropertyChanged(nameof(CmYuryoKmLabel));
+            OnPropertyChanged(nameof(CmMuryoKmLabel));
+            OnPropertyChanged(nameof(CmKihonFeeLabel));
+            OnPropertyChanged(nameof(CmSokoFeeLabel));
+            OnPropertyChanged(nameof(CmShinyaFeeLabel));
+            OnPropertyChanged(nameof(CmTotalFeeLabel));
+            OnPropertyChanged(nameof(CmShinyaMinutesLabel));
+        }
+
         // 選択中のタブインデックス
         private int _selectedTabIndex;
         public int SelectedTabIndex
@@ -98,18 +154,26 @@ namespace HansoInputTool.ViewModels
             MainViewModel mainViewModel,
             ShortcutService shortcutService,
             BackupService backupService = null,
-            FlagDefinitionService flagService = null)
+            FlagDefinitionService flagService = null,
+            VehicleSettingsService vehicleSettingsService = null)
         {
-            _excelHandler = excelHandler;
-            _ratesFilePath = ratesFilePath;
-            _mainViewModel = mainViewModel;
-            _shortcutService = shortcutService;
-            _backupService = backupService;
-            _flagService   = flagService;
-
+            _excelHandler           = excelHandler;
+            _ratesFilePath          = ratesFilePath;
+            _mainViewModel          = mainViewModel;
+            _shortcutService        = shortcutService;
+            _backupService          = backupService;
+            _flagService            = flagService;
+            _vehicleSettingsService = vehicleSettingsService;
             Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
             var currentSheets = _excelHandler.GetVehicleSheetNames();
-            VehicleSheetList = new ObservableCollection<VehicleSheetViewModel>(currentSheets.Select(s => new VehicleSheetViewModel(s)));
+            VehicleSheetList = new ObservableCollection<VehicleSheetViewModel>(
+                currentSheets.Select(s =>
+                {
+                    var vm = new VehicleSheetViewModel(s);
+                    if (_vehicleSettingsService != null)
+                        vm.LateInputMode = _vehicleSettingsService.IsFeeMode(s) ? "fee" : "time";
+                    return vm;
+                }));
 
             // ショートカット設定VMを初期化
             ShortcutSettingsVM = new ShortcutSettingsViewModel(_shortcutService.CurrentSettings);
@@ -122,6 +186,28 @@ namespace HansoInputTool.ViewModels
             MaxManualBackupFiles = _backupService?.MaxManualBackupFiles ?? 20;
             EraName = Services.DataSetupService.ReadEraNameFromSettings();
             EraStartYear = Services.DataSetupService.ReadEraStartYearFromSettings();
+
+            // 列マッピング読み込み
+            var cm = Services.DataSetupService.ReadColumnMap();
+            CmDay           = cm.NormalSheet.Day;
+            CmHansoCount    = cm.NormalSheet.HansoCount;
+            CmYuryoKm       = cm.NormalSheet.YuryoKm;
+            CmMuryoKm       = cm.NormalSheet.MuryoKm;
+            CmKihonFee      = cm.NormalSheet.KihonFee;
+            CmSokoFee       = cm.NormalSheet.SokoFee;
+            CmShinyaFee     = cm.NormalSheet.ShinyaFee;
+            CmTotalFee      = cm.NormalSheet.TotalFee;
+            CmShinyaMinutes = cm.NormalSheet.ShinyaMinutes;
+            CmEastJitsudo     = cm.EastSheet.Jitsudo;
+            CmEastHanso       = cm.EastSheet.Hanso;
+            CmEastYuryoKm     = cm.EastSheet.YuryoKm;
+            CmEastMuryoKm     = cm.EastSheet.MuryoKm;
+            CmEastUnsoJisseki = cm.EastSheet.UnsoJisseki;
+            CmShukeiDays      = cm.ShukeiSheet.Days;
+            CmShukeiHanso     = cm.ShukeiSheet.Hanso;
+            CmShukeiYuryoKm   = cm.ShukeiSheet.YuryoKm;
+            CmShukeiMuryoKm   = cm.ShukeiSheet.MuryoKm;
+            CmShukeiTotal     = cm.ShukeiSheet.Total;
 
             AddVehicleCommand    = new RelayCommand(p => AddVehicle());
             DeleteVehicleCommand = new RelayCommand(p => DeleteVehicle(), p => SelectedVehicle != null);
@@ -334,6 +420,51 @@ namespace HansoInputTool.ViewModels
                 Services.DataSetupService.SaveEraNameToSettings(saveEra);
                 Services.DataSetupService.SaveEraStartYearToSettings(EraStartYear);
                 _mainViewModel.EraName = saveEra;
+
+                // 列マッピング保存
+                var cm = new Models.ColumnMapping
+                {
+                    NormalSheet = new Models.SheetColumnMap
+                    {
+                        Day           = CmDay,
+                        HansoCount    = CmHansoCount,
+                        YuryoKm       = CmYuryoKm,
+                        MuryoKm       = CmMuryoKm,
+                        KihonFee      = CmKihonFee,
+                        SokoFee       = CmSokoFee,
+                        ShinyaFee     = CmShinyaFee,
+                        TotalFee      = CmTotalFee,
+                        ShinyaMinutes = CmShinyaMinutes
+                    },
+                    EastSheet = new Models.CellAddressMap
+                    {
+                        Jitsudo     = CmEastJitsudo,
+                        Hanso       = CmEastHanso,
+                        YuryoKm     = CmEastYuryoKm,
+                        MuryoKm     = CmEastMuryoKm,
+                        UnsoJisseki = CmEastUnsoJisseki
+                    },
+                    ShukeiSheet = new Models.CellAddressMap
+                    {
+                        Days      = CmShukeiDays,
+                        Hanso     = CmShukeiHanso,
+                        YuryoKm   = CmShukeiYuryoKm,
+                        MuryoKm   = CmShukeiMuryoKm,
+                        Total     = CmShukeiTotal
+                    }
+                };
+                Services.DataSetupService.SaveColumnMap(cm);
+                _mainViewModel.ReloadColumnMap(cm);
+
+                // 車両ごとの深夜入力方式を保存
+                if (_vehicleSettingsService != null)
+                {
+                    var vs = new Models.VehicleSettings();
+                    foreach (var v in VehicleSheetList)
+                        vs[v.VehicleTypeName] = new Models.VehicleConfig { LateInputMode = v.LateInputMode };
+                    _vehicleSettingsService.Save(vs);
+                    _mainViewModel.ReloadVehicleSettings(vs);
+                }
 
                 _mainViewModel.UpdateRatesAndReload(Rates);
 

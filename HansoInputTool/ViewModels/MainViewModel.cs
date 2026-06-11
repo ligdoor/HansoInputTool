@@ -44,6 +44,7 @@ namespace HansoInputTool.ViewModels
         private static string ColumnMapFilePath => Path.Combine(BaseDataPath, "column_map.json");
         private static string CustomFlagsFilePath => Path.Combine(BaseDataPath, "custom_flags.json");
         private static string DatabaseFilePath => Path.Combine(BaseDataPath, "hanso_data.db");
+        private static string VehicleSettingsFilePath => Path.Combine(BaseDataPath, "vehicle_settings.json");
         private static string HelpFilePath => Path.Combine(BaseDataPath, "readme.pdf");
         private static string ShortcutSettingsFilePath => Path.Combine(BaseDataPath, "shortcuts.json");
 
@@ -56,6 +57,7 @@ namespace HansoInputTool.ViewModels
         private ShortcutService _shortcutService;
         private ExcelHandler _excelHandler;
         private DatabaseService _dbService;
+        private VehicleSettingsService _vehicleSettingsService;
         private ColumnMapping _columnMap;
         private List<string> _allSheetNames;
         private FlagDefinitionService _flagService;
@@ -192,6 +194,10 @@ namespace HansoInputTool.ViewModels
                 _dbService = new DatabaseService(DatabaseFilePath);
                 _excelHandler.DbService = _dbService;
 
+                // 車両設定サービスを初期化
+                _vehicleSettingsService = new VehicleSettingsService(VehicleSettingsFilePath);
+                _excelHandler.VehicleSettingsService = _vehicleSettingsService;
+
                 // 起動時フラグ自動同期
                 _excelHandler.SyncFlagsOnStartup(_flagService);
                 Log("ショートカット設定を読み込みました。");
@@ -201,6 +207,7 @@ namespace HansoInputTool.ViewModels
 
                 // 月末日チェック用に年・月を渡す（Month は "1"〜"12" の文字列）
                 NormalSheet.Initialize(_excelHandler, Log, UpdatePreview, _flagService,
+                    _vehicleSettingsService,
                     getYearMonth: () =>
                     {
                         int.TryParse(Month, out var m);
@@ -264,6 +271,20 @@ namespace HansoInputTool.ViewModels
             UpdatePreview();
             if (_dbService == null) _excelHandler.Save();
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。");
+        }
+
+        public void ReloadVehicleSettings(Models.VehicleSettings settings)
+        {
+            _vehicleSettingsService?.Save(settings);
+            NormalSheet.RefreshFeeMode();
+            Log("車両設定（深夜入力方式）を更新しました。");
+        }
+
+        public void ReloadColumnMap(Models.ColumnMapping newMap)
+        {
+            _columnMap = newMap;
+            _excelHandler?.UpdateColumnMap(newMap);
+            Log("列マッピング設定を更新しました。");
         }
 
         public void UpdateRatesAndReload(Dictionary<string, RateInfo> newRates)
@@ -574,7 +595,7 @@ namespace HansoInputTool.ViewModels
 
         private void OpenSettings()
         {
-            var vm = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService, _backupService, _flagService);
+            var vm = new SettingsWindowViewModel(Rates, _excelHandler, RatesFilePath, this, _shortcutService, _backupService, _flagService, _vehicleSettingsService);
             new SettingsWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
         }
 

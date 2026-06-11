@@ -96,6 +96,134 @@
                     </ScrollViewer>
                 </TabItem>
 
+                <!-- 列マッピングタブ -->
+                <TabItem Header="列マッピング">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="5">
+                        <StackPanel Margin="10">
+                            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SubTextBrush}" Margin="0,0,0,10"
+                                       Text="Excelの何列目・どのセルにデータが入っているかを設定します。A=1、B=2、C=3… の数字で入力してください。"/>
+
+                            <!-- 通常シート -->
+                            <GroupBox Header="通常シート（列番号）" Foreground="{StaticResource TextBrush}" Margin="0,0,0,10">
+                                <Grid Margin="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="70"/>
+                                        <ColumnDefinition Width="50"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                    </Grid.RowDefinitions>
+                                    <!-- ヘッダー -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="項目" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="列番号" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="列名" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                                    <!-- 各行 -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="日" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding CmDay, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding CmDayLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="搬送回数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding CmHansoCount, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding CmHansoCountLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="有料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding CmYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding CmYuryoKmLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="無料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding CmMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding CmMuryoKmLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="基本料金" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="5" Grid.Column="1" Text="{Binding CmKihonFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="5" Grid.Column="2" Text="{Binding CmKihonFeeLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="走行料金" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="6" Grid.Column="1" Text="{Binding CmSokoFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="6" Grid.Column="2" Text="{Binding CmSokoFeeLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="7" Grid.Column="0" Text="深夜料金" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="7" Grid.Column="1" Text="{Binding CmShinyaFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="7" Grid.Column="2" Text="{Binding CmShinyaFeeLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="8" Grid.Column="0" Text="合計料金" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="8" Grid.Column="1" Text="{Binding CmTotalFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="8" Grid.Column="2" Text="{Binding CmTotalFeeLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+
+                                    <TextBlock Grid.Row="9" Grid.Column="0" Text="深夜時間（分）" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="9" Grid.Column="1" Text="{Binding CmShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="9" Grid.Column="2" Text="{Binding CmShinyaMinutesLabel}" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="12"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- 東日本シート -->
+                            <GroupBox Header="東日本シート（セルアドレス）" Foreground="{StaticResource TextBrush}" Margin="0,0,0,10">
+                                <Grid Margin="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="80"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="延実働車輌数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding CmEastJitsudo, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="搬送回数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding CmEastHanso, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="有料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding CmEastYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="無料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding CmEastMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="運輸実績" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding CmEastUnsoJisseki, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- 集計シート -->
+                            <GroupBox Header="集計シート（セルアドレス）" Foreground="{StaticResource TextBrush}">
+                                <Grid Margin="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="80"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="32"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="日数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding CmShukeiDays, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="搬送回数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="1" Grid.Column="1" Text="{Binding CmShukeiHanso, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="有料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="2" Grid.Column="1" Text="{Binding CmShukeiYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="無料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="3" Grid.Column="1" Text="{Binding CmShukeiMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="合計" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBox   Grid.Row="4" Grid.Column="1" Text="{Binding CmShukeiTotal, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
+                                </Grid>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
                 <!-- 車両シート管理タブ -->
                 <TabItem Header="車両シート管理">
                     <Grid Margin="10">
@@ -152,6 +280,20 @@
                                                     <behaviors:NumericInputBehavior/>
                                                 </i:Interaction.Behaviors>
                                             </TextBox>
+
+                                            <Label Content="深夜入力方式" Margin="0,10,0,0"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <RadioButton Content="⏱ 深夜時間（分）"
+                                                             GroupName="LateInputModeGroup"
+                                                             IsChecked="{Binding IsLateTimeModeChecked}"
+                                                             Margin="0,0,16,0"/>
+                                                <RadioButton Content="💴 深夜料金（円）"
+                                                             GroupName="LateInputModeGroup"
+                                                             IsChecked="{Binding IsLateFeeModeChecked}"/>
+                                            </StackPanel>
+                                            <TextBlock Margin="0,4,0,0" FontSize="11"
+                                                       Foreground="{StaticResource SubTextBrush}"
+                                                       Text="※ 大月など料金で管理している車両は「深夜料金（円）」を選択"/>
                                         </StackPanel>
                                     </GroupBox>
                                 </StackPanel>
