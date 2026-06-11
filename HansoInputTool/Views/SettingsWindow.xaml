@@ -108,21 +108,21 @@
                                 <Grid Margin="8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="80"/>
                                         <ColumnDefinition Width="70"/>
                                         <ColumnDefinition Width="50"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
                                     </Grid.RowDefinitions>
                                     <!-- ヘッダー -->
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="項目" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
@@ -175,11 +175,11 @@
                                         <ColumnDefinition Width="80"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="延実働車輌数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
                                     <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding CmEastJitsudo, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
@@ -202,11 +202,11 @@
                                         <ColumnDefinition Width="80"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
-                                        <RowDefinition Height="32"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
+                                        <RowDefinition Height="40"/>
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="日数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
                                     <TextBox   Grid.Row="0" Grid.Column="1" Text="{Binding CmShukeiDays, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="4,4"/>
@@ -421,7 +421,7 @@
                                 ShortcutKey="{Binding Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 ShortcutModifiers="{Binding Modifiers, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 IsRecording="{Binding IsRecording, Mode=TwoWay}"
-                                Height="32"
+                                Height="40"
                                 Margin="4"
                                 Background="{StaticResource BgBrush}"
                                 Foreground="{StaticResource TextBrush}"
