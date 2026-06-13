@@ -334,7 +334,7 @@ namespace HansoInputTool.ViewModels
                         ? "Template2"
                         : "Template1";
 
-                    if (!_excelHandler.SheetNames.Contains(templateSheetName))
+                    if (!_excelHandler.InputSheetExists(templateSheetName))
                     {
                         MessageBox.Show($"コピー元となるテンプレートシート '{templateSheetName}' が見つかりません。\nInput.xlsxに'{templateSheetName}'という名前のシートを作成してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                         _excelHandler.Load();

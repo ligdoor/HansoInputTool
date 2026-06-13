@@ -22,7 +22,9 @@ namespace HansoInputTool.Services
             Logger.Info("=== 月間集計シートの更新を開始 ===");
 
             var allVehicleSheets = package.Workbook.Worksheets
-                .Where(ws => ws.Name != "月間集計")
+                .Where(ws => ws.Name != "月間集計"
+                          && !ws.Name.Contains("登録")
+                          && !IsTemplateSheet(ws.Name))
                 .Select(ws => ws.Name)
                 .OrderBy(s => GetCategoryOrder(s))
                 .ThenBy(s => s)
@@ -57,30 +59,42 @@ namespace HansoInputTool.Services
 
                 try
                 {
-                    string safeSheetName = NeedQuotes(sheetName) ? $"'{sheetName}'" : sheetName;
+                    bool sheetExists = package.Workbook.Worksheets[sheetName] != null;
+                    string safeSheetName = NeedQuotes(sheetName) ? $"\'{sheetName}\'" : sheetName;
 
                     summarySheet.Cells[currentRow, 1].Value = $"No.{i + 1}";
                     summarySheet.Cells[currentRow, 2].Value = branch;
                     summarySheet.Cells[currentRow, 3].Value = int.TryParse(number, out int num) ? num : (object)number;
 
-                    summarySheet.Cells[currentRow, 4].Formula  = $"{safeSheetName}!E4";
-                    summarySheet.Cells[currentRow, 5].Formula  = $"{safeSheetName}!G4";
-                    summarySheet.Cells[currentRow, 6].Formula  = $"IF(E{currentRow}>0,D{currentRow}/E{currentRow},0)";
-                    summarySheet.Cells[currentRow, 7].Formula  = $"{safeSheetName}!G4";
-                    summarySheet.Cells[currentRow, 8].Formula  = $"{safeSheetName}!H4";
-                    summarySheet.Cells[currentRow, 9].Formula  = $"{safeSheetName}!I4";
-                    summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
-                    summarySheet.Cells[currentRow, 11].Formula = $"{safeSheetName}!K4";
-
-                    // 動的フラグ列（12列目以降）
-                    for (int fi = 0; fi < flags.Count; fi++)
+                    if (sheetExists)
                     {
-                        int summaryCol = 12 + fi;
-                        summarySheet.Cells[currentRow, summaryCol].Value =
-                            GetFlagCount(sheetName, flags[fi].ExcelColumn);
-                    }
+                        summarySheet.Cells[currentRow, 4].Formula  = $"{safeSheetName}!E4";
+                        summarySheet.Cells[currentRow, 5].Formula  = $"{safeSheetName}!G4";
+                        summarySheet.Cells[currentRow, 6].Formula  = $"IF(E{currentRow}>0,D{currentRow}/E{currentRow},0)";
+                        summarySheet.Cells[currentRow, 7].Formula  = $"{safeSheetName}!G4";
+                        summarySheet.Cells[currentRow, 8].Formula  = $"{safeSheetName}!H4";
+                        summarySheet.Cells[currentRow, 9].Formula  = $"{safeSheetName}!I4";
+                        summarySheet.Cells[currentRow, 10].Formula = $"H{currentRow}+I{currentRow}";
+                        summarySheet.Cells[currentRow, 11].Formula = $"{safeSheetName}!K4";
 
-                    Logger.Info($"Row {currentRow}: {sheetName} のデータを設定しました");
+                        // 動的フラグ列（12列目以降）
+                        for (int fi = 0; fi < flags.Count; fi++)
+                        {
+                            int summaryCol = 12 + fi;
+                            summarySheet.Cells[currentRow, summaryCol].Value =
+                                GetFlagCount(sheetName, flags[fi].ExcelColumn);
+                        }
+
+                        Logger.Info($"Row {currentRow}: {sheetName} のデータを設定しました");
+                    }
+                    else
+                    {
+                        // シートが存在しない廃止車両は数値0で埋める（数式エラー防止）
+                        for (int col = 4; col <= endCol; col++)
+                            summarySheet.Cells[currentRow, col].Value = 0;
+
+                        Logger.Warn($"Row {currentRow}: {sheetName} のシートが存在しないため0を設定しました（廃止車両）");
+                    }
                 }
                 catch (Exception ex)
                 {

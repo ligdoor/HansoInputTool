@@ -178,6 +178,12 @@ namespace HansoInputTool.Services
             .Select(ws => ws.Name)
             .ToList() ?? new List<string>();
 
+        /// <summary>
+        /// Input.xlsx内にシートが存在するか確認（テンプレートシートも含む）
+        /// </summary>
+        public bool InputSheetExists(string sheetName)
+            => _inputPackage?.Workbook.Worksheets.Any(ws => ws.Name == sheetName) ?? false;
+
         public List<string> GetVehicleSheetNames()
             => _inputPackage.Workbook.Worksheets
                 .Where(s => !s.Name.Contains("登録") && !IsTemplateSheet(s.Name))
