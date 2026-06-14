@@ -1,0 +1,59 @@
+<Window x:Class="HansoInputTool.Views.SessionSwitchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="月データの切替"
+        Height="340" Width="420"
+        Background="{StaticResource BgBrush}"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="📅 月データの切替" FontSize="15" FontWeight="Bold"
+                   Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+
+        <TextBlock Grid.Row="1" FontSize="12" Foreground="{StaticResource SubTextBrush}"
+                   Margin="0,0,0,8" TextWrapping="Wrap">
+            切り替えたい月を選んで「切替」を押してください。<LineBreak/>
+            不要な月のデータは「削除」で消せます。
+        </TextBlock>
+
+        <ListBox Grid.Row="2"
+                 ItemsSource="{Binding Sessions}"
+                 SelectedItem="{Binding SelectedSession}"
+                 Background="#172033"
+                 BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
+                 Foreground="{StaticResource TextBrush}"
+                 FontSize="13" Margin="0,0,0,12"
+                 DisplayMemberPath="DisplayText"/>
+
+        <TextBlock Grid.Row="3" FontSize="11" Foreground="#64748b" Margin="0,0,0,12"
+                   Text="※ 月報ファイルを読み込むと自動でセッションが作成されます。"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="削除"
+                    Command="{Binding DeleteCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="#7f1d1d"
+                    Foreground="White"
+                    Padding="14,7" Margin="0,0,8,0"/>
+            <Button Content="キャンセル"
+                    Click="CancelButton_Click"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource ButtonSecondaryBgBrush}"
+                    Padding="14,7" Margin="0,0,8,0"/>
+            <Button Content="切替"
+                    Command="{Binding SwitchCommand}"
+                    Style="{StaticResource NormalButton}"
+                    Background="{StaticResource AccentBrush}"
+                    Padding="14,7"/>
+        </StackPanel>
+    </Grid>
+</Window>

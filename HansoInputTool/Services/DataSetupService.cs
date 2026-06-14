@@ -406,6 +406,52 @@ namespace HansoInputTool.Services
             catch (Exception ex) { Logger.Error(ex, "column_map.json の保存に失敗しました"); }
         }
 
+        #region 期・R（前回値）の読み書き
+
+        private static JObject LoadSettingsJson()
+        {
+            try
+            {
+                if (!File.Exists(SettingsPath)) return new JObject();
+                var json = File.ReadAllText(SettingsPath);
+                var lines = json.Split('\n');
+                var noComment = string.Join("\n",
+                    System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
+                return JObject.Parse(noComment.Length > 2 ? noComment : "{}");
+            }
+            catch { return new JObject(); }
+        }
+
+        public static (string period, string rNumber) ReadLastPeriodRNumber()
+        {
+            try
+            {
+                var obj = LoadSettingsJson();
+                var period  = obj["LastPeriod"]?.ToString() ?? "";
+                var rNumber = obj["LastRNumber"]?.ToString() ?? "";
+                return (period, rNumber);
+            }
+            catch { return ("", ""); }
+        }
+
+        public static void SaveLastPeriodRNumber(string period, string rNumber)
+        {
+            try
+            {
+                var obj = LoadSettingsJson();
+                obj["LastPeriod"]  = period  ?? "";
+                obj["LastRNumber"] = rNumber ?? "";
+                File.WriteAllText(SettingsPath, obj.ToString(Newtonsoft.Json.Formatting.Indented));
+                Logger.Info($"appsettings.json に LastPeriod={period}, LastRNumber={rNumber} を保存");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "LastPeriod/LastRNumber の保存に失敗しました");
+            }
+        }
+
+        #endregion
+
         public static void SaveDataPathToSettings(string dataPath)
         {
             try

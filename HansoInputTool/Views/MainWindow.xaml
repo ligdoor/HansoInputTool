@@ -1,4 +1,4 @@
-<Window x:Class="HansoInputTool.Views.MainWindow"
+﻿<Window x:Class="HansoInputTool.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -102,6 +102,20 @@
                     <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"
                                Margin="4,4,8,4" Width="1"
                                Background="{StaticResource InputBorderBrush}"/>
+                    <Button Command="{Binding ClearInputDataCommand}"
+                            Style="{StaticResource NormalButton}" Background="Transparent"
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
+                            Padding="7,6" Width="32"
+                            ToolTip="入力データをクリア">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="&#x1F5D1;&#xFE0F;"/>
+                    </Button>
+                    <Button Command="{Binding SwitchSessionCommand}"
+                            Style="{StaticResource NormalButton}" Background="Transparent"
+                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
+                            Padding="7,6"
+                            ToolTip="月データの切替">
+                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="&#x1F4C5; 月切替"/>
+                    </Button>
                     <Button Command="{Binding CreateBackupCommand}" 
                             Style="{StaticResource NormalButton}" Background="Transparent" 
                             Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"

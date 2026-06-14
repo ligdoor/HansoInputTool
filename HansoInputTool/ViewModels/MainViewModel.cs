@@ -127,6 +127,8 @@ namespace HansoInputTool.ViewModels
         public ICommand OpenMonthlyReportDashboardCommand { get; }
         public ICommand OpenVehicleAnnualSummaryCommand { get; }
         public ICommand OpenPdfImportCommand { get; }
+        public ICommand ClearInputDataCommand { get; }
+        public ICommand SwitchSessionCommand { get; }
 
         // XAMLバインディング互換のため子VMのコマンドを公開
         public ICommand RegisterNormalCommand => NormalSheet.RegisterCommand;
@@ -156,6 +158,8 @@ namespace HansoInputTool.ViewModels
             OpenMonthlyReportDashboardCommand = new RelayCommand(_ => OpenWindow<MonthlyReportDashboardWindow>("月報統計ダッシュボード"));
             OpenVehicleAnnualSummaryCommand = new RelayCommand(_ => OpenWindow<VehicleAnnualSummaryWindow>("車両別年度集計"));
             OpenPdfImportCommand = new RelayCommand(_ => OpenPdfImport(), _ => !IsBusy);
+            ClearInputDataCommand  = new RelayCommand(p => ConfirmAndClearInputData(), p => !IsBusy);
+            SwitchSessionCommand   = new RelayCommand(p => OpenSessionSwitch(),        p => !IsBusy && _dbService != null);
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }
@@ -322,6 +326,37 @@ namespace HansoInputTool.ViewModels
             UpdatePreview();
             if (showSuccessMessage)
                 MessageBox.Show("入力データをクリアしました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void ConfirmAndClearInputData()
+        {
+            if (MessageBox.Show("入力中のデータをすべてクリアします。\nこの操作は元に戻せません。よろしいですか？",
+                    "クリア確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                ClearInputData(true);
+        }
+
+        private void OpenSessionSwitch()
+        {
+            var vm = new SessionSwitchViewModel(_dbService);
+            var win = new Views.SessionSwitchWindow(vm) { Owner = Application.Current.MainWindow };
+            if (win.ShowDialog() == true && vm.SwitchedToSessionId.HasValue)
+            {
+                _dbService.SwitchSession(vm.SwitchedToSessionId.Value);
+
+                // 切替先の期・月・R年をUIに反映
+                var session = vm.Sessions.FirstOrDefault(s => s.Id == vm.SwitchedToSessionId.Value);
+                if (session != null)
+                {
+                    Period  = session.Period;
+                    Month   = session.Month;
+                    RNumber = session.RNumber;
+                }
+
+                _excelHandler.InvalidateCacheAll();
+                EastSheet.ClearRegisteredSheets();
+                UpdatePreview();
+                Log($"月データを切替しました: {_dbService.CurrentSessionId}");
+            }
         }
 
         #endregion
@@ -512,6 +547,27 @@ namespace HansoInputTool.ViewModels
                 }
 
                 ReloadAllData();
+
+                // ファイル名から期・月・R年を解析してUIに反映
+                // 例: "46期 4月 R7 アルス搬送・霊柩車　実績月報.xlsx"
+                var fileName = Path.GetFileNameWithoutExtension(dialog.FileName);
+                var m = System.Text.RegularExpressions.Regex.Match(
+                    fileName, @"(\d+)期.*?(\d+)月.*?[RＲ](\d+)");
+                if (m.Success)
+                {
+                    Period  = m.Groups[1].Value;
+                    Month   = m.Groups[2].Value;
+                    RNumber = m.Groups[3].Value;
+                    Log($"ファイル名から期・月・R年を読み込みました: {Period}期 {Month}月 R{RNumber}");
+
+                    // セッションを自動作成または既存に切替
+                    if (_dbService != null)
+                    {
+                        _dbService.GetOrCreateSession(Period, Month, RNumber);
+                        Log($"月データセッション準備完了: {Period}期 {Month}月 R{RNumber}");
+                    }
+                }
+
                 Log($"実績月報 '{Path.GetFileName(dialog.FileName)}' を読み込みました。");
                 MessageBox.Show("実績月報のデータを読み込みました。", "読み込み完了", MessageBoxButton.OK, MessageBoxImage.Information);
             }

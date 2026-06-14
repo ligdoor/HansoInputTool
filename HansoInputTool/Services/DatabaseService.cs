@@ -54,8 +54,17 @@ namespace HansoInputTool.Services
         {
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS month_sessions (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    period     TEXT    NOT NULL,
+                    month      TEXT    NOT NULL,
+                    r_number   TEXT    NOT NULL,
+                    label      TEXT    NOT NULL,
+                    created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+                );
                 CREATE TABLE IF NOT EXISTS transport_records (
                     id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id     INTEGER NOT NULL DEFAULT 1,
                     sheet_name     TEXT    NOT NULL,
                     day            INTEGER,
                     hanso_count    INTEGER,
@@ -68,14 +77,140 @@ namespace HansoInputTool.Services
                     row_index      INTEGER
                 );
                 CREATE INDEX IF NOT EXISTS idx_sheet_name ON transport_records(sheet_name);
+                CREATE INDEX IF NOT EXISTS idx_session_id ON transport_records(session_id);
             ";
             cmd.ExecuteNonQuery();
+
+            // 既存DBへのマイグレーション: session_id 列が無ければ追加
+            MigrateAddSessionId();
+
             Logger.Info("transport_records テーブル確認完了");
+        }
+
+        /// <summary>既存DBにsession_id列がなければ追加する（v1.15.0移行用）</summary>
+        private void MigrateAddSessionId()
+        {
+            using var check = _connection.CreateCommand();
+            check.CommandText = "PRAGMA table_info(transport_records);";
+            bool hasSessionId = false;
+            using (var r = check.ExecuteReader())
+                while (r.Read())
+                    if (r.GetString(1) == "session_id") { hasSessionId = true; break; }
+
+            if (!hasSessionId)
+            {
+                using var alter = _connection.CreateCommand();
+                alter.CommandText = "ALTER TABLE transport_records ADD COLUMN session_id INTEGER NOT NULL DEFAULT 1;";
+                alter.ExecuteNonQuery();
+                Logger.Info("マイグレーション: session_id 列を追加しました");
+            }
         }
 
         #endregion
 
         // ────────────────────────────────────────────
+        #region セッション管理（複数月データ）
+
+        /// <summary>現在のアクティブセッションID（デフォルト1）</summary>
+        public long CurrentSessionId { get; private set; } = 1;
+
+        /// <summary>
+        /// 指定した期・月・R年のセッションを取得または新規作成し、アクティブにする。
+        /// </summary>
+        public long GetOrCreateSession(string period, string month, string rNumber)
+        {
+            var label = $"{period}期 {month}月 R{rNumber}";
+
+            // 既存セッションを検索
+            using var sel = _connection.CreateCommand();
+            sel.CommandText = "SELECT id FROM month_sessions WHERE period=$p AND month=$m AND r_number=$r LIMIT 1;";
+            sel.Parameters.AddWithValue("$p", period);
+            sel.Parameters.AddWithValue("$m", month);
+            sel.Parameters.AddWithValue("$r", rNumber);
+            var existing = sel.ExecuteScalar();
+            if (existing != null)
+            {
+                CurrentSessionId = (long)existing;
+                Logger.Info($"既存セッションに切替: id={CurrentSessionId} label={label}");
+                return CurrentSessionId;
+            }
+
+            // 新規作成
+            using var ins = _connection.CreateCommand();
+            ins.CommandText = @"
+                INSERT INTO month_sessions (period, month, r_number, label)
+                VALUES ($p, $m, $r, $label);
+                SELECT last_insert_rowid();
+            ";
+            ins.Parameters.AddWithValue("$p",     period);
+            ins.Parameters.AddWithValue("$m",     month);
+            ins.Parameters.AddWithValue("$r",     rNumber);
+            ins.Parameters.AddWithValue("$label", label);
+            CurrentSessionId = (long)ins.ExecuteScalar();
+            Logger.Info($"新規セッション作成: id={CurrentSessionId} label={label}");
+            return CurrentSessionId;
+        }
+
+        /// <summary>保存済みセッション一覧を返す（新しい順）</summary>
+        public List<MonthSession> GetAllSessions()
+        {
+            var result = new List<MonthSession>();
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                SELECT s.id, s.period, s.month, s.r_number, s.label, s.created_at,
+                       COUNT(r.id) AS record_count
+                FROM month_sessions s
+                LEFT JOIN transport_records r ON r.session_id = s.id
+                GROUP BY s.id
+                ORDER BY s.id DESC;
+            ";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                result.Add(new MonthSession
+                {
+                    Id          = reader.GetInt64(0),
+                    Period      = reader.GetString(1),
+                    Month       = reader.GetString(2),
+                    RNumber     = reader.GetString(3),
+                    Label       = reader.GetString(4),
+                    CreatedAt   = reader.GetString(5),
+                    RecordCount = (int)reader.GetInt64(6),
+                });
+            return result;
+        }
+
+        /// <summary>指定セッションに切り替える</summary>
+        public void SwitchSession(long sessionId)
+        {
+            CurrentSessionId = sessionId;
+            Logger.Info($"セッション切替: id={sessionId}");
+        }
+
+        /// <summary>指定セッションのデータをすべて削除（セッション行も削除）</summary>
+        public void DeleteSession(long sessionId)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                DELETE FROM transport_records WHERE session_id = $id;
+                DELETE FROM month_sessions     WHERE id        = $id;
+            ";
+            cmd.Parameters.AddWithValue("$id", sessionId);
+            cmd.ExecuteNonQuery();
+            Logger.Info($"セッション削除: id={sessionId}");
+
+            // 削除したセッションがアクティブだった場合は残っている最新に切替
+            if (CurrentSessionId == sessionId)
+            {
+                using var latest = _connection.CreateCommand();
+                latest.CommandText = "SELECT id FROM month_sessions ORDER BY id DESC LIMIT 1;";
+                var result = latest.ExecuteScalar();
+                CurrentSessionId = result != null ? (long)result : 1;
+                Logger.Info($"削除後セッションを切替: id={CurrentSessionId}");
+            }
+        }
+
+        #endregion
+
         #region 書き込み（登録・更新・削除）
 
         /// <summary>
@@ -93,10 +228,10 @@ namespace HansoInputTool.Services
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
                 INSERT INTO transport_records
-                    (sheet_name, day, hanso_count, yuryo_km, muryo_km,
+                    (session_id, sheet_name, day, hanso_count, yuryo_km, muryo_km,
                      shinya_fee, shinya_minutes, flags_json)
                 VALUES
-                    ($sheet, $day, $hanso, $yuryo, $muryo,
+                    ($session, $sheet, $day, $hanso, $yuryo, $muryo,
                      $fee, $minutes, $flags);
                 SELECT last_insert_rowid();
             ";
@@ -104,6 +239,7 @@ namespace HansoInputTool.Services
             double? yuryo = values.GetValueOrDefault("有料キロ(D)");
             int hanso = (yuryo.HasValue && yuryo > 0) ? 1 : 0;
 
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             cmd.Parameters.AddWithValue("$sheet",   sheetName);
             cmd.Parameters.AddWithValue("$day",     (object)values.GetValueOrDefault("日(B)") ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$hanso",   hanso);
@@ -138,16 +274,17 @@ namespace HansoInputTool.Services
                     cmd.Transaction = transaction;
                     cmd.CommandText = @"
                         INSERT INTO transport_records
-                            (sheet_name, day, hanso_count, yuryo_km, muryo_km,
+                            (session_id, sheet_name, day, hanso_count, yuryo_km, muryo_km,
                              shinya_fee, shinya_minutes, flags_json)
                         VALUES
-                            ($sheet, $day, $hanso, $yuryo, $muryo,
+                            ($session, $sheet, $day, $hanso, $yuryo, $muryo,
                              $fee, $minutes, $flags);
                     ";
 
                     double? yuryo = values.GetValueOrDefault("有料キロ(D)");
                     int hanso = (yuryo.HasValue && yuryo > 0) ? 1 : 0;
 
+                    cmd.Parameters.AddWithValue("$session", CurrentSessionId);
                     cmd.Parameters.AddWithValue("$sheet",   sheetName);
                     cmd.Parameters.AddWithValue("$day",     (object)values.GetValueOrDefault("日(B)") ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("$hanso",   hanso);
@@ -237,12 +374,10 @@ namespace HansoInputTool.Services
         public void ClearAllData()
         {
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = @"
-                DELETE FROM transport_records;
-                DELETE FROM sqlite_sequence WHERE name='transport_records';
-            ";
+            cmd.CommandText = "DELETE FROM transport_records WHERE session_id = $session;";
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             cmd.ExecuteNonQuery();
-            Logger.Info("DB全クリア完了");
+            Logger.Info($"DBクリア完了 session_id={CurrentSessionId}");
         }
 
         #endregion
@@ -264,10 +399,11 @@ namespace HansoInputTool.Services
                 SELECT id, day, hanso_count, yuryo_km, muryo_km,
                        shinya_fee, shinya_minutes, flags_json, row_index
                 FROM transport_records
-                WHERE sheet_name = $sheet
+                WHERE sheet_name = $sheet AND session_id = $session
                 ORDER BY day, id;
             ";
-            cmd.Parameters.AddWithValue("$sheet", sheetName);
+            cmd.Parameters.AddWithValue("$sheet",   sheetName);
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
 
             using var reader = cmd.ExecuteReader();
             int rowIndex = 3; // ExcelのrowIndexに相当する仮番号（表示順）
@@ -310,7 +446,8 @@ namespace HansoInputTool.Services
         {
             var result = new List<string>();
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "SELECT DISTINCT sheet_name FROM transport_records ORDER BY sheet_name;";
+            cmd.CommandText = "SELECT DISTINCT sheet_name FROM transport_records WHERE session_id = $session ORDER BY sheet_name;";
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
                 result.Add(reader.GetString(0));
@@ -323,8 +460,9 @@ namespace HansoInputTool.Services
         public bool HasData(string sheetName)
         {
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM transport_records WHERE sheet_name = $sheet;";
-            cmd.Parameters.AddWithValue("$sheet", sheetName);
+            cmd.CommandText = "SELECT COUNT(*) FROM transport_records WHERE sheet_name = $sheet AND session_id = $session;";
+            cmd.Parameters.AddWithValue("$sheet",   sheetName);
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             return (long)cmd.ExecuteScalar() > 0;
         }
 
@@ -334,7 +472,8 @@ namespace HansoInputTool.Services
         public bool HasAnyData()
         {
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM transport_records;";
+            cmd.CommandText = "SELECT COUNT(*) FROM transport_records WHERE session_id = $session;";
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             return (long)cmd.ExecuteScalar() > 0;
         }
 
@@ -350,10 +489,12 @@ namespace HansoInputTool.Services
                 SELECT COUNT(*)
                 FROM transport_records
                 WHERE sheet_name = $sheet
+                  AND session_id = $session
                   AND json_extract(flags_json, '$.' || $flag) = 1;
             ";
-            cmd.Parameters.AddWithValue("$sheet", sheetName);
-            cmd.Parameters.AddWithValue("$flag",  flagId);
+            cmd.Parameters.AddWithValue("$sheet",   sheetName);
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
+            cmd.Parameters.AddWithValue("$flag",    flagId);
             return (int)(long)cmd.ExecuteScalar();
         }
 
