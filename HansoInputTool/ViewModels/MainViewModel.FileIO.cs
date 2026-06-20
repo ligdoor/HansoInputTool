@@ -25,15 +25,6 @@ namespace HansoInputTool.ViewModels
                 File.Copy(dialog.FileName, InputFilePath, true);
                 _excelHandler.Load();
 
-                // DB使用時: 読み込んだExcelの通常系データをDBにインポート
-                if (_dbService != null)
-                {
-                    _excelHandler.ImportFromExcelToDb(_dbService, _flagService);
-                    Log($"[DB] 通常系シートのデータをDBにインポートしました。");
-                }
-
-                ReloadAllData();
-
                 // ファイル名から期・月・R年を解析してUIに反映
                 // 例: "46期 4月 R7 アルス搬送・霊柩車　実績月報.xlsx"
                 var fileName = Path.GetFileNameWithoutExtension(dialog.FileName);
@@ -45,13 +36,22 @@ namespace HansoInputTool.ViewModels
                     RNumber = m.Groups[3].Value;
                     Log($"ファイル名から期・月・R年を読み込みました: {Period}期 {Month}月 R{RNumber}");
 
-                    // セッションを自動作成または既存に切替
+                    // セッションを先に作成・切替してからインポート
                     if (_dbService != null)
                     {
                         _dbService.GetOrCreateSession(Period, Month, RNumber);
                         Log($"月データセッション準備完了: {Period}期 {Month}月 R{RNumber}");
                     }
                 }
+
+                // DB使用時: セッション確定後にExcelデータをDBにインポート
+                if (_dbService != null)
+                {
+                    _excelHandler.ImportFromExcelToDb(_dbService, _flagService);
+                    Log($"[DB] 通常系シートのデータをDBにインポートしました。");
+                }
+
+                ReloadAllData();
 
                 Log($"実績月報 '{Path.GetFileName(dialog.FileName)}' を読み込みました。");
                 MessageBox.Show("実績月報のデータを読み込みました。", "読み込み完了", MessageBoxButton.OK, MessageBoxImage.Information);
