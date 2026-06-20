@@ -56,6 +56,13 @@ namespace HansoInputTool.ViewModels
                 // EraName（元号）をappsettings.jsonから読み込む
                 EraName = Services.DataSetupService.ReadEraNameFromSettings();
 
+                // 期・R（前回値）をappsettings.jsonから読み込む
+                var (lastPeriod, lastRNumber) = Services.DataSetupService.ReadLastPeriodRNumber();
+                if (!string.IsNullOrEmpty(lastPeriod))  _period  = lastPeriod;
+                if (!string.IsNullOrEmpty(lastRNumber)) _rNumber = lastRNumber;
+                OnPropertyChanged(nameof(Period));
+                OnPropertyChanged(nameof(RNumber));
+
                 // 月末日チェック用に年・月を渡す（Month は "1"〜"12" の文字列）
                 NormalSheet.Initialize(_excelHandler, Log, UpdatePreview, _flagService,
                     _vehicleSettingsService,

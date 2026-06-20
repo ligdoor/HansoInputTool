@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using HansoInputTool.Models;
 using HansoInputTool.Services;
 
 namespace HansoInputTool.ViewModels

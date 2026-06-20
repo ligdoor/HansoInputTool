@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
+using HansoInputTool.Models;
 using HansoInputTool.Services;
 using Microsoft.Win32;
 using Newtonsoft.Json.Linq;

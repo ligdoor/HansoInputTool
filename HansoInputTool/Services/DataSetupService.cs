@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -427,9 +427,7 @@ namespace HansoInputTool.Services
             try
             {
                 var obj = LoadSettingsJson();
-                var period  = obj["LastPeriod"]?.ToString() ?? "";
-                var rNumber = obj["LastRNumber"]?.ToString() ?? "";
-                return (period, rNumber);
+                return (obj["LastPeriod"]?.ToString() ?? "", obj["LastRNumber"]?.ToString() ?? "");
             }
             catch { return ("", ""); }
         }
@@ -452,7 +450,7 @@ namespace HansoInputTool.Services
 
         #endregion
 
-        public static void SaveDataPathToSettings(string dataPath)
+                public static void SaveDataPathToSettings(string dataPath)
         {
             try
             {

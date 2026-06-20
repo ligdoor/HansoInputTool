@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -79,19 +78,27 @@ namespace HansoInputTool.ViewModels
         public int SelectedTabIndex { get => _selectedTabIndex; set => SetProperty(ref _selectedTabIndex, value); }
 
         public ObservableCollection<RowData> PreviewData { get; } = new();
-        public ICollectionView PreviewDataView { get; }
+        public object PreviewDataView { get; private set; }
 
         private RowData _selectedRow;
         public RowData SelectedRow { get => _selectedRow; set => SetProperty(ref _selectedRow, value); }
 
         private string _period;
-        public string Period { get => _period; set => SetProperty(ref _period, value); }
+        public string Period
+        {
+            get => _period;
+            set { if (SetProperty(ref _period, value)) Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber); }
+        }
 
         private string _month;
         public string Month { get => _month; set => SetProperty(ref _month, value); }
 
         private string _rNumber;
-        public string RNumber { get => _rNumber; set => SetProperty(ref _rNumber, value); }
+        public string RNumber
+        {
+            get => _rNumber;
+            set { if (SetProperty(ref _rNumber, value)) Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber); }
+        }
 
         private string _eraName = "R";
         public string EraName { get => _eraName; set => SetProperty(ref _eraName, value); }
