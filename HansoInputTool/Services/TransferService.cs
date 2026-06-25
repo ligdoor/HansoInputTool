@@ -112,12 +112,8 @@ namespace HansoInputTool.Services
                 wbShukei.Save();
                 wbGeppo.Save();
 
-                // DB使用時：転記完了後にDBデータをクリア
-                if (dbService != null)
-                {
-                    dbService.ClearAllData();
-                    Logger.Info("転記完了のためDBデータをクリアしました。");
-                }
+                // [No.6修正] TransferService内でのDBクリアを削除。
+                // DBクリアは呼び出し元(MainViewModel.Transfer.cs)の転記完了後処理で一元管理する。
             });
         }
 

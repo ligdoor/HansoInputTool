@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using HansoInputTool.Models;
 using Microsoft.Data.Sqlite;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NLog;
 
 namespace HansoInputTool.Services
@@ -503,19 +505,21 @@ namespace HansoInputTool.Services
         // ────────────────────────────────────────────
         #region ユーティリティ
 
-        /// <summary>フラグ状態を JSON 文字列に変換</summary>
+        /// <summary>フラグ状態を JSON 文字列に変換（Newtonsoft.Json使用）</summary>
         private static string SerializeFlags(Dictionary<string, bool> flagStates)
         {
             if (flagStates == null || flagStates.Count == 0) return "{}";
 
-            var parts = new List<string>();
+            // [No.4修正] Newtonsoft.Jsonで確実にシリアライズ
+            // ON=1, OFF=null の形式で格納する
+            var obj = new JObject();
             foreach (var kv in flagStates)
-                parts.Add($"\"{kv.Key}\":{(kv.Value ? "1" : "null")}");
+                obj[kv.Key] = kv.Value ? (JToken)1 : JValue.CreateNull();
 
-            return "{" + string.Join(",", parts) + "}";
+            return obj.ToString(Formatting.None);
         }
 
-        /// <summary>JSON 文字列をフラグ辞書に変換</summary>
+        /// <summary>JSON 文字列をフラグ辞書に変換（Newtonsoft.Json使用）</summary>
         private static Dictionary<string, int?> DeserializeFlags(
             string json,
             IReadOnlyList<FlagDefinition> flags)
@@ -529,18 +533,14 @@ namespace HansoInputTool.Services
 
             if (string.IsNullOrWhiteSpace(json) || json == "{}") return result;
 
-            // 簡易JSONパース（Newtonsoft不使用・依存削減）
-            // {"koryo":1,"embalming":null} 形式を想定
+            // [No.4修正] Newtonsoft.JsonでパースしてフラグIDにカンマ等が含まれても安全に処理
             try
             {
-                var inner = json.Trim('{', '}');
-                foreach (var part in inner.Split(','))
+                var obj = JObject.Parse(json);
+                foreach (var prop in obj.Properties())
                 {
-                    var kv = part.Split(':');
-                    if (kv.Length != 2) continue;
-                    var key = kv[0].Trim().Trim('"');
-                    var val = kv[1].Trim();
-                    result[key] = val == "1" ? 1 : (int?)null;
+                    var val = prop.Value.Type == JTokenType.Integer ? (int?)prop.Value.Value<int>() : null;
+                    result[prop.Name] = val;
                 }
             }
             catch (Exception ex)

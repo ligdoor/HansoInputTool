@@ -36,8 +36,13 @@ namespace HansoInputTool.Services
 
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
                 var extension = Path.GetExtension(filePath);
+                // [No.8修正] 共有サーバー環境で複数PCが同秒に起動した場合の
+                // バックアップファイル名重複を防ぐため、マシン名を付加する
+                var machineName = Environment.MachineName.Length > 8
+                    ? Environment.MachineName.Substring(0, 8)
+                    : Environment.MachineName;
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                var backupFileName = $"{fileName}_{timestamp}{extension}";
+                var backupFileName = $"{fileName}_{timestamp}_{machineName}{extension}";
                 var backupPath = Path.Combine(_backupDir, backupFileName);
 
                 File.Copy(filePath, backupPath, true);
@@ -82,9 +87,13 @@ namespace HansoInputTool.Services
 
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
                 var extension = Path.GetExtension(filePath);
+                // [No.8修正] 共有サーバー環境での重複防止のためマシン名を付加する
+                var machineName = Environment.MachineName.Length > 8
+                    ? Environment.MachineName.Substring(0, 8)
+                    : Environment.MachineName;
                 var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var descSuffix = string.IsNullOrWhiteSpace(description) ? "" : $"_{description}";
-                var backupFileName = $"{fileName}_{timestamp}{descSuffix}_manual{extension}";
+                var backupFileName = $"{fileName}_{timestamp}_{machineName}{descSuffix}_manual{extension}";
                 var backupPath = Path.Combine(_backupDir, backupFileName);
 
                 File.Copy(filePath, backupPath, true);

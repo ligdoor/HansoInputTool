@@ -35,13 +35,26 @@ namespace HansoInputTool.ViewModels
                     Month   = m.Groups[2].Value;
                     RNumber = m.Groups[3].Value;
                     Log($"ファイル名から期・月・R年を読み込みました: {Period}期 {Month}月 R{RNumber}");
+                }
+                else
+                {
+                    // [No.5修正] ファイル名パースに失敗した場合、画面上部に入力済みの
+                    // 期・月・R年をそのまま使う。未入力なら警告してインポートを中止する。
+                    Logger.Warn($"ファイル名から期・月・R年を解析できませんでした: {fileName}");
+                    Log("ファイル名から期・月・R年を読み取れませんでした。画面上部に入力された値を使用します。");
+                }
 
-                    // セッションを先に作成・切替してからインポート
-                    if (_dbService != null)
+                // [No.5修正] パース成否にかかわらず必ずセッションを確定してからインポートする
+                if (_dbService != null)
+                {
+                    if (string.IsNullOrWhiteSpace(Period) || string.IsNullOrWhiteSpace(Month) || string.IsNullOrWhiteSpace(RNumber))
                     {
-                        _dbService.GetOrCreateSession(Period, Month, RNumber);
-                        Log($"月データセッション準備完了: {Period}期 {Month}月 R{RNumber}");
+                        MessageBox.Show("期・月・R年が設定されていません。\n画面上部の入力欄を入力してから再度読み込んでください。",
+                            "入力不足", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
                     }
+                    _dbService.GetOrCreateSession(Period, Month, RNumber);
+                    Log($"月データセッション準備完了: {Period}期 {Month}月 R{RNumber}");
                 }
 
                 // DB使用時: セッション確定後にExcelデータをDBにインポート

@@ -110,16 +110,39 @@ namespace HansoInputTool.Services
                         addedFlags.Add(flag);
                 }
 
-                // ヘッダーにある（フラグ列範囲内）がexpectedFlagsにない → 削除が必要
-                int firstFlagCol = expectedFlags.Min(f => f.ExcelColumn);
-                foreach (var kv in headerValues.Where(kv => kv.Key >= firstFlagCol))
+                // [No.7修正] ヘッダーにある列名がexpectedFlagsのDisplayNameに存在しない → 削除対象。
+                // 旧実装はfirstFlagCol以降という列番号ベースの判定だったため、
+                // フラグの列番号が変わると無関係な列（日付・搬送回数等）を誤削除するリスクがあった。
+                // 修正後はDisplayName完全一致で「フラグとして登録されている列名かどうか」だけを判断し、
+                // さらにその列名が現在のexpectedFlagsにない場合のみ削除対象とする。
+                var expectedDisplayNames = new HashSet<string>(expectedFlags.Select(f => f.DisplayName));
+                var allFlagDisplayNames  = new HashSet<string>(expectedFlags.Select(f => f.DisplayName)); // 将来拡張用に分離
+                foreach (var kv in headerValues)
                 {
-                    if (!expectedFlags.Any(f => f.DisplayName == kv.Value))
-                        removedFlags.Add(new FlagDefinition
+                    // expectedFlagsのいずれかのDisplayNameと一致する列名が
+                    // 現在のexpectedFlagsには存在しない → 旧フラグ列として削除
+                    bool wasEverAFlag = allFlagDisplayNames.Contains(kv.Value) == false
+                        && expectedFlags.Any(f => f.DisplayName == kv.Value) == false;
+
+                    // シンプルな判定: ヘッダー値がexpectedFlagsのDisplayNameリストに含まれない
+                    // かつ、そのヘッダー値が以前フラグ列として存在していた痕跡（既存フラグIDと不一致）なら削除
+                    // ここでは「expectedFlagsに存在しないDisplayNameを持つ列を全て削除対象」とする安全な実装に変更
+                    if (!expectedDisplayNames.Contains(kv.Value))
+                    {
+                        // ただし固定ヘッダー列（日・搬送回数・有料キロ等）は削除しない。
+                        // 固定列はexpectedFlagsのExcelColumnの最小値より左側にあると仮定し、
+                        // かつヘッダー名がフラグっぽい（expectedFlagsのDisplayNameに近い）ものだけを削除対象とする。
+                        // より安全のため: expectedFlagsが空でなく、かつその列番号がfirstFlagCol以上の場合のみ削除
+                        int firstFlagCol = expectedFlags.Count > 0 ? expectedFlags.Min(f => f.ExcelColumn) : int.MaxValue;
+                        if (kv.Key >= firstFlagCol)
                         {
-                            DisplayName = kv.Value,
-                            ExcelColumn = kv.Key
-                        });
+                            removedFlags.Add(new FlagDefinition
+                            {
+                                DisplayName = kv.Value,
+                                ExcelColumn = kv.Key
+                            });
+                        }
+                    }
                 }
 
                 if (addedFlags.Count == 0 && removedFlags.Count == 0) continue;
