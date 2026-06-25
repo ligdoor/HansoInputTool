@@ -79,6 +79,12 @@ namespace HansoInputTool.ViewModels
                 _dbService.ClearAllData();
                 _excelHandler.InvalidateCacheAll();
                 Log("[DB] 全入力データをクリアしました。");
+
+                // [No.10修正] 東日本シートはDBに保存されずExcel側にのみ値が残る。
+                // DB使用時でも ClearData() を呼んで東日本シートのセルを確実にクリアし保存する。
+                foreach (var msg in _excelHandler.ClearData()) Log(msg);
+                _excelHandler.Save();
+                Log("[Excel] 東日本シートのデータをクリアしました。");
             }
             else
             {

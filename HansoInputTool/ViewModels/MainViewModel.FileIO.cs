@@ -6,6 +6,7 @@ using System.Windows;
 using HansoInputTool.Models;
 using HansoInputTool.Services;
 using Microsoft.Win32;
+using System.Security.Cryptography;
 using Newtonsoft.Json.Linq;
 
 namespace HansoInputTool.ViewModels
@@ -136,9 +137,13 @@ namespace HansoInputTool.ViewModels
         private static readonly string ApiSettingsFilePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "data", "api_settings.json");
 
-        // AES暗号化用の固定キー（変更しないこと）
-        private static readonly byte[] AesKey = System.Text.Encoding.UTF8.GetBytes("HansoTool!AES256Key#2025$Secure!"); // 32バイト
-        private static readonly byte[] AesIv  = System.Text.Encoding.UTF8.GetBytes("HansoIV!16Bytes!");                 // 16バイト
+        // [No.9修正] AESキーのハードコードを廃止し、WindowsのDPAPI（ProtectedData）に移行。
+        // DPAPIはログオン中のWindowsユーザー資格情報を使って暗号化するため、
+        // ソースコードやバイナリを入手しても復号できない。
+        // 共有サーバー環境では DataProtectionScope.LocalMachine を使い、
+        // 同一マシン上のどのユーザーでも復号できるようにする。
+        private static readonly byte[] DpapiEntropy =
+            System.Text.Encoding.UTF8.GetBytes("HansoInputTool_ApiKey_v2");
 
         private string LoadApiKey()
         {
@@ -150,13 +155,40 @@ namespace HansoInputTool.ViewModels
                 var encrypted = obj["claude_api_key"]?.ToString();
                 if (string.IsNullOrEmpty(encrypted)) return null;
 
+                // 旧AES形式（v1）からの移行: DPAPIで復号を試み、失敗したら旧形式を試す
+                try
+                {
+                    var encryptedBytes = Convert.FromBase64String(encrypted);
+                    var decryptedBytes = System.Security.Cryptography.ProtectedData.Unprotect(
+                        encryptedBytes, DpapiEntropy,
+                        System.Security.Cryptography.DataProtectionScope.LocalMachine);
+                    return System.Text.Encoding.UTF8.GetString(decryptedBytes);
+                }
+                catch
+                {
+                    // 旧AES形式（v1）は読み取りのみサポート（保存時は自動でDPAPIに移行される）
+                    Logger.Info("APIキー: 旧AES形式を検出。次回保存時にDPAPI形式に自動移行します。");
+                    return LoadApiKeyLegacyAes(encrypted);
+                }
+            }
+            catch { return null; }
+        }
+
+        /// <summary>旧AES形式（v1）のAPIキーを復号する（移行期間中のみ使用）</summary>
+        private static string LoadApiKeyLegacyAes(string encryptedBase64)
+        {
+            try
+            {
+                var legacyKey = System.Text.Encoding.UTF8.GetBytes("HansoTool!AES256Key#2025$Secure!");
+                var legacyIv  = System.Text.Encoding.UTF8.GetBytes("HansoIV!16Bytes!");
                 using var aes = System.Security.Cryptography.Aes.Create();
-                aes.Key = AesKey;
-                aes.IV  = AesIv;
+                aes.Key = legacyKey;
+                aes.IV  = legacyIv;
                 using var decryptor = aes.CreateDecryptor();
-                var encryptedBytes = Convert.FromBase64String(encrypted);
+                var encryptedBytes = Convert.FromBase64String(encryptedBase64);
                 using var ms = new MemoryStream(encryptedBytes);
-                using var cs = new System.Security.Cryptography.CryptoStream(ms, decryptor, System.Security.Cryptography.CryptoStreamMode.Read);
+                using var cs = new System.Security.Cryptography.CryptoStream(
+                    ms, decryptor, System.Security.Cryptography.CryptoStreamMode.Read);
                 using var reader = new StreamReader(cs);
                 return reader.ReadToEnd();
             }
@@ -167,20 +199,16 @@ namespace HansoInputTool.ViewModels
         {
             try
             {
-                using var aes = System.Security.Cryptography.Aes.Create();
-                aes.Key = AesKey;
-                aes.IV  = AesIv;
-                using var encryptor = aes.CreateEncryptor();
-                using var ms = new MemoryStream();
-                using var cs = new System.Security.Cryptography.CryptoStream(ms, encryptor, System.Security.Cryptography.CryptoStreamMode.Write);
-                using var writer = new StreamWriter(cs);
-                writer.Write(apiKey);
-                writer.Flush();
-                cs.FlushFinalBlock();
-                var encrypted = Convert.ToBase64String(ms.ToArray());
+                // DPAPI（LocalMachine スコープ）で暗号化して保存
+                var plainBytes = System.Text.Encoding.UTF8.GetBytes(apiKey);
+                var encryptedBytes = System.Security.Cryptography.ProtectedData.Protect(
+                    plainBytes, DpapiEntropy,
+                    System.Security.Cryptography.DataProtectionScope.LocalMachine);
+                var encrypted = Convert.ToBase64String(encryptedBytes);
 
                 var obj = new JObject { ["claude_api_key"] = encrypted };
                 File.WriteAllText(ApiSettingsFilePath, obj.ToString());
+                Logger.Info("APIキーをDPAPI形式で保存しました。");
             }
             catch (Exception ex) { Logger.Warn(ex, "APIキーの保存に失敗しました"); }
         }

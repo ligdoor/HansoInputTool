@@ -233,9 +233,22 @@ namespace HansoInputTool.Services
         private void UpdateFormulas(ExcelWorksheet ws, string oldSheetRef, string newSheetRef)
         {
             if (ws.Dimension == null) return;
+            // [No.12修正] シート参照の形式は「'シート名'!」と「シート名!」の2パターンがある。
+            // 旧実装はシングルクォートありの形式しか置換しておらず、
+            // スペースや特殊文字を含まないシート名（引用符なし参照）が更新されないケースがあった。
+            // 両パターンを置換することで確実にシート名変更を数式に反映する。
+            string newQuoted = NeedQuotes(newSheetRef) ? $"'{newSheetRef}'!" : $"{newSheetRef}!";
             foreach (var cell in ws.Cells)
-                if (!string.IsNullOrEmpty(cell.Formula))
-                    cell.Formula = cell.Formula.Replace($"'{oldSheetRef}'!", $"'{newSheetRef}'!");
+            {
+                if (string.IsNullOrEmpty(cell.Formula)) continue;
+                var formula = cell.Formula;
+                // 引用符ありパターン（スペース等を含む旧シート名）
+                formula = formula.Replace($"'{oldSheetRef}'!", newQuoted);
+                // 引用符なしパターン（スペース等を含まない旧シート名）
+                if (!NeedQuotes(oldSheetRef))
+                    formula = formula.Replace($"{oldSheetRef}!", newQuoted);
+                cell.Formula = formula;
+            }
             Logger.Info($"シート '{ws.Name}' の数式を更新しました。");
         }
 

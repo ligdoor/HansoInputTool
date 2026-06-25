@@ -267,12 +267,8 @@ namespace HansoInputTool.Services
         {
             try
             {
-                if (!File.Exists(SettingsPath)) return "R";
-                var json = File.ReadAllText(SettingsPath);
-                var lines = json.Split('\n');
-                var noComment = string.Join("\n",
-                    System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
-                var obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
+                // [No.11修正] LoadSettingsJson()に統一
+                var obj = LoadSettingsJson();
                 var era = obj["EraName"]?.ToString();
                 return string.IsNullOrWhiteSpace(era) ? "R" : era;
             }
@@ -283,19 +279,8 @@ namespace HansoInputTool.Services
         {
             try
             {
-                JObject obj;
-                if (File.Exists(SettingsPath))
-                {
-                    var existing = File.ReadAllText(SettingsPath);
-                    var lines = existing.Split('\n');
-                    var noComment = string.Join("\n",
-                        System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
-                    obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
-                }
-                else
-                {
-                    obj = new JObject();
-                }
+                // [No.11修正] LoadSettingsJson()に統一
+                var obj = LoadSettingsJson();
                 obj["EraName"] = eraName;
                 File.WriteAllText(SettingsPath, obj.ToString(Newtonsoft.Json.Formatting.Indented));
                 Logger.Info($"appsettings.json に EraName を保存: {eraName}");
@@ -310,12 +295,8 @@ namespace HansoInputTool.Services
         {
             try
             {
-                if (!File.Exists(SettingsPath)) return 2019; // 令和元年デフォルト
-                var json = File.ReadAllText(SettingsPath);
-                var lines = json.Split('\n');
-                var noComment = string.Join("\n",
-                    System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
-                var obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
+                // [No.11修正] LoadSettingsJson()に統一
+                var obj = LoadSettingsJson();
                 var val = obj["EraStartYear"]?.ToString();
                 return int.TryParse(val, out int y) ? y : 2019;
             }
@@ -326,19 +307,8 @@ namespace HansoInputTool.Services
         {
             try
             {
-                JObject obj;
-                if (File.Exists(SettingsPath))
-                {
-                    var existing = File.ReadAllText(SettingsPath);
-                    var lines = existing.Split('\n');
-                    var noComment = string.Join("\n",
-                        System.Linq.Enumerable.Where(lines, l => !l.TrimStart().StartsWith("//")));
-                    obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
-                }
-                else
-                {
-                    obj = new JObject();
-                }
+                // [No.11修正] LoadSettingsJson()に統一
+                var obj = LoadSettingsJson();
                 obj["EraStartYear"] = eraStartYear;
                 File.WriteAllText(SettingsPath, obj.ToString(Newtonsoft.Json.Formatting.Indented));
                 Logger.Info($"appsettings.json に EraStartYear を保存: {eraStartYear}");
@@ -454,22 +424,8 @@ namespace HansoInputTool.Services
         {
             try
             {
-                // 既存のappsettings.jsonがあれば読み込んで DataPath だけ更新
-                JObject obj;
-                if (File.Exists(SettingsPath))
-                {
-                    var existing = File.ReadAllText(SettingsPath);
-                    // コメント行を除去してからパース
-                    var lines    = existing.Split('\n');
-                    var noComment = string.Join("\n",
-                        System.Linq.Enumerable.Where(lines,
-                            l => !l.TrimStart().StartsWith("//")));
-                    obj = JObject.Parse(noComment.Length > 2 ? noComment : "{}");
-                }
-                else
-                {
-                    obj = new JObject();
-                }
+                // [No.11修正] LoadSettingsJson()に統一
+                var obj = LoadSettingsJson();
 
                 obj["DataPath"] = dataPath;
                 File.WriteAllText(SettingsPath, obj.ToString(Newtonsoft.Json.Formatting.Indented));
