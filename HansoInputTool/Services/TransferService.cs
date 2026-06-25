@@ -163,6 +163,11 @@ namespace HansoInputTool.Services
                 var flags   = flagService?.Flags ?? new System.Collections.ObjectModel.ReadOnlyCollection<FlagDefinition>(new List<FlagDefinition>());
                 var dbRows  = dbService.GetSheetData(sheetName, flags);
                 int writeRow = 3;
+
+                // [No.3修正] DB使用時の集計値はdbRowsから直接計算する
+                int dbTotalDays = 0, dbTotalHanso = 0;
+                double dbTotalYuryoKm = 0, dbTotalMuryoKm = 0;
+
                 foreach (var dbRow in dbRows)
                 {
                     int hansoVal    = dbRow.C_Hanso ?? 0;
@@ -171,15 +176,23 @@ namespace HansoInputTool.Services
                     double rowKihon = 0, rowSoko = 0, rowShinya = 0;
 
                     // Excelのwsに値を書き込む（geppoの行として）
-                    wsGeppo.Cells[writeRow, normalMap.Day].Value       = dbRow.B_Day;
+                    wsGeppo.Cells[writeRow, normalMap.Day].Value        = dbRow.B_Day;
                     wsGeppo.Cells[writeRow, normalMap.HansoCount].Value = (object)hansoVal;
-                    wsGeppo.Cells[writeRow, normalMap.YuryoKm].Value   = (object)yuryoKm;
-                    wsGeppo.Cells[writeRow, normalMap.MuryoKm].Value   = (object)muryoKm;
+                    wsGeppo.Cells[writeRow, normalMap.YuryoKm].Value    = (object)yuryoKm;
+                    wsGeppo.Cells[writeRow, normalMap.MuryoKm].Value    = (object)muryoKm;
 
+                    // [No.1修正] 深夜の入力値（分 or 料金）を入力欄列に書く。
+                    // ShinyaFee列への書き込みは後続の「計算後のrowShinya」のみとし、
+                    // ここでは大月以外のShinyaMinutes列のみ書く。
                     if (isOotsuki)
-                        wsGeppo.Cells[writeRow, normalMap.ShinyaFee].Value = (object)(dbRow.H_LateFeeOotsuki ?? 0);
+                    {
+                        // 大月は入力値をそのまま ShinyaFee 列に書く（後続のrowShinya代入と同値）
+                        // ※ 後続で wsGeppo.ShinyaFee に rowShinya を書くため、ここでは書かない
+                    }
                     else
+                    {
                         wsGeppo.Cells[writeRow, normalMap.ShinyaMinutes].Value = (object)(dbRow.K_LateMinutes ?? 0);
+                    }
 
                     // フラグ書き込み
                     foreach (var flag in flags)
@@ -220,7 +233,7 @@ namespace HansoInputTool.Services
                             double shinyaMin = dbRow.K_LateMinutes ?? 0;
                             if (shinyaMin > 0)
                             {
-                                double numBlocks  = Math.Floor(shinyaMin / 30) + 1;
+                                double numBlocks   = Math.Floor(shinyaMin / 30) + 1;
                                 double variableRyo = numBlocks * ratesForSheet.LateNightUnitFee;
                                 rowShinya = variableRyo + ratesForSheet.LateNightFixedFee;
                             }
@@ -229,6 +242,7 @@ namespace HansoInputTool.Services
 
                     wsGeppo.Cells[writeRow, normalMap.KihonFee].Value  = (object)rowKihon;
                     wsGeppo.Cells[writeRow, normalMap.SokoFee].Value   = (object)rowSoko;
+                    // [No.1修正] ShinyaFee列への書き込みはここ1か所のみ（計算済みrowShinyaを使用）
                     wsGeppo.Cells[writeRow, normalMap.ShinyaFee].Value = (object)rowShinya;
                     double rowTotal = rowKihon + rowSoko + rowShinya;
                     wsGeppo.Cells[writeRow, normalMap.TotalFee].Value  = (object)rowTotal;
@@ -237,7 +251,28 @@ namespace HansoInputTool.Services
                     totalSoko   += rowSoko;
                     totalShinya += rowShinya;
                     totalSum    += rowTotal;
+
+                    // [No.3修正] dbRowsから集計値を直接計算
+                    if (dbRow.B_Day.HasValue) dbTotalDays++;
+                    dbTotalHanso  += hansoVal;
+                    dbTotalYuryoKm += yuryoKm;
+                    dbTotalMuryoKm += muryoKm;
+
                     writeRow++;
+                }
+
+                // [No.3修正] 集計ファイルへの書き込みをここで行い、CalculateTotals()を使わない
+                var shukeiSheetNameDb = wbShukei.Workbook.Worksheets.Any(ws => ws.Name == sheetName)
+                    ? sheetName
+                    : wbShukei.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.EndsWith(sheetName))?.Name;
+                if (shukeiSheetNameDb != null)
+                {
+                    var wsShukei = wbShukei.Workbook.Worksheets[shukeiSheetNameDb];
+                    wsShukei.Cells[shukeiMap.Days].Value    = dbTotalDays;
+                    wsShukei.Cells[shukeiMap.Hanso].Value   = dbTotalHanso;
+                    wsShukei.Cells[shukeiMap.YuryoKm].Value = dbTotalYuryoKm;
+                    wsShukei.Cells[shukeiMap.MuryoKm].Value = dbTotalMuryoKm;
+                    wsShukei.Cells[shukeiMap.Total].Value   = totalSum > 0 ? totalSum : null;
                 }
             }
             else
@@ -311,18 +346,23 @@ namespace HansoInputTool.Services
             wsGeppo.Cells[totalRowIdx, normalMap.ShinyaFee].Value = totalShinya > 0 ? totalShinya : null;
             wsGeppo.Cells[totalRowIdx, normalMap.TotalFee].Value = totalSum > 0 ? totalSum : null;
 
-            var shukeiSheetName = wbShukei.Workbook.Worksheets.Any(ws => ws.Name == sheetName)
-                ? sheetName
-                : wbShukei.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.EndsWith(sheetName))?.Name;
-            if (shukeiSheetName != null)
+            // [No.3修正] DB使用時は集計ファイルへの書き込みを上のDBブロック内で完了済み。
+            // Excel使用時のみ CalculateTotals() でwsInから集計してここで書き込む。
+            if (dbService == null)
             {
-                var wsShukei = wbShukei.Workbook.Worksheets[shukeiSheetName];
-                var totals = CalculateTotals(wsIn, totalRowIdx, normalMap);
-                wsShukei.Cells[shukeiMap.Days].Value = totals.days;
-                wsShukei.Cells[shukeiMap.Hanso].Value = totals.hanso;
-                wsShukei.Cells[shukeiMap.YuryoKm].Value = totals.yuryoKm;
-                wsShukei.Cells[shukeiMap.MuryoKm].Value = totals.muryoKm;
-                wsShukei.Cells[shukeiMap.Total].Value = totalSum > 0 ? totalSum : null;
+                var shukeiSheetName = wbShukei.Workbook.Worksheets.Any(ws => ws.Name == sheetName)
+                    ? sheetName
+                    : wbShukei.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.EndsWith(sheetName))?.Name;
+                if (shukeiSheetName != null)
+                {
+                    var wsShukei = wbShukei.Workbook.Worksheets[shukeiSheetName];
+                    var totals = CalculateTotals(wsIn, totalRowIdx, normalMap);
+                    wsShukei.Cells[shukeiMap.Days].Value    = totals.days;
+                    wsShukei.Cells[shukeiMap.Hanso].Value   = totals.hanso;
+                    wsShukei.Cells[shukeiMap.YuryoKm].Value = totals.yuryoKm;
+                    wsShukei.Cells[shukeiMap.MuryoKm].Value = totals.muryoKm;
+                    wsShukei.Cells[shukeiMap.Total].Value   = totalSum > 0 ? totalSum : null;
+                }
             }
         }
 

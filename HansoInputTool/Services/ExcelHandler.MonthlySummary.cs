@@ -81,8 +81,12 @@ namespace HansoInputTool.Services
                         for (int fi = 0; fi < flags.Count; fi++)
                         {
                             int summaryCol = 12 + fi;
-                            summarySheet.Cells[currentRow, summaryCol].Value =
-                                GetFlagCount(sheetName, flags[fi].ExcelColumn);
+                            // [No.2修正] DB使用時はDbServiceからフラグ件数を取得する。
+                            // Excel使用時（DbService未注入）のみ GetFlagCount(excelColumn) を使う。
+                            int flagCount = (DbService != null)
+                                ? DbService.GetFlagCount(sheetName, flags[fi].Id)
+                                : GetFlagCount(sheetName, flags[fi].ExcelColumn);
+                            summarySheet.Cells[currentRow, summaryCol].Value = flagCount;
                         }
 
                         Logger.Info($"Row {currentRow}: {sheetName} のデータを設定しました");
