@@ -3,52 +3,56 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:HansoInputTool.ViewModels"
         Title="運輸実績 年度集計 Excel出力"
-        Width="520" Height="250"
+        Width="580" Height="600"
+        MinWidth="480" MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
         Background="#0B1220">
 
     <Window.DataContext>
         <vm:VehicleAnnualSummaryViewModel />
     </Window.DataContext>
 
+    <Window.Resources>
+        <!-- チェックボックスのラベル色：既知=白、未分類=オレンジ -->
+        <Style x:Key="VehicleLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#E6EEF8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+    </Window.Resources>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>  <!-- フォルダ選択ラベル -->
+            <RowDefinition Height="Auto"/>  <!-- フォルダ選択行 -->
+            <RowDefinition Height="Auto"/>  <!-- 期間ラベル -->
+            <RowDefinition Height="Auto"/>  <!-- 期間入力 -->
+            <RowDefinition Height="Auto"/>  <!-- 車両読み込みボタン -->
+            <RowDefinition Height="Auto"/>  <!-- 車両チェックリストラベル -->
+            <RowDefinition Height="*"/>     <!-- 車両チェックリスト（可変） -->
+            <RowDefinition Height="Auto"/>  <!-- 実行ボタン＋ステータス -->
         </Grid.RowDefinitions>
 
         <!-- フォルダ選択 -->
         <TextBlock Grid.Row="0"
                    Text="集計ファイルのフォルダ"
-                   FontWeight="SemiBold"
-                   FontSize="12"
-                   Foreground="#94A3B8"
-                   Margin="0,0,0,6"/>
+                   FontWeight="SemiBold" FontSize="12"
+                   Foreground="#94A3B8" Margin="0,0,0,6"/>
 
-        <Grid Grid.Row="1" Margin="0,0,0,16">
+        <Grid Grid.Row="1" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0"
-                    Background="#172033"
-                    BorderBrush="#2B4A7A"
-                    BorderThickness="2"
-                    CornerRadius="3"
-                    Margin="0,0,8,0">
+                    Background="#172033" BorderBrush="#2B4A7A"
+                    BorderThickness="2" CornerRadius="3" Margin="0,0,8,0">
                 <TextBlock Text="{Binding FolderPath}"
-                           Foreground="#E6EEF8"
-                           VerticalAlignment="Center"
-                           Padding="8,6"
-                           TextTrimming="CharacterEllipsis"
+                           Foreground="#E6EEF8" VerticalAlignment="Center"
+                           Padding="8,6" TextTrimming="CharacterEllipsis"
                            ToolTip="{Binding FolderPath}"/>
             </Border>
-            <Button Grid.Column="1"
-                    Content="参照..."
+            <Button Grid.Column="1" Content="参照..."
                     Width="72" Height="30"
                     Style="{StaticResource NormalButton}"
                     Command="{Binding SelectFolderCommand}"
@@ -58,12 +62,10 @@
         <!-- 期間指定 -->
         <TextBlock Grid.Row="2"
                    Text="集計期間"
-                   FontWeight="SemiBold"
-                   FontSize="12"
-                   Foreground="#94A3B8"
-                   Margin="0,0,0,8"/>
+                   FontWeight="SemiBold" FontSize="12"
+                   Foreground="#94A3B8" Margin="0,0,0,6"/>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,16">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,12">
             <TextBlock Text="開始：" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12" Margin="0,0,4,0"/>
             <TextBox Text="{Binding StartYear, UpdateSourceTrigger=PropertyChanged}"
                      Width="58" IsEnabled="{Binding IsNotBusy}"/>
@@ -80,28 +82,90 @@
             <TextBlock Text=" 月" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="12"/>
         </StackPanel>
 
+        <!-- 車両読み込みボタン -->
+        <Button Grid.Row="4"
+                Content="① Excelを読み込んで車両リストを取得"
+                Command="{Binding ScanVehiclesCommand}"
+                Height="32" FontSize="12" FontWeight="SemiBold"
+                Background="#2563EB"
+                Style="{StaticResource NormalButton}"
+                Margin="0,0,0,14"/>
+
+        <!-- 車両チェックリスト ラベル＋全選択/全解除 -->
+        <Grid Grid.Row="5" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0"
+                       Text="② 集計する車両を選択"
+                       FontWeight="SemiBold" FontSize="12"
+                       Foreground="#94A3B8" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="全選択"
+                    Width="62" Height="24" FontSize="11"
+                    Style="{StaticResource NormalButton}"
+                    Command="{Binding SelectAllCommand}"
+                    Margin="0,0,6,0"/>
+            <Button Grid.Column="2" Content="全解除"
+                    Width="62" Height="24" FontSize="11"
+                    Style="{StaticResource NormalButton}"
+                    Command="{Binding DeselectAllCommand}"/>
+        </Grid>
+
+        <!-- 車両チェックリスト本体 -->
+        <Border Grid.Row="6"
+                Background="#172033" BorderBrush="#2B4A7A"
+                BorderThickness="1" CornerRadius="4"
+                Margin="0,0,0,14">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Vehicles}" Margin="8,6">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                      Margin="2,3">
+                                <CheckBox.Content>
+                                    <!-- Style属性とTextBlock.Styleの二重指定を解消。
+                                         BasedOn="{StaticResource VehicleLabelStyle}" で基本スタイルを継承し、
+                                         DataTriggerで未分類（IsKnown=False）の場合だけ色・斜体を上書きする -->
+                                    <TextBlock Text="{Binding Label}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource VehicleLabelStyle}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsKnown}" Value="False">
+                                                        <Setter Property="Foreground" Value="#F59E0B"/>
+                                                        <Setter Property="FontStyle" Value="Italic"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </CheckBox.Content>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
         <!-- 実行ボタン＋ステータス -->
-        <Grid Grid.Row="4">
+        <Grid Grid.Row="7">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <Button Grid.Row="0"
-                    Content="集計を実行して Excel に出力"
+                    Content="③ 選択した車両で集計を実行して Excel に出力"
                     Command="{Binding ExecuteCommand}"
-                    Height="36"
-                    FontSize="13"
-                    FontWeight="SemiBold"
+                    Height="36" FontSize="13" FontWeight="SemiBold"
                     Background="#10B981"
                     Style="{StaticResource NormalButton}"/>
 
             <TextBlock Grid.Row="1"
                        Text="{Binding StatusMessage}"
-                       Foreground="#94A3B8"
-                       FontSize="11"
-                       TextWrapping="Wrap"
-                       Margin="0,8,0,0"/>
+                       Foreground="#94A3B8" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,8,0,0"/>
         </Grid>
     </Grid>
 </Window>
