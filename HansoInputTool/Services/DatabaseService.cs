@@ -34,6 +34,9 @@ namespace HansoInputTool.Services
         private readonly string _dbPath;
         private SqliteConnection _connection;
 
+        /// <summary>
+        /// コンストラクタ。指定パスのSQLiteファイルを開き、必要なテーブルがなければ作成する。
+        /// </summary>
         public DatabaseService(string dbPath)
         {
             _dbPath = dbPath;
@@ -44,6 +47,7 @@ namespace HansoInputTool.Services
         // ────────────────────────────────────────────
         #region 初期化
 
+        /// <summary>SQLiteデータベースファイルへの接続を開く</summary>
         private void Open()
         {
             _connection = new SqliteConnection($"Data Source={_dbPath}");
@@ -186,6 +190,27 @@ namespace HansoInputTool.Services
         {
             CurrentSessionId = sessionId;
             Logger.Info($"セッション切替: id={sessionId}");
+        }
+
+        /// <summary>
+        /// 現在アクティブなセッション（CurrentSessionId）を除いて、搬送データが1件も無い
+        /// 空のセッションをまとめて削除する。「クリアして空になった月」が切替一覧に
+        /// 残り続けないよう、月データの切替ダイアログを開いたときや、実際に月を
+        /// 切り替えた直後に呼び出すことを想定している。今使っているセッションだけは、
+        /// 仮にデータが0件でも誤って消してしまわないよう対象から除外する。
+        /// </summary>
+        public void CleanUpEmptySessions()
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                DELETE FROM month_sessions
+                WHERE id != $current
+                  AND id NOT IN (SELECT DISTINCT session_id FROM transport_records);
+            ";
+            cmd.Parameters.AddWithValue("$current", CurrentSessionId);
+            int affected = cmd.ExecuteNonQuery();
+            if (affected > 0)
+                Logger.Info($"空のセッションを{affected}件自動削除しました。");
         }
 
         /// <summary>指定セッションのデータをすべて削除（セッション行も削除）</summary>
@@ -510,8 +535,7 @@ namespace HansoInputTool.Services
         {
             if (flagStates == null || flagStates.Count == 0) return "{}";
 
-            // [No.4修正] Newtonsoft.Jsonで確実にシリアライズ
-            // ON=1, OFF=null の形式で格納する
+            // ON=1, OFF=nullの形式で格納する
             var obj = new JObject();
             foreach (var kv in flagStates)
                 obj[kv.Key] = kv.Value ? (JToken)1 : JValue.CreateNull();
@@ -533,7 +557,7 @@ namespace HansoInputTool.Services
 
             if (string.IsNullOrWhiteSpace(json) || json == "{}") return result;
 
-            // [No.4修正] Newtonsoft.JsonでパースしてフラグIDにカンマ等が含まれても安全に処理
+            // フラグIDに記号等が含まれていても安全にパースできるようNewtonsoft.Jsonを使用
             try
             {
                 var obj = JObject.Parse(json);
@@ -556,6 +580,7 @@ namespace HansoInputTool.Services
         // ────────────────────────────────────────────
         #region IDisposable
 
+        /// <summary>DB接続を閉じてリソースを解放する</summary>
         public void Dispose()
         {
             _connection?.Close();

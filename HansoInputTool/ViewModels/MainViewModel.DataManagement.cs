@@ -138,31 +138,76 @@ namespace HansoInputTool.ViewModels
                 EastSheet.ClearRegisteredSheets();
                 UpdatePreview();
                 Log($"期・月・R年の入力に合わせてデータセッションを切替しました: {Period}期 {Month}月 {EraName}{RNumber} (session_id={_dbService.CurrentSessionId})");
+
+                // 切替前にいたセッションが、クリア済みなどで0件になっていれば自動的に片付ける
+                _dbService.CleanUpEmptySessions();
             }
         }
 
+        /// <summary>
+        /// Period/Month/RNumberの3項目をまとめて変更するときに使う。プロパティセッターを
+        /// 1つずつ呼ぶと、3つが揃うまでの間（例：期だけ変わって月・R年がまだ古い値の状態）に
+        /// 意図しない組み合わせで一時的な空セッションが作られてしまうことがあるため、
+        /// 変更通知だけまとめて行い、最後に1回だけEnsureSessionMatchesCurrentPeriod()を呼ぶ。
+        /// </summary>
+        private void SetPeriodMonthRNumber(string period, string month, string rNumber)
+        {
+            _period  = period;
+            _month   = month;
+            _rNumber = rNumber;
+            OnPropertyChanged(nameof(Period));
+            OnPropertyChanged(nameof(Month));
+            OnPropertyChanged(nameof(RNumber));
+            Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber);
+            EnsureSessionMatchesCurrentPeriod();
+        }
+
+        /// <summary>
+        /// 「月データの切替」ダイアログを開き、ユーザーが選んだ月にデータを切り替える。
+        ///
+        /// 【ダイアログを閉じた後に必ずCurrentSessionIdを確認している理由】
+        /// ダイアログ内で「削除」ボタンにより今アクティブなセッションそのものを削除した場合、
+        /// DatabaseService側の処理で自動的に別のセッションへ内部的に切り替わる。この場合、
+        /// ユーザーは明示的に「切替」ボタンを押していないためSwitchedToSessionIdはセットされず、
+        /// かつダイアログを閉じてもキャンセル扱い（DialogResult=false）になる。そのまま何もしないと
+        /// 画面上の期・月・R年やプレビュー表示が、実際にアクティブなセッションとズレたままになり、
+        /// 「切替ボタンが反応しない／切り替えられない」ように見えてしまう不具合があった。
+        /// そのため「切替」ボタンを押した場合だけでなく、ダイアログを開く前後でCurrentSessionIdが
+        /// 変化していないかを必ずチェックし、変化していれば画面表示を実際の状態に合わせて更新する。
+        /// </summary>
         private void OpenSessionSwitch()
         {
+            long sessionIdBeforeDialog = _dbService.CurrentSessionId;
+
             var vm = new SessionSwitchViewModel(_dbService);
             var win = new Views.SessionSwitchWindow(vm) { Owner = Application.Current.MainWindow };
-            if (win.ShowDialog() == true && vm.SwitchedToSessionId.HasValue)
+            win.ShowDialog();
+
+            if (vm.SwitchedToSessionId.HasValue)
             {
+                // ユーザーが「切替」ボタンで明示的に選んだ場合
                 _dbService.SwitchSession(vm.SwitchedToSessionId.Value);
-
-                // 切替先の期・月・R年をUIに反映
-                var session = vm.Sessions.FirstOrDefault(s => s.Id == vm.SwitchedToSessionId.Value);
-                if (session != null)
-                {
-                    Period  = session.Period;
-                    Month   = session.Month;
-                    RNumber = session.RNumber;
-                }
-
-                _excelHandler.InvalidateCacheAll();
-                EastSheet.ClearRegisteredSheets();
-                UpdatePreview();
-                Log($"月データを切替しました: {_dbService.CurrentSessionId}");
             }
+            else if (_dbService.CurrentSessionId == sessionIdBeforeDialog)
+            {
+                // 明示的な切替もなく、内部的な切替（削除による自動切替）も起きていない
+                // → 何もせず終了（キャンセルのみ）
+                return;
+            }
+            // else: ダイアログ内の「削除」操作により、内部的にCurrentSessionIdが変わっていた場合
+
+            // 切替後の期・月・R年をUIに反映（3項目をまとめて設定し、余分な一時セッションを作らないようにする）
+            var session = _dbService.GetAllSessions().FirstOrDefault(s => s.Id == _dbService.CurrentSessionId);
+            if (session != null)
+                SetPeriodMonthRNumber(session.Period, session.Month, session.RNumber);
+
+            // 切替前にいたセッションが0件になっていれば自動的に片付ける
+            _dbService.CleanUpEmptySessions();
+
+            _excelHandler.InvalidateCacheAll();
+            EastSheet.ClearRegisteredSheets();
+            UpdatePreview();
+            Log($"月データを切替しました: {_dbService.CurrentSessionId}");
         }
 
         #endregion

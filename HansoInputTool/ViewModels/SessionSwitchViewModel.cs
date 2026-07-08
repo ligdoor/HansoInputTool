@@ -12,6 +12,7 @@ namespace HansoInputTool.ViewModels
     {
         private readonly DatabaseService _dbService;
 
+        /// <summary>切替候補として表示するセッション一覧（クリア済みで0件のものは自動的に除外される）</summary>
         public ObservableCollection<MonthSession> Sessions { get; } = new();
 
         private MonthSession _selectedSession;
@@ -49,8 +50,13 @@ namespace HansoInputTool.ViewModels
             Reload();
         }
 
+        /// <summary>
+        /// セッション一覧を再取得する。その前に、今使っている月以外で搬送データが
+        /// 0件になっているセッション（クリア済みで不要になった月）を自動的に削除する。
+        /// </summary>
         private void Reload()
         {
+            _dbService.CleanUpEmptySessions();
             Sessions.Clear();
             foreach (var s in _dbService.GetAllSessions())
                 Sessions.Add(s);
@@ -62,6 +68,14 @@ namespace HansoInputTool.ViewModels
             CloseDialog?.Invoke(true);
         }
 
+        /// <summary>
+        /// 選択中のセッションを削除する。
+        /// もし削除対象が現在アクティブなセッションだった場合、DatabaseService側で
+        /// 自動的に別のセッションへ切り替わる（DeleteSession内部の処理）。この場合、
+        /// SwitchedToSessionIdはセットされない（明示的な「切替」操作ではないため）が、
+        /// 呼び出し元のMainViewModel.OpenSessionSwitch()側でダイアログが閉じた後に
+        /// CurrentSessionIdの変化を検知し、画面表示を追従させる。
+        /// </summary>
         private void Delete()
         {
             var result = System.Windows.MessageBox.Show(
