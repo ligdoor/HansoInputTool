@@ -32,9 +32,18 @@ namespace HansoInputTool.ViewModels
                 var m = Regex.Match(fileName, @"(\d+)期.*?(\d+)月.*?[RＲ](\d+)");
                 if (m.Success)
                 {
-                    Period  = m.Groups[1].Value;
-                    Month   = m.Groups[2].Value;
-                    RNumber = m.Groups[3].Value;
+                    // Period/Month/RNumberのプロパティセッターは、値が変わるたびに
+                    // 対応するDBセッションへ自動切替する処理を呼ぶ。ここで3つを順番に
+                    // 代入すると、途中の組み合わせ（新period×旧month等）で余分な
+                    // セッションが一時的に作られてしまうため、直接フィールドに代入して
+                    // 変更通知だけ行い、3つが揃った後で下のGetOrCreateSessionを1回だけ呼ぶ。
+                    _period  = m.Groups[1].Value;
+                    _month   = m.Groups[2].Value;
+                    _rNumber = m.Groups[3].Value;
+                    OnPropertyChanged(nameof(Period));
+                    OnPropertyChanged(nameof(Month));
+                    OnPropertyChanged(nameof(RNumber));
+                    Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber);
                     Log($"ファイル名から期・月・R年を読み込みました: {Period}期 {Month}月 R{RNumber}");
                 }
                 else

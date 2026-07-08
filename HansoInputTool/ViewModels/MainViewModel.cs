@@ -84,20 +84,56 @@ namespace HansoInputTool.ViewModels
         public RowData SelectedRow { get => _selectedRow; set => SetProperty(ref _selectedRow, value); }
 
         private string _period;
+        /// <summary>
+        /// 「期」の入力値。値が変わるたびappsettings.jsonに保存し、
+        /// 併せて（月・R年も揃っていれば）対応するDBセッションへ自動的に切り替える。
+        /// これにより「期・月・R年」の組み合わせごとにデータが区分けされ、
+        /// 別の月のデータと混ざってクリア／削除されてしまうことを防ぐ。
+        /// </summary>
         public string Period
         {
             get => _period;
-            set { if (SetProperty(ref _period, value)) Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber); }
+            set
+            {
+                if (SetProperty(ref _period, value))
+                {
+                    Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber);
+                    EnsureSessionMatchesCurrentPeriod();
+                }
+            }
         }
 
         private string _month;
-        public string Month { get => _month; set => SetProperty(ref _month, value); }
+        /// <summary>
+        /// 「月」の入力値。値が変わるたびに（期・R年も揃っていれば）対応するDBセッションへ
+        /// 自動的に切り替える（Periodのコメント参照）。
+        /// </summary>
+        public string Month
+        {
+            get => _month;
+            set
+            {
+                if (SetProperty(ref _month, value))
+                    EnsureSessionMatchesCurrentPeriod();
+            }
+        }
 
         private string _rNumber;
+        /// <summary>
+        /// 「R年」の入力値。値が変わるたびappsettings.jsonに保存し、
+        /// 併せて（期・月も揃っていれば）対応するDBセッションへ自動的に切り替える（Periodのコメント参照）。
+        /// </summary>
         public string RNumber
         {
             get => _rNumber;
-            set { if (SetProperty(ref _rNumber, value)) Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber); }
+            set
+            {
+                if (SetProperty(ref _rNumber, value))
+                {
+                    Services.DataSetupService.SaveLastPeriodRNumber(_period, _rNumber);
+                    EnsureSessionMatchesCurrentPeriod();
+                }
+            }
         }
 
         private string _eraName = "R";

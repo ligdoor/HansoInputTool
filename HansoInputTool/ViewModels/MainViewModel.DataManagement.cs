@@ -108,6 +108,39 @@ namespace HansoInputTool.ViewModels
 
         #region セッション管理
 
+        /// <summary>
+        /// 画面上部の「期・月・R年」がすべて入力された時点で、その組み合わせに対応するDBセッションへ
+        /// 自動的に切り替える（存在しなければ新規作成する）。Period/Month/RNumberいずれかの値が
+        /// 変わるたびに呼び出される。
+        ///
+        /// 【この処理を追加した理由】
+        /// 以前はDBセッションが「実績月報ファイルを読み込む」機能を使った時にしか作られなかった。
+        /// そのため、画面から直接データを入力するだけの通常の使い方では、常にデフォルトの
+        /// セッション（session_id=1）にすべての月のデータが貯まり続けてしまい、「クリア」を実行すると
+        /// 今月分だけでなく既に完了して保存しておきたかった別の月のデータまで一緒に消えてしまう
+        /// 不具合があった。この処理により、期・月・R年が変わるたびに対応するセッションへ確実に
+        /// 切り替わるため、クリアやDB削除の影響が「今表示している期・月・R年」のデータだけに
+        /// 限定されるようになる。
+        /// </summary>
+        private void EnsureSessionMatchesCurrentPeriod()
+        {
+            if (_dbService == null) return;
+            if (string.IsNullOrWhiteSpace(Period) || string.IsNullOrWhiteSpace(Month) || string.IsNullOrWhiteSpace(RNumber))
+                return;
+
+            long previousSessionId = _dbService.CurrentSessionId;
+            _dbService.GetOrCreateSession(Period, Month, RNumber);
+
+            if (_dbService.CurrentSessionId != previousSessionId && _excelHandler != null)
+            {
+                // セッションが切り替わった場合は、表示中のデータも切り替え後の内容に合わせて更新する
+                _excelHandler.InvalidateCacheAll();
+                EastSheet.ClearRegisteredSheets();
+                UpdatePreview();
+                Log($"期・月・R年の入力に合わせてデータセッションを切替しました: {Period}期 {Month}月 {EraName}{RNumber} (session_id={_dbService.CurrentSessionId})");
+            }
+        }
+
         private void OpenSessionSwitch()
         {
             var vm = new SessionSwitchViewModel(_dbService);
