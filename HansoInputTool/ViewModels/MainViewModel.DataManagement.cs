@@ -24,12 +24,17 @@ namespace HansoInputTool.ViewModels
             EastSheet.PopulateSheets(vehicleSheets, EastSheet.SelectedEastSheet);
         }
 
-        private void UpdatePreview()
+        // selectRowIndex を指定すると、更新後にその行(RowIndex一致)を選択状態にする。
+        // DataGrid側はSelectedRowの変化を検知して自動スクロールする（MainWindow.xaml.cs参照）。
+        private void UpdatePreview(int? selectRowIndex = null)
         {
             PreviewData.Clear();
             if (string.IsNullOrEmpty(NormalSheet.SelectedNormalSheet)) return;
             foreach (var item in _excelHandler.GetSheetDataForPreview(NormalSheet.SelectedNormalSheet))
                 PreviewData.Add(item);
+
+            if (selectRowIndex.HasValue)
+                SelectedRow = PreviewData.FirstOrDefault(r => r.RowIndex == selectRowIndex.Value);
         }
 
         public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, Dictionary<string, bool> flagStates)

@@ -28,7 +28,7 @@ namespace HansoInputTool.ViewModels
 
         private ExcelHandler _excelHandler;
         private Action<string> _log;
-        private Action _updatePreview;
+        private Action<int?> _updatePreview;
         private FlagDefinitionService _flagService;
         private VehicleSettingsService _vehicleSettingsService;
 
@@ -48,7 +48,7 @@ namespace HansoInputTool.ViewModels
                 if (SetProperty(ref _selectedNormalSheet, value))
                 {
                     ClearValidationErrors();
-                    _updatePreview?.Invoke();
+                    _updatePreview?.Invoke(null);
                     OnPropertyChanged(nameof(IsOotsukiSheet));
                     OnPropertyChanged(nameof(IsFeeMode));
                     OnPropertyChanged(nameof(LateInputLabel));
@@ -180,7 +180,7 @@ namespace HansoInputTool.ViewModels
             OnPropertyChanged(nameof(LateInputLabel));
         }
 
-        public void Initialize(ExcelHandler excelHandler, Action<string> log, Action updatePreview, FlagDefinitionService flagService = null, VehicleSettingsService vehicleSettingsService = null, Func<(int year, int month)> getYearMonth = null)
+        public void Initialize(ExcelHandler excelHandler, Action<string> log, Action<int?> updatePreview, FlagDefinitionService flagService = null, VehicleSettingsService vehicleSettingsService = null, Func<(int year, int month)> getYearMonth = null)
         {
             _excelHandler           = excelHandler;
             _log                    = log;
@@ -285,7 +285,7 @@ namespace HansoInputTool.ViewModels
             {
                 var flagStates = GetFlagStates();
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, flagStates);
-                _updatePreview?.Invoke();
+                _updatePreview?.Invoke(targetRow);
                 // DB使用時はSave()不要（DBへの書き込みは即時コミット済み）
                 if (_excelHandler.DbService == null) _excelHandler.Save();
                 if (!string.IsNullOrEmpty(insertInfo)) _log?.Invoke($"[{SelectedNormalSheet}] {insertInfo}");

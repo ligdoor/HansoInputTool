@@ -237,10 +237,21 @@
                         <StackPanel Margin="10" DataContext="{Binding NormalSheet}">
                             <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10" TabIndex="4"/>
                             
-                            <!-- 日(B) -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
+                            <!-- 入力4項目を1枚のカードに統合（2列グリッド） -->
+                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="6"
+                                    Background="{StaticResource PanelBackgroundBrush}" Padding="12" Margin="0,5">
                                 <Grid>
-                                    <StackPanel Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 日(B) -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,10">
                                         <Label Content="日(B)" Padding="0,0,0,2"/>
                                         <Grid>
                                             <TextBox x:Name="NormalDayTextBox" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="5"/>
@@ -262,14 +273,13 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding DayError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 有料キロ(D) -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
-                                        <Label Content="有料キロ(D)" Padding="0,0,0,2" ToolTip="高速道路・有料道路の走行距離（km）"/>
+
+                                    <!-- 有料キロ(D) -->
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,10">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="有料キロ(D)" Padding="0,0,0,2" ToolTip="高速道路・有料道路の走行距離（km）"/>
+                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
                                         <Grid>
                                             <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="6"/>
                                             <TextBlock>
@@ -290,14 +300,13 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 無料キロ(E) -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
-                                        <Label Content="無料キロ(E)" Padding="0,0,0,2" ToolTip="一般道の走行距離（km）"/>
+
+                                    <!-- 無料キロ(E) -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="無料キロ(E)" Padding="0,0,0,2" ToolTip="一般道の走行距離（km）"/>
+                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
                                         <Grid>
                                             <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="7"/>
                                             <TextBlock>
@@ -318,13 +327,9 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 深夜料金(H)/深夜時間(K) -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
+
+                                    <!-- 深夜料金(H)/深夜時間(K) -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
                                         <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsFeeMode, Converter={StaticResource BoolToVis}}"/>
                                         <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsFeeMode, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                                         <Grid>
@@ -388,10 +393,22 @@
                         <StackPanel Margin="10" DataContext="{Binding EastSheet}">
                             <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}" Margin="0,0,0,10" TabIndex="10"/>
                             
-                            <!-- 延実働車輌数 -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
+                            <!-- 入力5項目を1枚のカードに統合（2列グリッド、運輸実績は全幅） -->
+                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="6"
+                                    Background="{StaticResource PanelBackgroundBrush}" Padding="12" Margin="0,5">
                                 <Grid>
-                                    <StackPanel Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 延実働車輌数 -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,10">
                                         <Label Content="延実働車輌数" Padding="0,0,0,2"/>
                                         <Grid>
                                             <TextBox x:Name="EastJitsudoTextBox" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="11"/>
@@ -413,13 +430,9 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding JitsudoError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 搬送回数 -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
+
+                                    <!-- 搬送回数 -->
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,10">
                                         <Label Content="搬送回数" Padding="0,0,0,2"/>
                                         <Grid>
                                             <TextBox x:Name="EastHansoTextBox" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="12"/>
@@ -441,14 +454,13 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding HansoError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 有料キロ数 -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
-                                        <Label Content="有料キロ数" Padding="0,0,0,2"/>
+
+                                    <!-- 有料キロ数 -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,10">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="有料キロ数" Padding="0,0,0,2"/>
+                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
                                         <Grid>
                                             <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="13"/>
                                             <TextBlock>
@@ -469,14 +481,13 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 無料キロ数 -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
-                                        <Label Content="無料キロ数" Padding="0,0,0,2"/>
+
+                                    <!-- 無料キロ数 -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,10">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="無料キロ数" Padding="0,0,0,2"/>
+                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
                                         <Grid>
                                             <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="14"/>
                                             <TextBlock>
@@ -497,14 +508,13 @@
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <!-- 運輸実績 -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,5">
-                                <Grid>
-                                    <StackPanel Margin="5">
-                                        <Label Content="運輸実績" Padding="0,0,0,2"/>
+
+                                    <!-- 運輸実績（金額なので全幅） -->
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Label Content="運輸実績" Padding="0,0,0,2"/>
+                                            <TextBlock Text="円" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                        </StackPanel>
                                         <Grid>
                                             <TextBox x:Name="EastUnsoTextBox" Text="{Binding Unso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown" TabIndex="15"/>
                                             <TextBlock>
@@ -562,7 +572,7 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <DataGrid ItemsSource="{Binding PreviewDataView}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedRow}" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" RowHeight="32">
+                    <DataGrid x:Name="PreviewDataGrid" ItemsSource="{Binding PreviewDataView}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedRow}" SelectionChanged="PreviewDataGrid_SelectionChanged" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" RowHeight="32">
                         <DataGrid.Resources>
                             <converters:BindingProxy x:Key="Proxy" Data="{Binding}"/>
                         </DataGrid.Resources>

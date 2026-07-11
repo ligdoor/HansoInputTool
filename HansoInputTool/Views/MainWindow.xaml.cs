@@ -117,6 +117,17 @@ namespace HansoInputTool.Views
                 tb.ScrollToEnd();
         }
 
+        /// <summary>
+        /// プレビューグリッドの選択行が変わったら、その行が見える位置まで自動スクロールする。
+        /// 通常シートで新規登録した直後、ViewModel側が登録した行をSelectedRowにセットするため、
+        /// ここで画面外にあってもその行を追尾して表示できる。
+        /// </summary>
+        private void PreviewDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is DataGrid grid && grid.SelectedItem != null)
+                grid.ScrollIntoView(grid.SelectedItem);
+        }
+
         private void Button_Click(object sender, RoutedEventArgs e)
         {
         }
