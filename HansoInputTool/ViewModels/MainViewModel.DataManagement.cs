@@ -24,8 +24,13 @@ namespace HansoInputTool.ViewModels
             EastSheet.PopulateSheets(vehicleSheets, EastSheet.SelectedEastSheet);
         }
 
-        // selectRowIndex を指定すると、更新後にその行(RowIndex一致)を選択状態にする。
+        // selectRowIndex を指定すると、更新後にその行を選択状態にする。
         // DataGrid側はSelectedRowの変化を検知して自動スクロールする（MainWindow.xaml.cs参照）。
+        //
+        // 注意: DBモード(通常運用)ではRegisterNormalDataが返すtargetRowは実は「DBの内部ID」であり、
+        // RowData.RowIndexは「表示順の仮番号」で意味が異なる。実際のDB IDはRowData.DbIdに入っている。
+        // ExcelフォールバックモードではtargetRowが本物のExcel行番号でRowIndexと一致する。
+        // そのためDbIdでの照合を優先し、見つからなければRowIndexでも照合する。
         private void UpdatePreview(int? selectRowIndex = null)
         {
             PreviewData.Clear();
@@ -34,7 +39,10 @@ namespace HansoInputTool.ViewModels
                 PreviewData.Add(item);
 
             if (selectRowIndex.HasValue)
-                SelectedRow = PreviewData.FirstOrDefault(r => r.RowIndex == selectRowIndex.Value);
+            {
+                SelectedRow = PreviewData.FirstOrDefault(r => r.DbId == selectRowIndex.Value)
+                              ?? PreviewData.FirstOrDefault(r => r.RowIndex == selectRowIndex.Value);
+            }
         }
 
         public void UpdateRowData(string sheetName, int rowIndex, Dictionary<string, double?> newValues, Dictionary<string, bool> flagStates)
