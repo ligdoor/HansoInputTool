@@ -257,6 +257,14 @@ namespace HansoInputTool.Services
                     writeRow++;
                 }
 
+                // [No.4修正] 実績月報（wsGeppo）103行目（合計行）にも使用・搬送・有料・無料の集計値を書き込む。
+                // 合計行にはテンプレート由来のCOUNT/SUM数式が残っているが、EPPlusは保存時に再計算しないため
+                // 数式のままだと未計算（空欄）になる。集計ファイルと同じ値を直接書き込んで確実に反映する。
+                wsGeppo.Cells[totalRowIdx, normalMap.Day].Value        = dbTotalDays > 0 ? (object)dbTotalDays : null;
+                wsGeppo.Cells[totalRowIdx, normalMap.HansoCount].Value = dbTotalHanso > 0 ? (object)dbTotalHanso : null;
+                wsGeppo.Cells[totalRowIdx, normalMap.YuryoKm].Value    = dbTotalYuryoKm > 0 ? (object)dbTotalYuryoKm : null;
+                wsGeppo.Cells[totalRowIdx, normalMap.MuryoKm].Value    = dbTotalMuryoKm > 0 ? (object)dbTotalMuryoKm : null;
+
                 // [No.3修正] 集計ファイルへの書き込みをここで行い、CalculateTotals()を使わない
                 var shukeiSheetNameDb = wbShukei.Workbook.Worksheets.Any(ws => ws.Name == sheetName)
                     ? sheetName
@@ -346,13 +354,22 @@ namespace HansoInputTool.Services
             // Excel使用時のみ CalculateTotals() でwsInから集計してここで書き込む。
             if (dbService == null)
             {
+                var totals = CalculateTotals(wsIn, totalRowIdx, normalMap);
+
+                // [No.4修正] 実績月報（wsGeppo）103行目（合計行）にも使用・搬送・有料・無料の集計値を書き込む。
+                // 合計行にはテンプレート由来のCOUNT/SUM数式が残っているが、EPPlusは保存時に再計算しないため
+                // 数式のままだと未計算（空欄）になる。集計ファイルと同じ値を直接書き込んで確実に反映する。
+                wsGeppo.Cells[totalRowIdx, normalMap.Day].Value        = totals.days > 0 ? (object)totals.days : null;
+                wsGeppo.Cells[totalRowIdx, normalMap.HansoCount].Value = totals.hanso > 0 ? (object)totals.hanso : null;
+                wsGeppo.Cells[totalRowIdx, normalMap.YuryoKm].Value    = totals.yuryoKm > 0 ? (object)totals.yuryoKm : null;
+                wsGeppo.Cells[totalRowIdx, normalMap.MuryoKm].Value    = totals.muryoKm > 0 ? (object)totals.muryoKm : null;
+
                 var shukeiSheetName = wbShukei.Workbook.Worksheets.Any(ws => ws.Name == sheetName)
                     ? sheetName
                     : wbShukei.Workbook.Worksheets.FirstOrDefault(ws => ws.Name.EndsWith(sheetName))?.Name;
                 if (shukeiSheetName != null)
                 {
                     var wsShukei = wbShukei.Workbook.Worksheets[shukeiSheetName];
-                    var totals = CalculateTotals(wsIn, totalRowIdx, normalMap);
                     wsShukei.Cells[shukeiMap.Days].Value    = totals.days;
                     wsShukei.Cells[shukeiMap.Hanso].Value   = totals.hanso;
                     wsShukei.Cells[shukeiMap.YuryoKm].Value = totals.yuryoKm;
