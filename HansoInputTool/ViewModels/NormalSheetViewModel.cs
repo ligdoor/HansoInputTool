@@ -298,6 +298,12 @@ namespace HansoInputTool.ViewModels
                 await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "NormalDayTextBox" });
             }
+            catch (InvalidOperationException ex)
+            {
+                // 確定済みセッションへの登録など、意図的にブロックしている操作
+                _log?.Invoke($"登録ブロック: {ex.Message}");
+                MessageBox.Show(ex.Message, "登録できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
             catch (Exception ex)
             {
                 _log?.Invoke($"登録エラー: {ex.Message}");

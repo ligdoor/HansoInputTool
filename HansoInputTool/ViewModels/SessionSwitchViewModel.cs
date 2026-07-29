@@ -28,6 +28,8 @@ namespace HansoInputTool.ViewModels
 
         public ICommand SwitchCommand { get; }
         public ICommand DeleteCommand { get; }
+        public ICommand ConfirmCommand { get; }
+        public ICommand UnconfirmCommand { get; }
 
         /// <summary>ダイアログを閉じるためのアクション（Viewからセット）</summary>
         public System.Action<bool?> CloseDialog { get; set; }
@@ -47,7 +49,50 @@ namespace HansoInputTool.ViewModels
                 _ => Delete(),
                 _ => SelectedSession != null);
 
+            ConfirmCommand = new RelayCommand(
+                _ => Confirm(),
+                _ => SelectedSession != null && !SelectedSession.IsConfirmed);
+
+            UnconfirmCommand = new RelayCommand(
+                _ => Unconfirm(),
+                _ => SelectedSession != null && SelectedSession.IsConfirmed);
+
             Reload();
+        }
+
+        /// <summary>
+        /// 選択中のセッションを「確定」にする。確定後は誤操作での編集・削除を防ぐため
+        /// このアプリからの入力・更新・削除・クリアがブロックされる（確定解除するまで）。
+        /// </summary>
+        private void Confirm()
+        {
+            var result = System.Windows.MessageBox.Show(
+                $"「{SelectedSession.Label}」を確定します。\n確定後は解除するまで編集・削除できなくなります。よろしいですか？",
+                "確定確認",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question);
+
+            if (result != System.Windows.MessageBoxResult.Yes) return;
+
+            _dbService.ConfirmSession(SelectedSession.Id);
+            Reload();
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        /// <summary>選択中のセッションの確定を解除し、再び編集できるようにする</summary>
+        private void Unconfirm()
+        {
+            var result = System.Windows.MessageBox.Show(
+                $"「{SelectedSession.Label}」の確定を解除します。\n再び編集できる状態に戻ります。よろしいですか？",
+                "確定解除の確認",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (result != System.Windows.MessageBoxResult.Yes) return;
+
+            _dbService.UnconfirmSession(SelectedSession.Id);
+            Reload();
+            CommandManager.InvalidateRequerySuggested();
         }
 
         /// <summary>
@@ -78,6 +123,16 @@ namespace HansoInputTool.ViewModels
         /// </summary>
         private void Delete()
         {
+            if (SelectedSession.IsConfirmed)
+            {
+                System.Windows.MessageBox.Show(
+                    $"「{SelectedSession.Label}」は確定済みのため削除できません。\n削除するには先に「確定解除」してください。",
+                    "削除できません",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
             var result = System.Windows.MessageBox.Show(
                 $"「{SelectedSession.Label}」のデータを削除します。\nこの操作は元に戻せません。よろしいですか？",
                 "削除確認",

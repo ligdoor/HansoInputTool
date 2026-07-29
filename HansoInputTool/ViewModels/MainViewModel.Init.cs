@@ -29,6 +29,10 @@ namespace HansoInputTool.ViewModels
 
                 _backupService.CreateAutoBackup(InputFilePath);
                 _backupService.CreateAutoBackup(TemplateFilePath);
+                // [確定機能] DBファイルも起動時に自動バックアップする（誤操作でのデータ消失対策）。
+                // DatabaseServiceで接続を開く前に、直前の状態をコピーしておく。
+                if (File.Exists(DatabaseFilePath))
+                    _backupService.CreateAutoBackup(DatabaseFilePath);
                 Log("起動時の自動バックアップを作成しました。");
 
                 var ratesJson = await File.ReadAllTextAsync(RatesFilePath);

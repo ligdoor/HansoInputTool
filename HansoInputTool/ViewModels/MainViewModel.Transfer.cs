@@ -51,16 +51,25 @@ namespace HansoInputTool.ViewModels
                 progressVM.Complete("2つのファイルの作成が完了しました。");
                 if (_dbService != null)
                 {
-                    _dbService.ClearAllData();
-                    _excelHandler.InvalidateCacheAll();
-                    EastSheet.ClearRegisteredSheets();
-                    UpdatePreview();
-                    Log("[DB] 転記完了につきDBデータをクリアしました。");
+                    try
+                    {
+                        _dbService.ClearAllData();
+                        _excelHandler.InvalidateCacheAll();
+                        EastSheet.ClearRegisteredSheets();
+                        UpdatePreview();
+                        Log("[DB] 転記完了につきDBデータをクリアしました。");
 
-                    // Input.xlsxにも残存データがあるためクリアして保存
-                    foreach (var msg in _excelHandler.ClearData()) Log(msg);
-                    _excelHandler.Save();
-                    Log("[Excel] Input.xlsxのデータをクリアしました。");
+                        // Input.xlsxにも残存データがあるためクリアして保存
+                        foreach (var msg in _excelHandler.ClearData()) Log(msg);
+                        _excelHandler.Save();
+                        Log("[Excel] Input.xlsxのデータをクリアしました。");
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // 転記自体は完了済み。セッションが確定済みのため自動クリアのみスキップする
+                        // （誤操作防止のため意図的な仕様。手動で確定解除すればクリアできる）。
+                        Log("[DB] このセッションは確定済みのため、DBデータの自動クリアはスキップされました。");
+                    }
                 }
                 else
                 {

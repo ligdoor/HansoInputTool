@@ -114,7 +114,17 @@ namespace HansoInputTool.ViewModels
         {
             if (MessageBox.Show("入力中のデータをすべてクリアします。\nこの操作は元に戻せません。よろしいですか？",
                     "クリア確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-                ClearInputData(true);
+            {
+                try
+                {
+                    ClearInputData(true);
+                }
+                catch (System.InvalidOperationException ex)
+                {
+                    // 確定済みセッションをクリアしようとした場合など、意図的にブロックしている操作
+                    MessageBox.Show(ex.Message, "クリアできません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
         }
 
         #endregion

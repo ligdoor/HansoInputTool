@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -103,8 +104,16 @@ namespace HansoInputTool.ViewModels
             var flagStates = FlagItems.ToDictionary(f => f.Id, f => f.IsChecked);
             // DB使用時は DbId を、Excel使用時は RowIndex を渡す
             int idToPass = (_dbId > 0) ? (int)_dbId : _rowIndex;
-            _mainViewModel.UpdateRowData(_sheetName, idToPass, values, flagStates);
-            ((Window)parameter).Close();
+            try
+            {
+                _mainViewModel.UpdateRowData(_sheetName, idToPass, values, flagStates);
+                ((Window)parameter).Close();
+            }
+            catch (InvalidOperationException ex)
+            {
+                // 確定済みセッションのデータを更新しようとした場合など、意図的にブロックしている操作
+                MessageBox.Show(ex.Message, "更新できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private static bool TryParseValue(string input, string fieldName, out double? result)

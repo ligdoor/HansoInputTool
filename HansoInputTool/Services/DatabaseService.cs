@@ -89,6 +89,8 @@ namespace HansoInputTool.Services
 
             // 既存DBへのマイグレーション: session_id 列が無ければ追加
             MigrateAddSessionId();
+            // 既存DBへのマイグレーション: is_confirmed / confirmed_at 列が無ければ追加
+            MigrateAddConfirmedColumns();
 
             Logger.Info("transport_records テーブル確認完了");
         }
@@ -109,6 +111,28 @@ namespace HansoInputTool.Services
                 alter.CommandText = "ALTER TABLE transport_records ADD COLUMN session_id INTEGER NOT NULL DEFAULT 1;";
                 alter.ExecuteNonQuery();
                 Logger.Info("マイグレーション: session_id 列を追加しました");
+            }
+        }
+
+        /// <summary>既存DBにis_confirmed/confirmed_at列がなければ追加する（v1.18.0移行用・確定機能）</summary>
+        private void MigrateAddConfirmedColumns()
+        {
+            using var check = _connection.CreateCommand();
+            check.CommandText = "PRAGMA table_info(month_sessions);";
+            bool hasConfirmed = false;
+            using (var r = check.ExecuteReader())
+                while (r.Read())
+                    if (r.GetString(1) == "is_confirmed") { hasConfirmed = true; break; }
+
+            if (!hasConfirmed)
+            {
+                using var alter = _connection.CreateCommand();
+                alter.CommandText = @"
+                    ALTER TABLE month_sessions ADD COLUMN is_confirmed INTEGER NOT NULL DEFAULT 0;
+                    ALTER TABLE month_sessions ADD COLUMN confirmed_at TEXT NULL;
+                ";
+                alter.ExecuteNonQuery();
+                Logger.Info("マイグレーション: is_confirmed / confirmed_at 列を追加しました");
             }
         }
 
@@ -164,7 +188,7 @@ namespace HansoInputTool.Services
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
                 SELECT s.id, s.period, s.month, s.r_number, s.label, s.created_at,
-                       COUNT(r.id) AS record_count
+                       COUNT(r.id) AS record_count, s.is_confirmed, s.confirmed_at
                 FROM month_sessions s
                 LEFT JOIN transport_records r ON r.session_id = s.id
                 GROUP BY s.id
@@ -181,8 +205,73 @@ namespace HansoInputTool.Services
                     Label       = reader.GetString(4),
                     CreatedAt   = reader.GetString(5),
                     RecordCount = (int)reader.GetInt64(6),
+                    IsConfirmed = reader.GetInt64(7) != 0,
+                    ConfirmedAt = reader.IsDBNull(8) ? null : reader.GetString(8),
                 });
             return result;
+        }
+
+        /// <summary>指定セッションが確定済みかどうかを返す</summary>
+        public bool IsSessionConfirmed(long sessionId)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT is_confirmed FROM month_sessions WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", sessionId);
+            var result = cmd.ExecuteScalar();
+            return result != null && Convert.ToInt64(result) != 0;
+        }
+
+        /// <summary>
+        /// セッションを「確定」状態にする。確定済みセッションのレコードは
+        /// EnsureSessionEditable() のチェックにより、確定解除するまで
+        /// 誤操作で編集・削除できないよう保護される。
+        /// </summary>
+        public void ConfirmSession(long sessionId)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE month_sessions
+                SET is_confirmed = 1, confirmed_at = datetime('now','localtime')
+                WHERE id = $id;
+            ";
+            cmd.Parameters.AddWithValue("$id", sessionId);
+            cmd.ExecuteNonQuery();
+            Logger.Info($"セッション確定: id={sessionId}");
+        }
+
+        /// <summary>セッションの確定状態を解除し、再び編集できるようにする</summary>
+        public void UnconfirmSession(long sessionId)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE month_sessions
+                SET is_confirmed = 0, confirmed_at = NULL
+                WHERE id = $id;
+            ";
+            cmd.Parameters.AddWithValue("$id", sessionId);
+            cmd.ExecuteNonQuery();
+            Logger.Info($"セッション確定解除: id={sessionId}");
+        }
+
+        /// <summary>
+        /// 指定セッションが確定済みの場合、編集操作をブロックするために例外を投げる。
+        /// 登録・更新・削除・クリアの各メソッドから呼び出す共通ガード。
+        /// </summary>
+        private void EnsureSessionEditable(long sessionId)
+        {
+            if (IsSessionConfirmed(sessionId))
+                throw new InvalidOperationException(
+                    "このセッションは確定済みのため編集できません。編集するには先に「確定解除」してください。");
+        }
+
+        /// <summary>指定レコードidが属するsession_idを返す（存在しなければnull）</summary>
+        private long? GetSessionIdForRecord(long recordId)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "SELECT session_id FROM transport_records WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", recordId);
+            var result = cmd.ExecuteScalar();
+            return result == null ? (long?)null : Convert.ToInt64(result);
         }
 
         /// <summary>指定セッションに切り替える</summary>
@@ -216,6 +305,8 @@ namespace HansoInputTool.Services
         /// <summary>指定セッションのデータをすべて削除（セッション行も削除）</summary>
         public void DeleteSession(long sessionId)
         {
+            EnsureSessionEditable(sessionId);
+
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
                 DELETE FROM transport_records WHERE session_id = $id;
@@ -250,6 +341,8 @@ namespace HansoInputTool.Services
             Dictionary<string, bool> flagStates,
             bool isOotsuki)
         {
+            EnsureSessionEditable(CurrentSessionId);
+
             var flagsJson = SerializeFlags(flagStates);
 
             using var cmd = _connection.CreateCommand();
@@ -291,6 +384,8 @@ namespace HansoInputTool.Services
         /// </summary>
         public void BulkInsert(IEnumerable<(string sheetName, Dictionary<string, double?> values, Dictionary<string, bool> flagStates, bool isOotsuki)> records)
         {
+            EnsureSessionEditable(CurrentSessionId);
+
             using var transaction = _connection.BeginTransaction();
             try
             {
@@ -346,6 +441,9 @@ namespace HansoInputTool.Services
             Dictionary<string, bool> flagStates,
             bool isOotsuki)
         {
+            var recordSessionId = GetSessionIdForRecord(id);
+            if (recordSessionId.HasValue) EnsureSessionEditable(recordSessionId.Value);
+
             var flagsJson = SerializeFlags(flagStates);
 
             using var cmd = _connection.CreateCommand();
@@ -387,6 +485,9 @@ namespace HansoInputTool.Services
         /// </summary>
         public void DeleteRecord(long id)
         {
+            var recordSessionId = GetSessionIdForRecord(id);
+            if (recordSessionId.HasValue) EnsureSessionEditable(recordSessionId.Value);
+
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = "DELETE FROM transport_records WHERE id = $id;";
             cmd.Parameters.AddWithValue("$id", id);
@@ -400,6 +501,8 @@ namespace HansoInputTool.Services
         /// </summary>
         public void ClearAllData()
         {
+            EnsureSessionEditable(CurrentSessionId);
+
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = "DELETE FROM transport_records WHERE session_id = $session;";
             cmd.Parameters.AddWithValue("$session", CurrentSessionId);
