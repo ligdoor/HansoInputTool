@@ -385,6 +385,27 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <Border Visibility="{Binding IsFuelTrackedVehicle, Converter={StaticResource BoolToVis}}"
+                                    BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="4"
+                                    Margin="0,10,0,0" Padding="8">
+                                <StackPanel>
+                                    <CheckBox Content="⛽ 給油あり" IsChecked="{Binding IsFuelChecked}" Margin="5,3"/>
+                                    <StackPanel Visibility="{Binding IsFuelChecked, Converter={StaticResource BoolToVis}}" Margin="20,4,0,0">
+                                        <Label Content="給油時Km"/>
+                                        <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBlock Text="{Binding FuelOdometerKmError}"
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding FuelOdometerKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                        <Label Content="給油㍑数" Margin="0,6,0,0"/>
+                                        <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBlock Text="{Binding FuelLitersError}"
+                                                   Style="{StaticResource ErrorTextStyle}"
+                                                   Visibility="{Binding FuelLitersError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
                             <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Stretch" Style="{StaticResource NormalButton}" Height="32" Margin="0,16,0,0" TabIndex="9"/>
                         </StackPanel>
                     </TabItem>
@@ -582,6 +603,7 @@
                             <DataGridTextColumn Header="有料km" Binding="{Binding D_YuryoKm, StringFormat={}{0:N0}}" Width="*"/>
                             <DataGridTextColumn Header="無料km" Binding="{Binding E_MuryoKm, StringFormat={}{0:N0}}" Width="*"/>
                             <DataGridTextColumn Header="フラグ" Binding="{Binding FlagSummaryText}" Width="100"/>
+                            <DataGridTextColumn Header="給油" Binding="{Binding FuelSummaryText}" Width="110"/>
                             <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="*" Visibility="{Binding Data.NormalSheet.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
                             <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="*" Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                         </DataGrid.Columns>

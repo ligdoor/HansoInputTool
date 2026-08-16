@@ -294,6 +294,10 @@
                                             <TextBlock Margin="0,4,0,0" FontSize="11"
                                                        Foreground="{StaticResource SubTextBrush}"
                                                        Text="※ 大月など料金で管理している車両は「深夜料金（円）」を選択"/>
+
+                                            <CheckBox Content="⛽ 給油管理表に記録する（Input.xlsxの給油管理シートに転記）"
+                                                      IsChecked="{Binding IsFuelTracked}"
+                                                      Margin="0,14,0,0"/>
                                         </StackPanel>
                                     </GroupBox>
                                 </StackPanel>

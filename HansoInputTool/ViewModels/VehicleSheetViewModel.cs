@@ -30,6 +30,14 @@ namespace HansoInputTool.ViewModels
             set { if (value) LateInputMode = "fee"; OnPropertyChanged(nameof(IsLateTimeModeChecked)); }
         }
 
+        // 給油管理表への記録対象かどうか（例: CH富士吉田の車両）
+        private bool _isFuelTracked;
+        public bool IsFuelTracked
+        {
+            get => _isFuelTracked;
+            set => SetProperty(ref _isFuelTracked, value);
+        }
+
         // 「通常」を追加し、これをデフォルトとする
         public List<string> 事業所カテゴリリスト { get; } = new() { "通常", "CH富士吉田", "CH大月", "CH東富士", "東日本セレモニー" };
         public List<string> 車種リスト { get; } = new() { "寝台車", "霊柩車" };

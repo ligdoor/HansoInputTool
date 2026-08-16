@@ -52,6 +52,7 @@ namespace HansoInputTool.ViewModels
                     OnPropertyChanged(nameof(IsOotsukiSheet));
                     OnPropertyChanged(nameof(IsFeeMode));
                     OnPropertyChanged(nameof(LateInputLabel));
+                    OnPropertyChanged(nameof(IsFuelTrackedVehicle));
                     ClearValidationErrors();
                 }
             }
@@ -60,6 +61,9 @@ namespace HansoInputTool.ViewModels
         public bool IsOotsukiSheet => IsFeeMode; // 後方互換のため残す
         public bool IsFeeMode => _vehicleSettingsService?.IsFeeMode(SelectedNormalSheet ?? "") ?? (SelectedNormalSheet?.Contains("大月") ?? false);
         public string LateInputLabel => IsFeeMode ? "深夜料金(H)" : "深夜時間(K)";
+
+        /// <summary>選択中の車両が給油管理表への記録対象かどうか（設定画面でオン/オフ）</summary>
+        public bool IsFuelTrackedVehicle => _vehicleSettingsService?.IsFuelTracked(SelectedNormalSheet ?? "") ?? false;
 
         #endregion
 
@@ -92,6 +96,52 @@ namespace HansoInputTool.ViewModels
             get => _lateValue;
             set { if (SetProperty(ref _lateValue, value)) ValidateInput(); }
         }
+
+        #endregion
+
+        #region 給油入力（給油管理対象車両のみ）
+
+        private bool _isFuelChecked;
+        /// <summary>「給油あり」チェックボックスの状態</summary>
+        public bool IsFuelChecked
+        {
+            get => _isFuelChecked;
+            set
+            {
+                if (SetProperty(ref _isFuelChecked, value))
+                {
+                    if (!value)
+                    {
+                        // チェックを外したら入力値とエラーもクリアする
+                        FuelOdometerKm = string.Empty;
+                        FuelLiters     = string.Empty;
+                    }
+                    ValidateInput();
+                }
+            }
+        }
+
+        private string _fuelOdometerKm;
+        /// <summary>給油時Km</summary>
+        public string FuelOdometerKm
+        {
+            get => _fuelOdometerKm;
+            set { if (SetProperty(ref _fuelOdometerKm, value)) ValidateInput(); }
+        }
+
+        private string _fuelLiters;
+        /// <summary>給油㍑数</summary>
+        public string FuelLiters
+        {
+            get => _fuelLiters;
+            set { if (SetProperty(ref _fuelLiters, value)) ValidateInput(); }
+        }
+
+        private string _fuelOdometerKmError;
+        public string FuelOdometerKmError { get => _fuelOdometerKmError; set => SetProperty(ref _fuelOdometerKmError, value); }
+
+        private string _fuelLitersError;
+        public string FuelLitersError { get => _fuelLitersError; set => SetProperty(ref _fuelLitersError, value); }
 
         #endregion
 
@@ -213,7 +263,31 @@ namespace HansoInputTool.ViewModels
             YuryoKmError = result.YuryoKmError;
             MuryoKmError = result.MuryoKmError;
             LateValueError = result.LateValueError;
-            HasValidationErrors = result.HasErrors;
+
+            bool fuelHasError = false;
+            if (IsFuelChecked)
+            {
+                if (!double.TryParse(FuelOdometerKm, out var km) || km <= 0)
+                {
+                    FuelOdometerKmError = "給油時Kmを正しく入力してください。";
+                    fuelHasError = true;
+                }
+                else FuelOdometerKmError = string.Empty;
+
+                if (!double.TryParse(FuelLiters, out var l) || l <= 0)
+                {
+                    FuelLitersError = "給油㍑数を正しく入力してください。";
+                    fuelHasError = true;
+                }
+                else FuelLitersError = string.Empty;
+            }
+            else
+            {
+                FuelOdometerKmError = string.Empty;
+                FuelLitersError = string.Empty;
+            }
+
+            HasValidationErrors = result.HasErrors || fuelHasError;
         }
 
         public void ClearValidationErrors()
@@ -222,6 +296,8 @@ namespace HansoInputTool.ViewModels
             YuryoKmError = string.Empty;
             MuryoKmError = string.Empty;
             LateValueError = string.Empty;
+            FuelOdometerKmError = string.Empty;
+            FuelLitersError = string.Empty;
             HasValidationErrors = false;
         }
 
@@ -285,6 +361,16 @@ namespace HansoInputTool.ViewModels
             {
                 var flagStates = GetFlagStates();
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, flagStates);
+
+                // 給油ありがチェックされていれば、続けて給油記録も登録する
+                if (IsFuelChecked)
+                {
+                    double.TryParse(FuelOdometerKm, out var fuelKm);
+                    double.TryParse(FuelLiters, out var fuelLiters);
+                    _excelHandler.RegisterFuelData(SelectedNormalSheet, (int)dayVal.Value, fuelKm, fuelLiters);
+                    _log?.Invoke($"[{SelectedNormalSheet}] {dayVal.Value}日の給油記録（{fuelKm:N0}km / {fuelLiters:N0}L）を登録しました。");
+                }
+
                 _updatePreview?.Invoke(targetRow);
                 // DB使用時はSave()不要（DBへの書き込みは即時コミット済み）
                 if (_excelHandler.DbService == null) _excelHandler.Save();
@@ -292,6 +378,8 @@ namespace HansoInputTool.ViewModels
                 _log?.Invoke($"[{SelectedNormalSheet}] の {targetRow}行目にデータを登録しました。");
 
                 Day = YuryoKm = MuryoKm = LateValue = string.Empty;
+                IsFuelChecked = false;
+                FuelOdometerKm = FuelLiters = string.Empty;
                 ResetFlags();
                 ClearValidationErrors();
 

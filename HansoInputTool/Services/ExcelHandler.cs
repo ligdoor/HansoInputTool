@@ -374,6 +374,19 @@ namespace HansoInputTool.Services
             InvalidateCache(sheetName);
         }
 
+        /// <summary>
+        /// 給油記録を1件登録する（給油管理対象車両のみ想定・DBモード専用）。
+        /// 転記時にInput.xlsxの給油管理表シートへ書き込まれる。
+        /// </summary>
+        public void RegisterFuelData(string sheetName, int day, double odometerKm, double liters)
+        {
+            if (DbService == null)
+                throw new InvalidOperationException("給油記録の登録にはデータベースモードが必要です。");
+
+            DbService.InsertFuelRecord(sheetName, day, odometerKm, liters);
+            InvalidateCache(sheetName);
+        }
+
         public void RegisterEastData(string sheetName, Dictionary<string, double?> values)
         {
             if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == sheetName))

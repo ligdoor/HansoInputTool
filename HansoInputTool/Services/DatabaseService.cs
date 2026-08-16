@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using HansoInputTool.Models;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
@@ -82,8 +83,18 @@ namespace HansoInputTool.Services
                     created_at     TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
                     row_index      INTEGER
                 );
+                CREATE TABLE IF NOT EXISTS fuel_records (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id   INTEGER NOT NULL DEFAULT 1,
+                    sheet_name   TEXT    NOT NULL,
+                    day          INTEGER NOT NULL,
+                    odometer_km  REAL    NOT NULL,
+                    liters       REAL    NOT NULL,
+                    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+                );
                 CREATE INDEX IF NOT EXISTS idx_sheet_name ON transport_records(sheet_name);
                 CREATE INDEX IF NOT EXISTS idx_session_id ON transport_records(session_id);
+                CREATE INDEX IF NOT EXISTS idx_fuel_sheet_session ON fuel_records(sheet_name, session_id);
             ";
             cmd.ExecuteNonQuery();
 
@@ -310,6 +321,7 @@ namespace HansoInputTool.Services
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
                 DELETE FROM transport_records WHERE session_id = $id;
+                DELETE FROM fuel_records      WHERE session_id = $id;
                 DELETE FROM month_sessions     WHERE id        = $id;
             ";
             cmd.Parameters.AddWithValue("$id", sessionId);
@@ -504,16 +516,112 @@ namespace HansoInputTool.Services
             EnsureSessionEditable(CurrentSessionId);
 
             using var cmd = _connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM transport_records WHERE session_id = $session;";
+            cmd.CommandText = @"
+                DELETE FROM transport_records WHERE session_id = $session;
+                DELETE FROM fuel_records      WHERE session_id = $session;
+            ";
             cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             cmd.ExecuteNonQuery();
             Logger.Info($"DBクリア完了 session_id={CurrentSessionId}");
+        }
+
+        /// <summary>
+        /// 給油記録を1件登録する（給油管理表への転記対象車両のみ想定）。
+        /// 確定済みセッションへの登録は EnsureSessionEditable によりブロックされる。
+        /// </summary>
+        public long InsertFuelRecord(string vehicleSheetName, int day, double odometerKm, double liters)
+        {
+            EnsureSessionEditable(CurrentSessionId);
+
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO fuel_records (session_id, sheet_name, day, odometer_km, liters)
+                VALUES ($session, $sheet, $day, $km, $liters);
+                SELECT last_insert_rowid();
+            ";
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
+            cmd.Parameters.AddWithValue("$sheet",   vehicleSheetName);
+            cmd.Parameters.AddWithValue("$day",     day);
+            cmd.Parameters.AddWithValue("$km",      odometerKm);
+            cmd.Parameters.AddWithValue("$liters",  liters);
+            var id = (long)cmd.ExecuteScalar();
+            Logger.Info($"給油記録登録: {vehicleSheetName} {day}日 {odometerKm}km {liters}L (id={id})");
+            return id;
+        }
+
+        /// <summary>指定の給油記録を削除する</summary>
+        public void DeleteFuelRecord(long id)
+        {
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM fuel_records WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.ExecuteNonQuery();
+            Logger.Info($"給油記録削除: id={id}");
         }
 
         #endregion
 
         // ────────────────────────────────────────────
         #region 読み取り
+
+        /// <summary>
+        /// 指定シート・現在セッションの給油記録を日付順で返す（プレビュー表示用）。
+        /// </summary>
+        public List<FuelRecord> GetFuelRecords(string vehicleSheetName)
+        {
+            var result = new List<FuelRecord>();
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                SELECT id, session_id, sheet_name, day, odometer_km, liters, created_at
+                FROM fuel_records
+                WHERE sheet_name = $sheet AND session_id = $session
+                ORDER BY day, id;
+            ";
+            cmd.Parameters.AddWithValue("$sheet",   vehicleSheetName);
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                result.Add(new FuelRecord
+                {
+                    Id               = reader.GetInt64(0),
+                    SessionId        = reader.GetInt64(1),
+                    VehicleSheetName = reader.GetString(2),
+                    Day              = (int)reader.GetInt64(3),
+                    OdometerKm       = reader.GetDouble(4),
+                    Liters           = reader.GetDouble(5),
+                    CreatedAt        = reader.GetString(6),
+                });
+            return result;
+        }
+
+        /// <summary>
+        /// 現在セッションの給油記録を全車両分まとめて返す（転記処理用）。
+        /// </summary>
+        public List<FuelRecord> GetAllFuelRecordsForCurrentSession()
+        {
+            var result = new List<FuelRecord>();
+            using var cmd = _connection.CreateCommand();
+            cmd.CommandText = @"
+                SELECT id, session_id, sheet_name, day, odometer_km, liters, created_at
+                FROM fuel_records
+                WHERE session_id = $session
+                ORDER BY sheet_name, day, id;
+            ";
+            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+                result.Add(new FuelRecord
+                {
+                    Id               = reader.GetInt64(0),
+                    SessionId        = reader.GetInt64(1),
+                    VehicleSheetName = reader.GetString(2),
+                    Day              = (int)reader.GetInt64(3),
+                    OdometerKm       = reader.GetDouble(4),
+                    Liters           = reader.GetDouble(5),
+                    CreatedAt        = reader.GetString(6),
+                });
+            return result;
+        }
 
         /// <summary>
         /// 指定シートの全レコードを RowData リストで返す（プレビュー表示用）。
@@ -534,6 +642,15 @@ namespace HansoInputTool.Services
             ";
             cmd.Parameters.AddWithValue("$sheet",   sheetName);
             cmd.Parameters.AddWithValue("$session", CurrentSessionId);
+
+            // この車両・セッションの給油記録を日付ごとにまとめておく（プレビュー表示用）
+            var fuelByDay = new Dictionary<int, List<FuelRecord>>();
+            foreach (var fuel in GetFuelRecords(sheetName))
+            {
+                if (!fuelByDay.TryGetValue(fuel.Day, out var list))
+                    fuelByDay[fuel.Day] = list = new List<FuelRecord>();
+                list.Add(fuel);
+            }
 
             using var reader = cmd.ExecuteReader();
             int rowIndex = 3; // ExcelのrowIndexに相当する仮番号（表示順）
@@ -556,6 +673,11 @@ namespace HansoInputTool.Services
                     FlagValues      = flagValues,
                     FlagDefinitions = flags,
                 };
+
+                // 同じ日に給油記録があればプレビュー用テキストを組み立てる（例: "⛽12,345km/40L"）
+                if (row.B_Day.HasValue && fuelByDay.TryGetValue(row.B_Day.Value, out var fuelsThatDay))
+                    row.FuelSummaryText = string.Join(" / ",
+                        fuelsThatDay.Select(f => $"⛽{f.OdometerKm:N0}km/{f.Liters:N0}L"));
 
                 bool isOotsuki = sheetName.Contains("大月");
                 row.LateValueText = isOotsuki

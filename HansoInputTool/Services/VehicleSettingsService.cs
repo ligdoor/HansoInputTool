@@ -23,6 +23,9 @@ namespace HansoInputTool.Services
 
         public bool IsFeeMode(string sheetName) => _settings.IsFeeMode(sheetName);
 
+        /// <summary>指定シートが給油管理の対象かどうかを返す</summary>
+        public bool IsFuelTracked(string sheetName) => _settings.IsFuelTracked(sheetName);
+
         private VehicleSettings Load()
         {
             try

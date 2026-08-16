@@ -171,7 +171,10 @@ namespace HansoInputTool.ViewModels
                 {
                     var vm = new VehicleSheetViewModel(s);
                     if (_vehicleSettingsService != null)
+                    {
                         vm.LateInputMode = _vehicleSettingsService.IsFeeMode(s) ? "fee" : "time";
+                        vm.IsFuelTracked = _vehicleSettingsService.IsFuelTracked(s);
+                    }
                     return vm;
                 }));
 
@@ -461,7 +464,7 @@ namespace HansoInputTool.ViewModels
                 {
                     var vs = new Models.VehicleSettings();
                     foreach (var v in VehicleSheetList)
-                        vs[v.VehicleTypeName] = new Models.VehicleConfig { LateInputMode = v.LateInputMode };
+                        vs[v.VehicleTypeName] = new Models.VehicleConfig { LateInputMode = v.LateInputMode, IsFuelTracked = v.IsFuelTracked };
                     _vehicleSettingsService.Save(vs);
                     _mainViewModel.ReloadVehicleSettings(vs);
                 }
