@@ -197,7 +197,7 @@ namespace HansoInputTool.Services
             => _templatePackage.Workbook.Worksheets.Any(ws => ws.Name == sheetName);
 
         public List<string> SheetNames => _inputPackage?.Workbook.Worksheets
-            .Where(ws => !ws.Name.Contains("登録") && !IsTemplateSheet(ws.Name))
+            .Where(ws => !ws.Name.Contains("登録") && !ws.Name.Contains("給油管理") && !IsTemplateSheet(ws.Name))
             .Select(ws => ws.Name)
             .ToList() ?? new List<string>();
 
@@ -209,7 +209,7 @@ namespace HansoInputTool.Services
 
         public List<string> GetVehicleSheetNames()
             => _inputPackage.Workbook.Worksheets
-                .Where(s => !s.Name.Contains("登録") && !IsTemplateSheet(s.Name))
+                .Where(s => !s.Name.Contains("登録") && !s.Name.Contains("給油管理") && !IsTemplateSheet(s.Name))
                 .Select(ws =>
                 {
                     var numStr = System.Text.RegularExpressions.Regex.Match(ws.Name, @"\d+$").Value;
@@ -523,6 +523,7 @@ namespace HansoInputTool.Services
             var allTargetSheets = _inputPackage.Workbook.Worksheets
                 .Where(ws => !ws.Name.Contains("登録")
                           && ws.Name != "月間集計"
+                          && !ws.Name.Contains("給油管理")  // 給油管理表はレイアウトが異なるため対象外
                           && (ws.Name.Contains("寝台車")
                            || ws.Name.Contains("霊柩車")
                            || ws.Name.Contains("CH")

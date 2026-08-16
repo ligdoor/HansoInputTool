@@ -400,10 +400,12 @@ namespace HansoInputTool.Services
         }
 
         // ===== 給油管理表への書き込み =====
-        private const string FuelSheetName = "給油管理表";
+        // Excelのシートタブ名は表内のタイトル文字列と異なる場合があるため、
+        // 「給油管理」という文字列を含むシートを対象として検索する（例:「給油管理表」「寝台車　給油管理」など）。
+        private const string FuelSheetKeyword = "給油管理";
 
         /// <summary>
-        /// DBに登録された給油記録を、実績月報（wbGeppo）内の「給油管理表」シートへ書き込む。
+        /// DBに登録された給油記録を、実績月報（wbGeppo）内の給油管理シートへ書き込む。
         /// 車両ごとの列位置はハードコードせず、車両名の見出しセルを起点に実行時に探す
         /// （Template.xlsxの列レイアウトが変わっても追従できるようにするため）。
         /// </summary>
@@ -411,11 +413,10 @@ namespace HansoInputTool.Services
         {
             if (fuelRecords == null || fuelRecords.Count == 0) return;
 
-            var ws = wbGeppo.Workbook.Worksheets.FirstOrDefault(s => s.Name == FuelSheetName)
-                   ?? wbGeppo.Workbook.Worksheets.FirstOrDefault(s => s.Name.Contains(FuelSheetName));
+            var ws = wbGeppo.Workbook.Worksheets.FirstOrDefault(s => s.Name.Contains(FuelSheetKeyword));
             if (ws == null)
             {
-                Logger.Warn($"「{FuelSheetName}」シートが見つからないため、給油記録の書き込みをスキップしました。");
+                Logger.Warn($"「{FuelSheetKeyword}」を含むシートが見つからないため、給油記録の書き込みをスキップしました。");
                 return;
             }
 
@@ -424,7 +425,7 @@ namespace HansoInputTool.Services
                 var block = FindFuelVehicleBlock(ws, group.Key);
                 if (block == null)
                 {
-                    Logger.Warn($"「{FuelSheetName}」に車両「{group.Key}」の列が見つからないため、この車両の給油記録はスキップしました。");
+                    Logger.Warn($"「{FuelSheetKeyword}」を含むシートに車両「{group.Key}」の列が見つからないため、この車両の給油記録はスキップしました。");
                     continue;
                 }
 
@@ -440,7 +441,7 @@ namespace HansoInputTool.Services
                     ws.Cells[row, litersCol].Value  = fuel.Liters;
                     row++;
                 }
-                Logger.Info($"「{FuelSheetName}」[{group.Key}] に給油記録{group.Count()}件を書き込みました。");
+                Logger.Info($"「{FuelSheetKeyword}」を含むシート[{group.Key}] に給油記録{group.Count()}件を書き込みました。");
             }
         }
 
