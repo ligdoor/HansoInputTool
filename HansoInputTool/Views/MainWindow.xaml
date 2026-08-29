@@ -390,15 +390,17 @@
                                     BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="4"
                                     Margin="0,10,0,0" Padding="8">
                                 <StackPanel>
-                                    <CheckBox Content="⛽ 給油あり" IsChecked="{Binding IsFuelChecked}" Margin="5,3"/>
+                                    <CheckBox Content="⛽ 給油あり" IsChecked="{Binding IsFuelChecked}" Margin="5,3" TabIndex="8"/>
                                     <StackPanel Visibility="{Binding IsFuelChecked, Converter={StaticResource BoolToVis}}" Margin="20,4,0,0">
                                         <Label Content="給油時Km"/>
-                                        <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}"
+                                                 KeyDown="TextBox_KeyDown" TabIndex="8"/>
                                         <TextBlock Text="{Binding FuelOdometerKmError}"
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding FuelOdometerKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
                                         <Label Content="給油㍑数" Margin="0,6,0,0"/>
-                                        <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}"
+                                                 KeyDown="FuelLitersTextBox_KeyDown" TabIndex="8"/>
                                         <TextBlock Text="{Binding FuelLitersError}"
                                                    Style="{StaticResource ErrorTextStyle}"
                                                    Visibility="{Binding FuelLitersError, Converter={StaticResource StringToVisibilityConverter}}"/>

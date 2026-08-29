@@ -558,6 +558,12 @@ namespace HansoInputTool.Services
         /// <summary>指定の給油記録を削除する</summary>
         public void DeleteFuelRecord(long id)
         {
+            using var checkCmd = _connection.CreateCommand();
+            checkCmd.CommandText = "SELECT session_id FROM fuel_records WHERE id = $id;";
+            checkCmd.Parameters.AddWithValue("$id", id);
+            var sessionResult = checkCmd.ExecuteScalar();
+            if (sessionResult != null) EnsureSessionEditable(Convert.ToInt64(sessionResult));
+
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = "DELETE FROM fuel_records WHERE id = $id;";
             cmd.Parameters.AddWithValue("$id", id);

@@ -84,8 +84,34 @@ namespace HansoInputTool.Views
             }
         }
 
-        // 通常シートの最後の入力欄でEnterキーを押したら登録する処理
+        // 通常シートの「深夜時間(K)」でEnterキーを押したときの処理。
+        // [給油バグ修正] 給油対象車両で「給油あり」がチェックされている場合は、
+        // まだ給油時Km・給油㍑数の入力が残っているため、ここではまだ登録せず
+        // 次のコントロール（給油入力欄）へフォーカスを移すだけにする。
+        // 給油が対象外・未チェックの場合は、これまで通りここで登録する。
         private void LastNormalTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    if (vm.NormalSheet.IsFuelTrackedVehicle && vm.NormalSheet.IsFuelChecked)
+                    {
+                        var request = new TraversalRequest(FocusNavigationDirection.Next);
+                        if (Keyboard.FocusedElement is UIElement elementWithFocus)
+                            elementWithFocus.MoveFocus(request);
+                    }
+                    else if (vm.RegisterNormalCommand.CanExecute(null))
+                    {
+                        vm.RegisterNormalCommand.Execute(null);
+                    }
+                }
+                e.Handled = true;
+            }
+        }
+
+        // 給油㍑数の入力欄でEnterキーを押したら登録する処理（給油ありチェック時の最後の入力欄）
+        private void FuelLitersTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {

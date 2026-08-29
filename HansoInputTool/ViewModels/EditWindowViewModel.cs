@@ -35,7 +35,14 @@ namespace HansoInputTool.ViewModels
         /// <summary>動的フラグチェックボックスのリスト</summary>
         public ObservableCollection<FlagCheckBoxItem> FlagItems { get; } = new();
 
+        /// <summary>この車両が給油管理表への記録対象かどうか</summary>
+        public bool IsFuelTrackedVehicle { get; }
+
+        /// <summary>この日（行）に紐づく給油記録の一覧（編集・削除・追加が可能）</summary>
+        public ObservableCollection<EditableFuelItem> FuelEntries { get; } = new();
+
         public ICommand SaveCommand { get; }
+        public ICommand AddFuelEntryCommand { get; }
 
         public EditWindowViewModel(MainViewModel mainViewModel, string sheetName, RowData rowData)
         {
@@ -44,7 +51,7 @@ namespace HansoInputTool.ViewModels
             _rowIndex      = rowData.RowIndex;
             _dbId          = rowData.DbId;   // DB使用時の主キー
 
-            IsOotsukiSheet = sheetName.Contains("大月");
+            IsOotsukiSheet = mainViewModel.IsFeeMode(sheetName);
             WindowTitle    = $"行 {rowData.B_Day}日 を編集 - {sheetName}";
 
             Day       = rowData.B_Day?.ToString();
@@ -68,7 +75,44 @@ namespace HansoInputTool.ViewModels
                 }
             }
 
+            // 給油記録の読み込み（給油管理対象車両のみ）
+            IsFuelTrackedVehicle = mainViewModel.IsFuelTracked(sheetName);
+            if (IsFuelTrackedVehicle && rowData.B_Day.HasValue)
+            {
+                foreach (var fuel in mainViewModel.GetFuelRecordsForDay(sheetName, rowData.B_Day.Value))
+                    FuelEntries.Add(CreateFuelItem(fuel.Id, fuel.OdometerKm.ToString(), fuel.Liters.ToString()));
+            }
+
             SaveCommand = new RelayCommand(SaveEdit);
+            AddFuelEntryCommand = new RelayCommand(_ => FuelEntries.Add(CreateFuelItem(0, "", "")));
+        }
+
+        private EditableFuelItem CreateFuelItem(long id, string km, string liters)
+        {
+            var item = new EditableFuelItem { Id = id, OdometerKm = km, Liters = liters };
+            item.DeleteCommand = new RelayCommand(_ => RemoveFuelItem(item));
+            return item;
+        }
+
+        private void RemoveFuelItem(EditableFuelItem item)
+        {
+            if (item.Id > 0)
+            {
+                if (MessageBox.Show("この給油記録を削除しますか？\nこの操作は元に戻せません。",
+                        "削除確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                    return;
+
+                try
+                {
+                    _mainViewModel.DeleteFuelRecord(_sheetName, item.Id);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    MessageBox.Show(ex.Message, "削除できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            FuelEntries.Remove(item);
         }
 
         private void SaveEdit(object parameter)
@@ -101,12 +145,50 @@ namespace HansoInputTool.ViewModels
                 values["深夜時間(K)"] = lateVal;
             }
 
+            // 給油欄の入力チェック（新規で追加したが未入力のままの行は無視、既存行や入力済みの新規行はエラーチェック）
+            var fuelToSave = new List<(EditableFuelItem item, double km, double liters)>();
+            if (IsFuelTrackedVehicle)
+            {
+                foreach (var entry in FuelEntries)
+                {
+                    entry.ErrorText = string.Empty;
+                    bool kmEmpty     = string.IsNullOrWhiteSpace(entry.OdometerKm);
+                    bool litersEmpty = string.IsNullOrWhiteSpace(entry.Liters);
+
+                    if (entry.Id == 0 && kmEmpty && litersEmpty)
+                        continue; // 追加したが未入力のままの行はスキップ
+
+                    if (!double.TryParse(entry.OdometerKm, out var km) || km <= 0)
+                    {
+                        entry.ErrorText = "給油時Kmを正しく入力してください。";
+                        return;
+                    }
+                    if (!double.TryParse(entry.Liters, out var liters) || liters <= 0)
+                    {
+                        entry.ErrorText = "給油㍑数を正しく入力してください。";
+                        return;
+                    }
+                    fuelToSave.Add((entry, km, liters));
+                }
+            }
+
             var flagStates = FlagItems.ToDictionary(f => f.Id, f => f.IsChecked);
             // DB使用時は DbId を、Excel使用時は RowIndex を渡す
             int idToPass = (_dbId > 0) ? (int)_dbId : _rowIndex;
             try
             {
                 _mainViewModel.UpdateRowData(_sheetName, idToPass, values, flagStates);
+
+                // 給油記録の保存（日付が変更されていれば新しい日に紐づけ直す）
+                int fuelDay = (int)dayVal.Value;
+                foreach (var (entry, km, liters) in fuelToSave)
+                {
+                    if (entry.Id > 0)
+                        _mainViewModel.UpdateFuelRecord(_sheetName, entry.Id, fuelDay, km, liters);
+                    else
+                        _mainViewModel.AddFuelRecord(_sheetName, fuelDay, km, liters);
+                }
+
                 ((Window)parameter).Close();
             }
             catch (InvalidOperationException ex)

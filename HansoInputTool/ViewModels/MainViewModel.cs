@@ -56,6 +56,12 @@ namespace HansoInputTool.ViewModels
         public ShortcutService ShortcutService => _shortcutService;
         public FlagDefinitionService FlagService => _flagService;
 
+        /// <summary>指定シートが深夜料金入力方式（料金モード）かどうかを返す（EditWindow等から利用）</summary>
+        public bool IsFeeMode(string sheetName) => _excelHandler?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
+
+        /// <summary>指定シートが給油管理表への記録対象かどうかを返す（EditWindow等から利用）</summary>
+        public bool IsFuelTracked(string sheetName) => _vehicleSettingsService?.IsFuelTracked(sheetName) ?? false;
+
         #endregion
 
         #region 子ViewModel

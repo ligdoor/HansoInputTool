@@ -635,7 +635,7 @@ namespace HansoInputTool.Services
             }
         }
 
-        private void InvalidateCache(string sheetName)
+        public void InvalidateCache(string sheetName)
         {
             if (_dataCache.ContainsKey(sheetName)) _dataCache.Remove(sheetName);
         }
