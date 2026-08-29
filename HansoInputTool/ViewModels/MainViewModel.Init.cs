@@ -52,6 +52,8 @@ namespace HansoInputTool.ViewModels
                 // 車両設定サービスを初期化
                 _vehicleSettingsService = new VehicleSettingsService(VehicleSettingsFilePath);
                 _excelHandler.VehicleSettingsService = _vehicleSettingsService;
+                // [深夜料金バグ修正] DatabaseService側でも深夜入力方式の判定に使うため注入する
+                _dbService.VehicleSettingsService = _vehicleSettingsService;
 
                 // 起動時フラグ自動同期
                 _excelHandler.SyncFlagsOnStartup(_flagService);

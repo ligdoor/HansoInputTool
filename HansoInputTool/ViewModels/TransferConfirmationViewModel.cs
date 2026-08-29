@@ -162,7 +162,8 @@ namespace HansoInputTool.ViewModels
         private VehicleTab AnalyzeVehicleData(string sheetName)
         {
             var rows = _excelHandler.GetSheetDataForPreview(sheetName);
-            bool isOotsuki = sheetName.Contains("大月");
+            // [深夜料金バグ修正] 車両設定（深夜入力方式）を優先する
+            bool isOotsuki = _excelHandler.IsFeeMode(sheetName);
             string rateCategory = sheetName.Contains("霊柩車") ? "霊柩車" : "寝台車";
 
             if (!_rates.TryGetValue(rateCategory, out var rate))
@@ -247,7 +248,8 @@ namespace HansoInputTool.ViewModels
             _allValidationIssues.Clear();
 
             var rows = _excelHandler.GetSheetDataForPreview(SelectedVehicle.SheetName);
-            bool isOotsuki = SelectedVehicle.SheetName.Contains("大月");
+            // [深夜料金バグ修正] 車両設定（深夜入力方式）を優先する
+            bool isOotsuki = _excelHandler.IsFeeMode(SelectedVehicle.SheetName);
             string rateCategory = SelectedVehicle.SheetName.Contains("霊柩車") ? "霊柩車" : "寝台車";
 
             if (!_rates.TryGetValue(rateCategory, out var rate))

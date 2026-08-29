@@ -36,6 +36,12 @@ namespace HansoInputTool.Services
         private SqliteConnection _connection;
 
         /// <summary>
+        /// 車両ごとの深夜入力方式（時間/料金）を判定するために使用。
+        /// MainViewModel初期化時に外部から設定される（未設定の場合は「大月」判定にフォールバック）。
+        /// </summary>
+        public VehicleSettingsService VehicleSettingsService { get; set; }
+
+        /// <summary>
         /// コンストラクタ。指定パスのSQLiteファイルを開き、必要なテーブルがなければ作成する。
         /// </summary>
         public DatabaseService(string dbPath)
@@ -679,7 +685,8 @@ namespace HansoInputTool.Services
                     row.FuelSummaryText = string.Join(" / ",
                         fuelsThatDay.Select(f => $"⛽{f.OdometerKm:N0}km/{f.Liters:N0}L"));
 
-                bool isOotsuki = sheetName.Contains("大月");
+                // [深夜料金バグ修正] 車両設定を優先し、未設定時のみ「大月」判定にフォールバックする
+                bool isOotsuki = VehicleSettingsService?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
                 row.LateValueText = isOotsuki
                     ? row.H_LateFeeOotsuki?.ToString()
                     : row.K_LateMinutes?.ToString();

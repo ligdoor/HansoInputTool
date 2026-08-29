@@ -40,7 +40,7 @@ namespace HansoInputTool.Services
         public DatabaseService DbService { get; set; }
         public VehicleSettingsService VehicleSettingsService { get; set; }
 
-        private bool IsFeeMode(string sheetName)
+        public bool IsFeeMode(string sheetName)
             => VehicleSettingsService?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
 
         public void UpdateColumnMap(ColumnMapping newMap)

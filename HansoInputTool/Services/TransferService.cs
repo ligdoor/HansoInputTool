@@ -34,7 +34,8 @@ namespace HansoInputTool.Services
             IProgress<TransferProgressReport> progress,
             FlagDefinitionService flagService = null,
             DatabaseService dbService = null,
-            string eraName = "R")
+            string eraName = "R",
+            VehicleSettingsService vehicleSettingsService = null)
         {
             await Task.Run(() =>
             {
@@ -69,7 +70,7 @@ namespace HansoInputTool.Services
 
                     if (IsNormalSheet(sheetName))
                     {
-                        ProcessNormalSheet(wbInput, wbGeppo, wbShukei, sheetName, rates, columnMap, flagService, dbService);
+                        ProcessNormalSheet(wbInput, wbGeppo, wbShukei, sheetName, rates, columnMap, flagService, dbService, vehicleSettingsService);
                     }
                     else if (IsEastSheet(sheetName))
                     {
@@ -134,7 +135,7 @@ namespace HansoInputTool.Services
             EastSheetKeywords.Any(kw => sheetName.Contains(kw));
         // ==========================================
 
-        private void ProcessNormalSheet(ExcelPackage wbInput, ExcelPackage wbGeppo, ExcelPackage wbShukei, string sheetName, Dictionary<string, RateInfo> rates, ColumnMapping columnMap, FlagDefinitionService flagService = null, DatabaseService dbService = null)
+        private void ProcessNormalSheet(ExcelPackage wbInput, ExcelPackage wbGeppo, ExcelPackage wbShukei, string sheetName, Dictionary<string, RateInfo> rates, ColumnMapping columnMap, FlagDefinitionService flagService = null, DatabaseService dbService = null, VehicleSettingsService vehicleSettingsService = null)
         {
             var wsIn = wbInput.Workbook.Worksheets[sheetName];
             var wsGeppo = wbGeppo.Workbook.Worksheets[sheetName];
@@ -151,7 +152,9 @@ namespace HansoInputTool.Services
                 return;
             }
 
-            bool isOotsuki = sheetName.Contains("大月");
+            // [深夜料金バグ修正] 車両設定（深夜入力方式）を優先し、未設定時のみ「大月」判定にフォールバックする。
+            // これにより設定画面で深夜入力方式を「深夜時間」に変更した車両でも正しく計算されるようになる。
+            bool isOotsuki = vehicleSettingsService?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
             double totalKihon = 0, totalSoko = 0, totalShinya = 0, totalSum = 0;
 
             // 金額ありフラグ（WithAmount）を取得して料金計算に使う

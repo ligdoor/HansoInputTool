@@ -44,7 +44,8 @@ namespace HansoInputTool.ViewModels
                 _excelHandler.Save();
                 await new TransferService().ExecuteAsync(
                     InputFilePath, TemplateFilePath, outputDir,
-                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService, EraName);
+                    period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService, EraName,
+                    _vehicleSettingsService);
 
                 Log("========\n転記完了\n========");
                 Period = Month = RNumber = string.Empty;
