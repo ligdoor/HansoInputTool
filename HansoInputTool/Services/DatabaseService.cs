@@ -666,6 +666,9 @@ namespace HansoInputTool.Services
 
             using var reader = cmd.ExecuteReader();
             int rowIndex = 3; // ExcelのrowIndexに相当する仮番号（表示順）
+            // [給油バグ修正] 同じ日に複数の搬送データ行がある場合、給油の要約テキストは
+            // その日の最初の行にだけ表示する（全ての行に重複表示されないようにするため）。
+            var fuelAlreadyShownForDay = new HashSet<int>();
             while (reader.Read())
             {
                 var flagValues = DeserializeFlags(
@@ -686,10 +689,15 @@ namespace HansoInputTool.Services
                     FlagDefinitions = flags,
                 };
 
-                // 同じ日に給油記録があればプレビュー用テキストを組み立てる（例: "⛽12,345km/40L"）
-                if (row.B_Day.HasValue && fuelByDay.TryGetValue(row.B_Day.Value, out var fuelsThatDay))
+                // 同じ日に給油記録があればプレビュー用テキストを組み立てる（例: "⛽12,345km/40L"）。
+                // ただし同じ日の行が複数ある場合は、最初の1行にだけ表示する。
+                if (row.B_Day.HasValue
+                    && fuelByDay.TryGetValue(row.B_Day.Value, out var fuelsThatDay)
+                    && fuelAlreadyShownForDay.Add(row.B_Day.Value))
+                {
                     row.FuelSummaryText = string.Join(" / ",
                         fuelsThatDay.Select(f => $"⛽{f.OdometerKm:N0}km/{f.Liters:N0}L"));
+                }
 
                 // [深夜料金バグ修正] 車両設定を優先し、未設定時のみ「大月」判定にフォールバックする
                 bool isOotsuki = VehicleSettingsService?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
