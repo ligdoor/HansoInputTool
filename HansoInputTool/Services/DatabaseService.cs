@@ -90,17 +90,19 @@ namespace HansoInputTool.Services
                     row_index      INTEGER
                 );
                 CREATE TABLE IF NOT EXISTS fuel_records (
-                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id   INTEGER NOT NULL DEFAULT 1,
-                    sheet_name   TEXT    NOT NULL,
-                    day          INTEGER NOT NULL,
-                    odometer_km  REAL    NOT NULL,
-                    liters       REAL    NOT NULL,
-                    created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+                    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id          INTEGER NOT NULL DEFAULT 1,
+                    sheet_name          TEXT    NOT NULL,
+                    day                 INTEGER NOT NULL,
+                    odometer_km         REAL    NOT NULL,
+                    liters              REAL    NOT NULL,
+                    created_at          TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                    transport_record_id INTEGER
                 );
                 CREATE INDEX IF NOT EXISTS idx_sheet_name ON transport_records(sheet_name);
                 CREATE INDEX IF NOT EXISTS idx_session_id ON transport_records(session_id);
                 CREATE INDEX IF NOT EXISTS idx_fuel_sheet_session ON fuel_records(sheet_name, session_id);
+                CREATE INDEX IF NOT EXISTS idx_fuel_transport_record ON fuel_records(transport_record_id);
             ";
             cmd.ExecuteNonQuery();
 
@@ -108,6 +110,8 @@ namespace HansoInputTool.Services
             MigrateAddSessionId();
             // 既存DBへのマイグレーション: is_confirmed / confirmed_at 列が無ければ追加
             MigrateAddConfirmedColumns();
+            // 既存DBへのマイグレーション: fuel_records.transport_record_id 列が無ければ追加
+            MigrateAddFuelTransportRecordId();
 
             Logger.Info("transport_records テーブル確認完了");
         }
@@ -150,6 +154,29 @@ namespace HansoInputTool.Services
                 ";
                 alter.ExecuteNonQuery();
                 Logger.Info("マイグレーション: is_confirmed / confirmed_at 列を追加しました");
+            }
+        }
+
+        /// <summary>
+        /// 既存DBのfuel_recordsにtransport_record_id列がなければ追加する（v1.20.2移行用）。
+        /// これにより給油記録を「日付」ではなく「特定の搬送データ行」に紐付けられるようにし、
+        /// 同じ日に複数の搬送行がある場合でも正しい行にだけ給油が表示されるようにする。
+        /// </summary>
+        private void MigrateAddFuelTransportRecordId()
+        {
+            using var check = _connection.CreateCommand();
+            check.CommandText = "PRAGMA table_info(fuel_records);";
+            bool hasColumn = false;
+            using (var r = check.ExecuteReader())
+                while (r.Read())
+                    if (r.GetString(1) == "transport_record_id") { hasColumn = true; break; }
+
+            if (!hasColumn)
+            {
+                using var alter = _connection.CreateCommand();
+                alter.CommandText = "ALTER TABLE fuel_records ADD COLUMN transport_record_id INTEGER;";
+                alter.ExecuteNonQuery();
+                Logger.Info("マイグレーション: fuel_records.transport_record_id 列を追加しました");
             }
         }
 
@@ -533,25 +560,28 @@ namespace HansoInputTool.Services
 
         /// <summary>
         /// 給油記録を1件登録する（給油管理表への転記対象車両のみ想定）。
+        /// transportRecordIdを指定すると、その搬送データ行に紐付けられ、
+        /// 同じ日に複数の搬送行があってもプレビューで正しい行にのみ表示される。
         /// 確定済みセッションへの登録は EnsureSessionEditable によりブロックされる。
         /// </summary>
-        public long InsertFuelRecord(string vehicleSheetName, int day, double odometerKm, double liters)
+        public long InsertFuelRecord(string vehicleSheetName, int day, double odometerKm, double liters, long? transportRecordId = null)
         {
             EnsureSessionEditable(CurrentSessionId);
 
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
-                INSERT INTO fuel_records (session_id, sheet_name, day, odometer_km, liters)
-                VALUES ($session, $sheet, $day, $km, $liters);
+                INSERT INTO fuel_records (session_id, sheet_name, day, odometer_km, liters, transport_record_id)
+                VALUES ($session, $sheet, $day, $km, $liters, $transportId);
                 SELECT last_insert_rowid();
             ";
-            cmd.Parameters.AddWithValue("$session", CurrentSessionId);
-            cmd.Parameters.AddWithValue("$sheet",   vehicleSheetName);
-            cmd.Parameters.AddWithValue("$day",     day);
-            cmd.Parameters.AddWithValue("$km",      odometerKm);
-            cmd.Parameters.AddWithValue("$liters",  liters);
+            cmd.Parameters.AddWithValue("$session",     CurrentSessionId);
+            cmd.Parameters.AddWithValue("$sheet",       vehicleSheetName);
+            cmd.Parameters.AddWithValue("$day",         day);
+            cmd.Parameters.AddWithValue("$km",          odometerKm);
+            cmd.Parameters.AddWithValue("$liters",      liters);
+            cmd.Parameters.AddWithValue("$transportId", (object)transportRecordId ?? DBNull.Value);
             var id = (long)cmd.ExecuteScalar();
-            Logger.Info($"給油記録登録: {vehicleSheetName} {day}日 {odometerKm}km {liters}L (id={id})");
+            Logger.Info($"給油記録登録: {vehicleSheetName} {day}日 {odometerKm}km {liters}L (id={id}, transport_record_id={transportRecordId})");
             return id;
         }
 
@@ -584,7 +614,7 @@ namespace HansoInputTool.Services
             var result = new List<FuelRecord>();
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
-                SELECT id, session_id, sheet_name, day, odometer_km, liters, created_at
+                SELECT id, session_id, sheet_name, day, odometer_km, liters, created_at, transport_record_id
                 FROM fuel_records
                 WHERE sheet_name = $sheet AND session_id = $session
                 ORDER BY day, id;
@@ -595,13 +625,14 @@ namespace HansoInputTool.Services
             while (reader.Read())
                 result.Add(new FuelRecord
                 {
-                    Id               = reader.GetInt64(0),
-                    SessionId        = reader.GetInt64(1),
-                    VehicleSheetName = reader.GetString(2),
-                    Day              = (int)reader.GetInt64(3),
-                    OdometerKm       = reader.GetDouble(4),
-                    Liters           = reader.GetDouble(5),
-                    CreatedAt        = reader.GetString(6),
+                    Id                = reader.GetInt64(0),
+                    SessionId         = reader.GetInt64(1),
+                    VehicleSheetName  = reader.GetString(2),
+                    Day               = (int)reader.GetInt64(3),
+                    OdometerKm        = reader.GetDouble(4),
+                    Liters            = reader.GetDouble(5),
+                    CreatedAt         = reader.GetString(6),
+                    TransportRecordId = reader.IsDBNull(7) ? null : (long?)reader.GetInt64(7),
                 });
             return result;
         }
@@ -614,7 +645,7 @@ namespace HansoInputTool.Services
             var result = new List<FuelRecord>();
             using var cmd = _connection.CreateCommand();
             cmd.CommandText = @"
-                SELECT id, session_id, sheet_name, day, odometer_km, liters, created_at
+                SELECT id, session_id, sheet_name, day, odometer_km, liters, created_at, transport_record_id
                 FROM fuel_records
                 WHERE session_id = $session
                 ORDER BY sheet_name, day, id;
@@ -624,13 +655,14 @@ namespace HansoInputTool.Services
             while (reader.Read())
                 result.Add(new FuelRecord
                 {
-                    Id               = reader.GetInt64(0),
-                    SessionId        = reader.GetInt64(1),
-                    VehicleSheetName = reader.GetString(2),
-                    Day              = (int)reader.GetInt64(3),
-                    OdometerKm       = reader.GetDouble(4),
-                    Liters           = reader.GetDouble(5),
-                    CreatedAt        = reader.GetString(6),
+                    Id                = reader.GetInt64(0),
+                    SessionId         = reader.GetInt64(1),
+                    VehicleSheetName  = reader.GetString(2),
+                    Day               = (int)reader.GetInt64(3),
+                    OdometerKm        = reader.GetDouble(4),
+                    Liters            = reader.GetDouble(5),
+                    CreatedAt         = reader.GetString(6),
+                    TransportRecordId = reader.IsDBNull(7) ? null : (long?)reader.GetInt64(7),
                 });
             return result;
         }
@@ -655,20 +687,31 @@ namespace HansoInputTool.Services
             cmd.Parameters.AddWithValue("$sheet",   sheetName);
             cmd.Parameters.AddWithValue("$session", CurrentSessionId);
 
-            // この車両・セッションの給油記録を日付ごとにまとめておく（プレビュー表示用）
-            var fuelByDay = new Dictionary<int, List<FuelRecord>>();
+            // [給油バグ修正] 給油記録は本来「特定の搬送データ行」に紐付く(transport_record_id)。
+            // 同じ日に複数の搬送行があっても、紐付いている行にだけ正しく表示できる。
+            // transport_record_idが未設定（新機能追加前の古いデータ）の場合のみ、
+            // 従来通り「日付」で照合し、同じ日の最初の行にだけ表示するフォールバックとする。
+            var fuelByTransportId = new Dictionary<long, List<FuelRecord>>();
+            var fuelByDayLegacy   = new Dictionary<int, List<FuelRecord>>();
             foreach (var fuel in GetFuelRecords(sheetName))
             {
-                if (!fuelByDay.TryGetValue(fuel.Day, out var list))
-                    fuelByDay[fuel.Day] = list = new List<FuelRecord>();
-                list.Add(fuel);
+                if (fuel.TransportRecordId.HasValue)
+                {
+                    if (!fuelByTransportId.TryGetValue(fuel.TransportRecordId.Value, out var list))
+                        fuelByTransportId[fuel.TransportRecordId.Value] = list = new List<FuelRecord>();
+                    list.Add(fuel);
+                }
+                else
+                {
+                    if (!fuelByDayLegacy.TryGetValue(fuel.Day, out var list))
+                        fuelByDayLegacy[fuel.Day] = list = new List<FuelRecord>();
+                    list.Add(fuel);
+                }
             }
 
             using var reader = cmd.ExecuteReader();
             int rowIndex = 3; // ExcelのrowIndexに相当する仮番号（表示順）
-            // [給油バグ修正] 同じ日に複数の搬送データ行がある場合、給油の要約テキストは
-            // その日の最初の行にだけ表示する（全ての行に重複表示されないようにするため）。
-            var fuelAlreadyShownForDay = new HashSet<int>();
+            var fuelAlreadyShownForDayLegacy = new HashSet<int>();
             while (reader.Read())
             {
                 var flagValues = DeserializeFlags(
@@ -690,10 +733,16 @@ namespace HansoInputTool.Services
                 };
 
                 // 同じ日に給油記録があればプレビュー用テキストを組み立てる（例: "⛽12,345km/40L"）。
-                // ただし同じ日の行が複数ある場合は、最初の1行にだけ表示する。
-                if (row.B_Day.HasValue
-                    && fuelByDay.TryGetValue(row.B_Day.Value, out var fuelsThatDay)
-                    && fuelAlreadyShownForDay.Add(row.B_Day.Value))
+                // まず「この行に紐付いた給油記録」を優先。無ければ日付だけで紐付いた古いデータを
+                // その日の最初の行にだけフォールバック表示する。
+                if (fuelByTransportId.TryGetValue(row.DbId, out var fuelsForThisRow))
+                {
+                    row.FuelSummaryText = string.Join(" / ",
+                        fuelsForThisRow.Select(f => $"⛽{f.OdometerKm:N0}km/{f.Liters:N0}L"));
+                }
+                else if (row.B_Day.HasValue
+                         && fuelByDayLegacy.TryGetValue(row.B_Day.Value, out var fuelsThatDay)
+                         && fuelAlreadyShownForDayLegacy.Add(row.B_Day.Value))
                 {
                     row.FuelSummaryText = string.Join(" / ",
                         fuelsThatDay.Select(f => $"⛽{f.OdometerKm:N0}km/{f.Liters:N0}L"));

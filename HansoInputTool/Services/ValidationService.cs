@@ -17,7 +17,8 @@ namespace HansoInputTool.Services
             Dictionary<string, double?> values,
             string sheetName,
             int year  = 0,
-            int month = 0)
+            int month = 0,
+            bool? isFeeMode = null)
         {
             var result = new ValidationResult();
 
@@ -79,8 +80,11 @@ namespace HansoInputTool.Services
                 }
             }
 
-            // 深夜時間の検証（大月以外）
-            if (!sheetName.Contains("大月") && values.ContainsKey("深夜時間(K)") && values["深夜時間(K)"].HasValue)
+            // [深夜料金バグ修正] 車両設定（深夜入力方式）を優先し、未指定時のみ「大月」判定にフォールバックする
+            bool feeMode = isFeeMode ?? sheetName.Contains("大月");
+
+            // 深夜時間の検証（時間入力モードの車両のみ）
+            if (!feeMode && values.ContainsKey("深夜時間(K)") && values["深夜時間(K)"].HasValue)
             {
                 var minutes = values["深夜時間(K)"].Value;
                 if (minutes < 0)
@@ -97,8 +101,8 @@ namespace HansoInputTool.Services
                 }
             }
 
-            // 深夜料金の検証（大月のみ）
-            if (sheetName.Contains("大月") && values.ContainsKey("深夜料金(H)") && values["深夜料金(H)"].HasValue)
+            // 深夜料金の検証（料金入力モードの車両のみ）
+            if (feeMode && values.ContainsKey("深夜料金(H)") && values["深夜料金(H)"].HasValue)
             {
                 var fee = values["深夜料金(H)"].Value;
                 if (fee < 0)

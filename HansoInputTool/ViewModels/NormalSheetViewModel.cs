@@ -341,7 +341,7 @@ namespace HansoInputTool.ViewModels
 
             // 年・月を取得してバリデーションに渡す（月末日チェック用）
             var (valYear, valMonth) = _getYearMonth?.Invoke() ?? (0, 0);
-            var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet, valYear, valMonth);
+            var validationResult = _validationService.ValidateNormalData(values, SelectedNormalSheet, valYear, valMonth, IsFeeMode);
             if (!validationResult.IsValid)
             {
                 MessageBox.Show($"入力内容にエラーがあります:\n\n{validationResult.GetErrorMessage()}",
@@ -362,12 +362,16 @@ namespace HansoInputTool.ViewModels
                 var flagStates = GetFlagStates();
                 var (targetRow, insertInfo) = _excelHandler.RegisterNormalData(SelectedNormalSheet, values, flagStates);
 
-                // 給油ありがチェックされていれば、続けて給油記録も登録する
+                // 給油ありがチェックされていれば、続けて給油記録も登録する。
+                // DB使用時、targetRowは実はDBの内部ID（＝この搬送データ行のID）なので、
+                // これを transportRecordId として渡すことで、同じ日に複数行あっても
+                // この行にだけ正しく給油が紐付く。
                 if (IsFuelChecked)
                 {
                     double.TryParse(FuelOdometerKm, out var fuelKm);
                     double.TryParse(FuelLiters, out var fuelLiters);
-                    _excelHandler.RegisterFuelData(SelectedNormalSheet, (int)dayVal.Value, fuelKm, fuelLiters);
+                    long? transportRecordId = _excelHandler.DbService != null ? (long)targetRow : (long?)null;
+                    _excelHandler.RegisterFuelData(SelectedNormalSheet, (int)dayVal.Value, fuelKm, fuelLiters, transportRecordId);
                     _log?.Invoke($"[{SelectedNormalSheet}] {dayVal.Value}日の給油記録（{fuelKm:N0}km / {fuelLiters:N0}L）を登録しました。");
                 }
 

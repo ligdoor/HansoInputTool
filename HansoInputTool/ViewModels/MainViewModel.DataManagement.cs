@@ -54,26 +54,34 @@ namespace HansoInputTool.ViewModels
             Log($"[{sheetName}] の {rowIndex}行目のデータを更新しました。");
         }
 
-        /// <summary>指定車両・指定日の給油記録一覧を返す（編集画面用）</summary>
-        public List<FuelRecord> GetFuelRecordsForDay(string sheetName, int day)
-            => _dbService?.GetFuelRecords(sheetName).Where(f => f.Day == day).ToList() ?? new List<FuelRecord>();
+        /// <summary>
+        /// 指定の搬送データ行（transportRecordId）に紐付く給油記録一覧を返す（編集画面用）。
+        /// transport_record_idが未設定の古いデータは、日付だけで一致するものをフォールバックとして拾う。
+        /// </summary>
+        public List<FuelRecord> GetFuelRecordsForRow(string sheetName, long transportRecordId, int day)
+        {
+            var all = _dbService?.GetFuelRecords(sheetName) ?? new List<FuelRecord>();
+            var linked = all.Where(f => f.TransportRecordId == transportRecordId).ToList();
+            if (linked.Count > 0) return linked;
+            return all.Where(f => f.TransportRecordId == null && f.Day == day).ToList();
+        }
 
-        /// <summary>給油記録を新規登録する（編集画面用）</summary>
-        public void AddFuelRecord(string sheetName, int day, double odometerKm, double liters)
+        /// <summary>給油記録を新規登録する（編集画面用）。transportRecordIdでこの搬送データ行に紐付ける。</summary>
+        public void AddFuelRecord(string sheetName, long transportRecordId, int day, double odometerKm, double liters)
         {
             if (_dbService == null) throw new InvalidOperationException("給油記録の登録にはデータベースモードが必要です。");
-            _dbService.InsertFuelRecord(sheetName, day, odometerKm, liters);
+            _dbService.InsertFuelRecord(sheetName, day, odometerKm, liters, transportRecordId);
             _excelHandler.InvalidateCache(sheetName);
             UpdatePreview();
             Log($"[{sheetName}] {day}日の給油記録を追加しました。");
         }
 
-        /// <summary>給油記録を更新する（編集画面用。既存を削除して同じ日で登録し直す）</summary>
-        public void UpdateFuelRecord(string sheetName, long fuelId, int day, double odometerKm, double liters)
+        /// <summary>給油記録を更新する（編集画面用。既存を削除して同じ行に紐付け直して登録し直す）</summary>
+        public void UpdateFuelRecord(string sheetName, long fuelId, long transportRecordId, int day, double odometerKm, double liters)
         {
             if (_dbService == null) throw new InvalidOperationException("給油記録の更新にはデータベースモードが必要です。");
             _dbService.DeleteFuelRecord(fuelId);
-            _dbService.InsertFuelRecord(sheetName, day, odometerKm, liters);
+            _dbService.InsertFuelRecord(sheetName, day, odometerKm, liters, transportRecordId);
             _excelHandler.InvalidateCache(sheetName);
             UpdatePreview();
             Log($"[{sheetName}] {day}日の給油記録を更新しました。");

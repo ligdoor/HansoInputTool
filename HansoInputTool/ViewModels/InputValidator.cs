@@ -67,7 +67,7 @@ namespace HansoInputTool.ViewModels
             // ビジネスルールバリデーション
             if (values.Count > 0)
             {
-                var validationResult = _validationService.ValidateNormalData(values, selectedSheet ?? "");
+                var validationResult = _validationService.ValidateNormalData(values, selectedSheet ?? "", isFeeMode: isOotsukiSheet);
                 ApplyNormalValidationResult(validationResult, result);
                 result.HasErrors = !validationResult.IsValid;
             }

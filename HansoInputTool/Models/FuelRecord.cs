@@ -14,5 +14,7 @@ namespace HansoInputTool.Models
         /// <summary>給油量(㍑)</summary>
         public double Liters           { get; set; }
         public string CreatedAt        { get; set; }
+        /// <summary>紐付く搬送データ行（transport_records.id）。未設定(null)の場合は旧方式で日付のみで紐付けられた記録。</summary>
+        public long?  TransportRecordId { get; set; }
     }
 }

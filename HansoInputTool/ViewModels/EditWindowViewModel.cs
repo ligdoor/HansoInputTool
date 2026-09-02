@@ -75,11 +75,12 @@ namespace HansoInputTool.ViewModels
                 }
             }
 
-            // 給油記録の読み込み（給油管理対象車両のみ）
+            // 給油記録の読み込み（給油管理対象車両のみ）。この行(DbId)に紐付いた記録を優先し、
+            // 無ければ日付だけで一致する古いデータをフォールバック表示する。
             IsFuelTrackedVehicle = mainViewModel.IsFuelTracked(sheetName);
             if (IsFuelTrackedVehicle && rowData.B_Day.HasValue)
             {
-                foreach (var fuel in mainViewModel.GetFuelRecordsForDay(sheetName, rowData.B_Day.Value))
+                foreach (var fuel in mainViewModel.GetFuelRecordsForRow(sheetName, _dbId, rowData.B_Day.Value))
                     FuelEntries.Add(CreateFuelItem(fuel.Id, fuel.OdometerKm.ToString(), fuel.Liters.ToString()));
             }
 
@@ -179,14 +180,14 @@ namespace HansoInputTool.ViewModels
             {
                 _mainViewModel.UpdateRowData(_sheetName, idToPass, values, flagStates);
 
-                // 給油記録の保存（日付が変更されていれば新しい日に紐づけ直す）
+                // 給油記録の保存（日付が変更されていれば新しい日に紐づけ直す。この行のDbIdに紐付ける）
                 int fuelDay = (int)dayVal.Value;
                 foreach (var (entry, km, liters) in fuelToSave)
                 {
                     if (entry.Id > 0)
-                        _mainViewModel.UpdateFuelRecord(_sheetName, entry.Id, fuelDay, km, liters);
+                        _mainViewModel.UpdateFuelRecord(_sheetName, entry.Id, _dbId, fuelDay, km, liters);
                     else
-                        _mainViewModel.AddFuelRecord(_sheetName, fuelDay, km, liters);
+                        _mainViewModel.AddFuelRecord(_sheetName, _dbId, fuelDay, km, liters);
                 }
 
                 ((Window)parameter).Close();

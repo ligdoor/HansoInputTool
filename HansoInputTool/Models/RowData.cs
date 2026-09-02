@@ -47,7 +47,7 @@ namespace HansoInputTool.Models
         public string IsKoryoText     => L_IsKoryo    == 1 ? "✔" : "";
         public string IsEmbalmingText => M_IsEmbalming == 1 ? "✔" : "";
 
-        /// <summary>この日の給油記録の要約テキスト（例: "⛽12,345km/40L"）。給油記録が無ければ空文字。</summary>
+        /// <summary>この行に紐づく給油記録の要約テキスト（例: "⛽12,345km/40L"）。給油記録が無ければ空文字。</summary>
         public string FuelSummaryText { get; set; } = string.Empty;
     }
 }

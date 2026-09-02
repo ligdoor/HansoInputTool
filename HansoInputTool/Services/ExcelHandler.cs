@@ -376,14 +376,16 @@ namespace HansoInputTool.Services
 
         /// <summary>
         /// 給油記録を1件登録する（給油管理対象車両のみ想定・DBモード専用）。
+        /// transportRecordIdを指定すると、その搬送データ行に紐付けて登録する
+        /// （同じ日に複数の搬送行があっても正しい行にだけ表示されるようにするため）。
         /// 転記時にInput.xlsxの給油管理表シートへ書き込まれる。
         /// </summary>
-        public void RegisterFuelData(string sheetName, int day, double odometerKm, double liters)
+        public void RegisterFuelData(string sheetName, int day, double odometerKm, double liters, long? transportRecordId = null)
         {
             if (DbService == null)
                 throw new InvalidOperationException("給油記録の登録にはデータベースモードが必要です。");
 
-            DbService.InsertFuelRecord(sheetName, day, odometerKm, liters);
+            DbService.InsertFuelRecord(sheetName, day, odometerKm, liters, transportRecordId);
             InvalidateCache(sheetName);
         }
 
