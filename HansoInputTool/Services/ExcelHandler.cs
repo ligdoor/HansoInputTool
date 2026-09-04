@@ -83,6 +83,7 @@ namespace HansoInputTool.Services
                 .Where(ws => (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車")
                            || ws.Name.Contains("CH") || IsTemplateSheet(ws.Name))
                           && !ws.Name.Contains("登録")
+                          && !ws.Name.Contains("給油管理")  // 給油管理表はレイアウトが異なるため対象外
                           && ws.Name != "月間集計")
                 .ToList();
 
@@ -442,6 +443,8 @@ namespace HansoInputTool.Services
 
             foreach (var ws in _inputPackage.Workbook.Worksheets)
             {
+                if (ws.Name.Contains("給油管理")) continue; // 給油管理表はレイアウトが異なるため対象外
+
                 if (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
                 {
                     var totalRowIndex = FindTotalRow(ws);
@@ -597,6 +600,7 @@ namespace HansoInputTool.Services
             var map = _columnMap.NormalSheet;
             foreach (var ws in _inputPackage.Workbook.Worksheets)
                 if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+                    && !ws.Name.Contains("給油管理")
                     && ws.Cells[3, map.Day].Value != null)
                     return true;
             return false;
@@ -660,10 +664,11 @@ namespace HansoInputTool.Services
             var map   = _columnMap.NormalSheet;
             var flags = flagService?.Flags ?? new System.Collections.ObjectModel.ReadOnlyCollection<Models.FlagDefinition>(new System.Collections.Generic.List<Models.FlagDefinition>());
 
-            // 通常系シートのみ対象（東日本・登録・テンプレート系は除外）
+            // 通常系シートのみ対象（東日本・登録・テンプレート系・給油管理表は除外）
             var targetSheets = _inputPackage.Workbook.Worksheets
                 .Where(ws => (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
                           && !ws.Name.Contains("登録")
+                          && !ws.Name.Contains("給油管理")
                           && !IsTemplateSheet(ws.Name))
                 .ToList();
 

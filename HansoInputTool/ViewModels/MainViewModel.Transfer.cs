@@ -41,7 +41,16 @@ namespace HansoInputTool.ViewModels
 
             try
             {
-                _excelHandler.Save();
+                // [給油管理表消失バグ修正] DB使用時、_inputPackageはアプリ起動時に読み込んだままの
+                // メモリ上の状態であり、日々のデータ入力では更新されない（DBに直接保存されるため）。
+                // ここで無条件にSave()すると、ユーザーが起動後にInput.xlsxへ手動でシートを追加した場合
+                // （例: 給油管理表シート）、その変更がメモリ上の古い内容で上書きされ消えてしまう。
+                // DB使用時はディスクの最新内容を読み直すだけにし、Excel直接入力モード（DB未使用時）の
+                // 場合のみ、メモリ上の未保存の入力内容をディスクへ書き戻す。
+                if (_dbService != null)
+                    _excelHandler.Load();
+                else
+                    _excelHandler.Save();
                 await new TransferService().ExecuteAsync(
                     InputFilePath, TemplateFilePath, outputDir,
                     period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService, EraName,
