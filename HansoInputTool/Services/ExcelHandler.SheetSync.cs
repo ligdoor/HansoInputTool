@@ -66,7 +66,7 @@ namespace HansoInputTool.Services
             foreach (var (newName, templateName) in sheetsToAdd)
             {
                 var templateWs = ResolveTemplateWorksheet(package, newName, templateName, isInputFile);
-                if (templateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateName}' が Template.xlsx に見つかりません。");
+                if (templateWs == null) throw new FileNotFoundException($"コピー元のシート '{templateName}' が {fileName} に見つかりません。");
 
                 int insertIndex = GetInsertIndex(package, newName);
                 var newWs = package.Workbook.Worksheets.Add(newName, templateWs);
@@ -91,8 +91,18 @@ namespace HansoInputTool.Services
 
         private ExcelWorksheet ResolveTemplateWorksheet(ExcelPackage package, string newName, string templateName, bool isInputFile)
         {
+            // [不具合修正] Template1・Template2はInput.xlsx内に存在するひな形シート。
+            // Template.xlsxには単一の「Template」シートのみが存在する。
+            // 従来は isInputFile=true の場合でも誤って _templatePackage（Template.xlsx）側を
+            // 検索していたため、Template1/Template2が見つからず保存エラーとなり、
+            // 結果としてTemplate.xlsx側に車両シートが追加されない不具合が発生していた。
+            // → 検索先は常に「追加先である package」自身にする。
+            // Template.xlsx側は「Template」という単一のひな形シートのみを持つ想定。
+            // （将来的にTemplate1/Template2に対応する可能性も考慮し、まず同名一致を試し、
+            // 　見つからない場合は汎用の「Template」にフォールバックする）
             if (!isInputFile)
-                return _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                return package.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName)
+                    ?? package.Workbook.Worksheets.FirstOrDefault(s => s.Name == "Template");
 
             try
             {
@@ -113,13 +123,13 @@ namespace HansoInputTool.Services
                     preferredTemplate = isEast ? "Template2" : "Template1";
                 }
 
-                return _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == preferredTemplate)
-                    ?? _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                return package.Workbook.Worksheets.FirstOrDefault(s => s.Name == preferredTemplate)
+                    ?? package.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
             }
             catch (Exception ex)
             {
                 Logger.Warn(ex, $"テンプレート選択で例外が発生しました。既定のテンプレート '{templateName}' を使用します。");
-                return _templatePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
+                return package.Workbook.Worksheets.FirstOrDefault(s => s.Name == templateName);
             }
         }
 
