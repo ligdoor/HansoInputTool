@@ -16,6 +16,13 @@ namespace HansoInputTool.ViewModels
     {
         private readonly VehicleAnnualSummaryService _service = new();
 
+        // [デザイン維持対応] 年間集計のひな形（annual_results.xlsx）は他の設定ファイルと同じく
+        // HansoDataフォルダに配置する運用とする。
+        private static string AnnualTemplateFilePath =>
+            Path.Combine(
+                App.DataPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data"),
+                "annual_results.xlsx");
+
         // ── フォルダ・期間 ──
         private string _folderPath = "";
         public string FolderPath
@@ -216,8 +223,20 @@ namespace HansoInputTool.ViewModels
                         return;
                     }
 
+                    if (!File.Exists(AnnualTemplateFilePath))
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            StatusMessage = "ひな形ファイルが見つかりません。";
+                            MessageBox.Show(
+                                $"年間集計のひな形ファイルが見つかりません。\n\n{AnnualTemplateFilePath}\n\nHansoDataフォルダにannual_results.xlsxを配置してください。",
+                                "ひな形ファイルなし", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        });
+                        return;
+                    }
+
                     _service.ExportToExcel(data, selected, outputPath,
-                        StartYear, StartMonth, EndYear, EndMonth);
+                        StartYear, StartMonth, EndYear, EndMonth, AnnualTemplateFilePath);
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
