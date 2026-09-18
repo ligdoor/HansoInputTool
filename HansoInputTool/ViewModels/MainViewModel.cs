@@ -81,7 +81,28 @@ namespace HansoInputTool.ViewModels
         private readonly StringBuilder _logBuilder = new();
 
         private int _selectedTabIndex;
-        public int SelectedTabIndex { get => _selectedTabIndex; set => SetProperty(ref _selectedTabIndex, value); }
+        public int SelectedTabIndex
+        {
+            get => _selectedTabIndex;
+            set
+            {
+                if (!SetProperty(ref _selectedTabIndex, value)) return;
+
+                // タブ切替時はプレビューも同じタブの実績だけを表示する。
+                // 東日本タブでは通常タブのプレビューを残さない。
+                if (_excelHandler == null) return;
+
+                if (_selectedTabIndex == 0)
+                {
+                    UpdatePreview();
+                }
+                else
+                {
+                    PreviewData.Clear();
+                    SelectedRow = null;
+                }
+            }
+        }
 
         public ObservableCollection<RowData> PreviewData { get; } = new();
         public object PreviewDataView { get; private set; }

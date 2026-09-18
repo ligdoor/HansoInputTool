@@ -4,12 +4,6 @@ using System.Windows.Input;
 using HansoInputTool.Messaging;
 using HansoInputTool.ViewModels;
 
-
-// WPF型を明示（WindowsAPICodePack経由のSystem.Windows.Forms競合を解消）
-using Control      = System.Windows.Controls.Control;
-using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using TextBox      = System.Windows.Controls.TextBox;
-using DataObject   = System.Windows.DataObject;
 namespace HansoInputTool.Views
 {
     public partial class MainWindow : Window
@@ -74,44 +68,8 @@ namespace HansoInputTool.Views
             }
         }
 
-        // RNumberTextBox: EnterでNormalDayTextBoxに直接フォーカス
-        private void RNumberTextBox_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                NormalDayTextBox.Focus();
-                e.Handled = true;
-            }
-        }
-
-        // 通常シートの「深夜時間(K)」でEnterキーを押したときの処理。
-        // [給油バグ修正] 給油対象車両で「給油あり」がチェックされている場合は、
-        // まだ給油時Km・給油㍑数の入力が残っているため、ここではまだ登録せず
-        // 次のコントロール（給油入力欄）へフォーカスを移すだけにする。
-        // 給油が対象外・未チェックの場合は、これまで通りここで登録する。
+        // 通常シートの最後の入力欄でEnterキーを押したら登録する処理
         private void LastNormalTextBox_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                if (DataContext is MainViewModel vm)
-                {
-                    if (vm.NormalSheet.IsFuelTrackedVehicle && vm.NormalSheet.IsFuelChecked)
-                    {
-                        var request = new TraversalRequest(FocusNavigationDirection.Next);
-                        if (Keyboard.FocusedElement is UIElement elementWithFocus)
-                            elementWithFocus.MoveFocus(request);
-                    }
-                    else if (vm.RegisterNormalCommand.CanExecute(null))
-                    {
-                        vm.RegisterNormalCommand.Execute(null);
-                    }
-                }
-                e.Handled = true;
-            }
-        }
-
-        // 給油㍑数の入力欄でEnterキーを押したら登録する処理（給油ありチェック時の最後の入力欄）
-        private void FuelLitersTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
@@ -136,26 +94,61 @@ namespace HansoInputTool.Views
             }
         }
 
-        /// <summary>ログ末尾に自動スクロール</summary>
-        private void LogTextBox_TextChanged(object sender, TextChangedEventArgs e)
+
+        /// <summary>実績一覧でEnterを押すと選択行を編集、Deleteで削除。</summary>
+        private void PreviewDataGrid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (sender is TextBox tb)
-                tb.ScrollToEnd();
+            if (DataContext is not MainViewModel vm || vm.IsBusy || vm.SelectedRow == null)
+                return;
+
+            if (e.Key == Key.Enter)
+            {
+                if (vm.EditRowCommand.CanExecute(null))
+                    vm.EditRowCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Delete)
+            {
+                if (vm.DeleteRowCommand.CanExecute(null))
+                    vm.DeleteRowCommand.Execute(null);
+                e.Handled = true;
+            }
         }
 
-        /// <summary>
-        /// プレビューグリッドの選択行が変わったら、その行が見える位置まで自動スクロールする。
-        /// 通常シートで新規登録した直後、ViewModel側が登録した行をSelectedRowにセットするため、
-        /// ここで画面外にあってもその行を追尾して表示できる。
-        /// </summary>
-        private void PreviewDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        /// <summary>実績一覧をダブルクリックしたら、その行を編集する。</summary>
+        private void PreviewDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is DataGrid grid && grid.SelectedItem != null)
-                grid.ScrollIntoView(grid.SelectedItem);
+            if (sender is not DataGrid grid || DataContext is not MainViewModel vm || vm.IsBusy)
+                return;
+
+            if (e.OriginalSource is DependencyObject source)
+            {
+                var row = ItemsControl.ContainerFromElement(grid, source) as DataGridRow;
+                if (row == null) return;
+                grid.SelectedItem = row.Item;
+                if (vm.EditRowCommand.CanExecute(null))
+                    vm.EditRowCommand.Execute(null);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>その他メニューを左クリックで開く。</summary>
+        private void OtherButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.ContextMenu != null)
+            {
+                button.ContextMenu.PlacementTarget = button;
+                button.ContextMenu.IsOpen = true;
+            }
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

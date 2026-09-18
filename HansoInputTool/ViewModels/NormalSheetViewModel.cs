@@ -426,6 +426,9 @@ namespace HansoInputTool.ViewModels
         public string DisplayName { get; }
         public FlagType Type      { get; }
 
+        /// <summary>メイン画面に表示する現在のショートカット。設定変更に伴う業務ロジックは変更しない。</summary>
+        public string ShortcutDisplay { get; }
+
         private bool _isChecked;
         public bool IsChecked
         {
@@ -438,6 +441,33 @@ namespace HansoInputTool.ViewModels
             Id          = def.Id;
             DisplayName = def.DisplayName;
             Type        = def.Type;
+            ShortcutDisplay = BuildShortcutDisplay(def.ShortcutKey, def.ShortcutModifiers);
+        }
+
+        private static string BuildShortcutDisplay(Key key, ModifierKeys modifiers)
+        {
+            if (key == Key.None) return string.Empty;
+            var parts = new List<string>();
+            if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
+            if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
+            if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
+            parts.Add(key switch
+            {
+                Key.OemComma => ",",
+                Key.OemPeriod => ".",
+                Key.OemPlus => "+",
+                Key.OemMinus => "-",
+                Key.Left => "←",
+                Key.Right => "→",
+                Key.Up => "↑",
+                Key.Down => "↓",
+                Key.Enter => "Enter",
+                Key.Tab => "Tab",
+                Key.Delete => "Delete",
+                Key.Space => "Space",
+                _ => key.ToString()
+            });
+            return string.Join("+", parts);
         }
     }
 }

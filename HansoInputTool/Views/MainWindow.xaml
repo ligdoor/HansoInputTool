@@ -1,4 +1,4 @@
-﻿<Window x:Class="HansoInputTool.Views.MainWindow"
+<Window x:Class="HansoInputTool.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -6,7 +6,10 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:converters="clr-namespace:HansoInputTool.Converters"
         mc:Ignorable="d"
-        Title="搬送実績入力ツール" Height="830" Width="850" MinHeight="700" MinWidth="800">
+        Title="搬送実績入力ツール"
+        Height="820" Width="1034"
+        MinHeight="700" MinWidth="1050"
+        WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -18,12 +21,161 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="IsHitTestVisible" Value="False"/>
         </Style>
-        
+
         <Style x:Key="ErrorTextStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource RedBrush}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,2,0,0"/>
+        </Style>
+
+        <!-- この画面のタブは必ず既存のダーク配色で描画する -->
+        <Style x:Key="DarkTabItemStyle" TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+            <Setter Property="Background" Value="{StaticResource InactiveTabBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource SubTextBrush}"/>
+            <Setter Property="Padding" Value="28,9"/>
+        </Style>
+
+        <!-- 参照デザイン用：既存のダーク配色をそのまま使い、枠線と余白だけ整える -->
+        <Style x:Key="ToolbarButton" TargetType="Button" BasedOn="{StaticResource NormalButton}">
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryToolbarButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="MinWidth" Value="150"/>
+        </Style>
+
+        <Style x:Key="ReportToolbarButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputHoverBorderBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <Style x:Key="SaveToolbarButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="#062c2a"/>
+            <Setter Property="BorderBrush" Value="{StaticResource GreenBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
+            <Setter Property="Width" Value="132"/>
+        </Style>
+
+        <Style x:Key="TransferToolbarButton" TargetType="Button" BasedOn="{StaticResource ToolbarButton}">
+            <Setter Property="Background" Value="#332218"/>
+            <Setter Property="BorderBrush" Value="#f97316"/>
+            <Setter Property="Foreground" Value="#fb923c"/>
+            <Setter Property="Width" Value="132"/>
+        </Style>
+
+        <Style x:Key="EditGridButton" TargetType="Button" BasedOn="{StaticResource NormalButton}">
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputHoverBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#102b4d"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.75"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PanelBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <Style x:Key="NormalInputPanelStyle" TargetType="Border" BasedOn="{StaticResource PanelBorderStyle}">
+            <Setter Property="Visibility" Value="Visible"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.SelectedTabIndex, RelativeSource={RelativeSource AncestorType=Window}}" Value="1">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="EastInputPanelStyle" TargetType="Border" BasedOn="{StaticResource PanelBorderStyle}">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.SelectedTabIndex, RelativeSource={RelativeSource AncestorType=Window}}" Value="1">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ContextMenu は既定テーマだと白くなるため、ここで明示的にダーク化 -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource InputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
@@ -37,7 +189,7 @@
     </i:Interaction.Triggers>
 
     <Grid Background="{StaticResource BgBrush}">
-        <Grid Margin="10">
+        <Grid Margin="22,12,22,12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -45,597 +197,411 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="搬送実績入力ツール" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding AppVersion}" FontSize="11" VerticalAlignment="Center"
-                               Foreground="{StaticResource SubTextBrush}" Margin="8,0,0,0"/>
+            <!-- HEADER -->
+            <Grid Grid.Row="0" Margin="0,0,0,12">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <TextBlock Text="搬送実績入力ツール" FontSize="27" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock Text="{Binding AppVersion}" FontSize="17" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Bottom" Margin="14,0,0,3"/>
                 </StackPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Command="{Binding OpenVehicleAnnualSummaryCommand}"
-                            Style="{StaticResource NormalButton}"
-                            Background="#0F766E"
-                            Foreground="White"
-                            FontWeight="SemiBold"
-                            Padding="12,8"
-                            Margin="0,0,8,0">
-                        <Button.Effect>
-                            <DropShadowEffect Color="#0F766E" 
-                                              Opacity="0.4" 
-                                              BlurRadius="15" 
-                                              ShadowDepth="0"/>
-                        </Button.Effect>
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📈 年度集計"/>
+                <TextBlock Text="搬送実績の入力・集計・転記をサポート"
+                           Foreground="{StaticResource SubTextBrush}" FontSize="13"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- TOOLBAR：期/R/月 → 入力 → 月報読込 → 集計 / 右端に保存・転記 -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border BorderBrush="{StaticResource InputHoverBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12,8" Margin="0,0,7,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="期：" Foreground="{StaticResource SubTextBrush}" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBox x:Name="PeriodTextBox" Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="42" FontSize="16" HorizontalContentAlignment="Center"
+                                     Background="Transparent" BorderThickness="0" Padding="2"
+                                     KeyDown="TextBox_KeyDown" TabIndex="1"/>
+                        </StackPanel>
+                    </Border>
+                    <Border BorderBrush="{StaticResource InputHoverBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12,8" Margin="0,0,7,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding EraName}" Foreground="{StaticResource SubTextBrush}" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="：" Foreground="{StaticResource SubTextBrush}" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="38" FontSize="16" HorizontalContentAlignment="Center"
+                                     Background="Transparent" BorderThickness="0" Padding="2"
+                                     KeyDown="TextBox_KeyDown" TabIndex="2"/>
+                        </StackPanel>
+                    </Border>
+                    <Border BorderBrush="{StaticResource InputHoverBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="12,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="月：" Foreground="{StaticResource SubTextBrush}" FontSize="16" VerticalAlignment="Center"/>
+                            <TextBox x:Name="MonthTextBox" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="38" FontSize="16" HorizontalContentAlignment="Center"
+                                     Background="Transparent" BorderThickness="0" Padding="2"
+                                     KeyDown="TextBox_KeyDown" TabIndex="3"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <!-- 現在位置を示すだけのアクティブ表示。既存機能には触れない -->
+                    <Button Command="{Binding LoadGeppoFileCommand}" Style="{StaticResource PrimaryToolbarButton}" Width="212"
+                            ToolTip="実績月報を読み込む" RenderTransformOrigin="0.5,0.5" Click="Button_Click_1">
+                        <Button.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform/>
+                                <SkewTransform AngleX="0"/>
+                                <RotateTransform/>
+                                <TranslateTransform X="0"/>
+                            </TransformGroup>
+                        </Button.RenderTransform>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="▣" FontSize="21" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="実績月報を読み込む" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
-                    <Button Command="{Binding OpenMonthlyReportDashboardCommand}"
-                            Style="{StaticResource NormalButton}"
-                            Background="{StaticResource AccentBrush}"
-                            Foreground="White"
-                            FontWeight="SemiBold"
-                            Padding="12,8"
-                            Margin="0,0,8,0">
-                        <Button.Effect>
-                            <DropShadowEffect Color="#F4B942" 
-                                              Opacity="0.4" 
-                                              BlurRadius="15" 
-                                              ShadowDepth="0"/>
-                        </Button.Effect>
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📊 月報統計"/>
-                    </Button>
-                    <Button Command="{Binding OpenPdfImportCommand}"
-                            Style="{StaticResource NormalButton}"
-                            Background="#7c3aed"
-                            Foreground="White"
-                            FontWeight="SemiBold"
-                            Padding="12,8"
-                            Margin="0,0,8,0"
-                            ToolTip="日報PDFを読み込んで自動入力">
-                        <Button.Effect>
-                            <DropShadowEffect Color="#7c3aed"
-                                              Opacity="0.4"
-                                              BlurRadius="15"
-                                              ShadowDepth="0"/>
-                        </Button.Effect>
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📄 PDF読込"/>
-                    </Button>
-                    <!-- 区切り線 -->
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"
-                               Margin="4,4,8,4" Width="1"
-                               Background="{StaticResource InputBorderBrush}"/>
-                    <Button Command="{Binding ClearInputDataCommand}"
-                            Style="{StaticResource NormalButton}" Background="Transparent"
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
-                            Padding="7,6" Width="32"
-                            ToolTip="入力データをクリア">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="&#x1F5D1;&#xFE0F;"/>
-                    </Button>
-                    <Button Command="{Binding SwitchSessionCommand}"
-                            Style="{StaticResource NormalButton}" Background="Transparent"
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
-                            Padding="7,6"
-                            ToolTip="月データの切替">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="&#x1F4C5; 月切替"/>
-                    </Button>
-                    <Button Command="{Binding CreateBackupCommand}" 
-                            Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
-                            Padding="7,6" Width="32"
-                            ToolTip="バックアップを作成">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="💾" ToolTip="バックアップを作成"/>
-                    </Button>
-                    <Button Command="{Binding RestoreBackupCommand}" 
-                            Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
-                            Padding="7,6" Width="32"
-                            ToolTip="バックアップから復元">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📂" ToolTip="バックアップから復元"/>
-                    </Button>
-                    <Button Command="{Binding OpenBackupFolderCommand}" 
-                            Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
-                            Padding="7,6" Width="32"
-                            ToolTip="バックアップフォルダを開く">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="📁" ToolTip="バックアップフォルダを開く"/>
-                    </Button>
-                    <Button Command="{Binding OpenHelpCommand}" 
-                            Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}" Margin="0,0,4,0"
-                            Padding="7,6" Width="32"
-                            ToolTip="ヘルプを開く">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="❔" ToolTip="ヘルプを開く"/>
-                    </Button>
-                    <Button Command="{Binding OpenSettingsCommand}" 
-                            Style="{StaticResource NormalButton}" Background="Transparent" 
-                            Foreground="{StaticResource SubTextBrush}"
-                            Padding="7,6" Width="32"
-                            ToolTip="設定を開く">
-                        <TextBlock FontFamily="Segoe UI Emoji, Segoe UI" Text="⚙️" ToolTip="設定を開く"/>
+                    <Button Command="{Binding OpenMonthlyReportDashboardCommand}" Style="{StaticResource ReportToolbarButton}" Width="145"
+                            ToolTip="月報統計・集計を開く">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="▥" FontSize="22" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="集計" VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Button>
                 </StackPanel>
-            </DockPanel>
 
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-                <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <StackPanel Orientation="Horizontal" Margin="8,6">
-                            <Label Content="期" Padding="0" VerticalAlignment="Center"/>
-                            <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="PeriodTextBox" Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}" Width="50" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="1"/>
-                                <TextBlock>
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                            <Setter Property="Text" Value="例:46"/>
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Text, ElementName=PeriodTextBox}" Value="">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style></TextBlock>
-                            </Grid>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Command="{Binding SaveInputCommand}" Style="{StaticResource SaveToolbarButton}" Margin="0,0,10,0"
+                            ToolTip="現在の入力内容を保存（Ctrl+S）">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="▣" FontSize="22" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                            <TextBlock Text="保存" VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Grid>
-                </Border>
-                <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <StackPanel Orientation="Horizontal" Margin="8,6">
-                            <Label Content="月" Padding="0" VerticalAlignment="Center"/>
-                            <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="MonthTextBox" Text="{Binding Month, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="2"/>
-                                <TextBlock>
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                            <Setter Property="Text" Value="例:04"/>
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Text, ElementName=MonthTextBox}" Value="">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style></TextBlock>
-                            </Grid>
+                    </Button>
+                    <Button Command="{Binding TransferCommand}" Style="{StaticResource TransferToolbarButton}"
+                            ToolTip="転記処理を開始（Ctrl+T）">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="⇄" FontSize="24" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                            <TextBlock Text="転記" VerticalAlignment="Center"/>
                         </StackPanel>
-                    </Grid>
-                </Border>
-                <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,8,0">
-                    <Grid>
-                        <StackPanel Orientation="Horizontal" Margin="8,6">
-                            <Label Content="{Binding EraName}" Padding="0" VerticalAlignment="Center">
-                                <Label.ToolTip>
-                                    <ToolTip Content="元号（設定画面⚙️で変更できます）"/>
-                                </Label.ToolTip>
-                            </Label>
-                            <Grid Margin="6,0,0,0">
-                                <TextBox x:Name="RNumberTextBox" Text="{Binding RNumber, UpdateSourceTrigger=PropertyChanged}" Width="40" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="RNumberTextBox_KeyDown" TabIndex="3"/>
-                                <TextBlock>
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                            <Setter Property="Text" Value="例:1"/>
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Text, ElementName=RNumberTextBox}" Value="">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style></TextBlock>
-                            </Grid>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
 
+            <!-- MAIN -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition MinWidth="300" MaxWidth="380" Width="320"/>
+                    <ColumnDefinition Width="400" MinWidth="370" MaxWidth="430"/>
+                    <ColumnDefinition Width="14"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TabControl Grid.Column="0" Margin="0,0,10,0" SelectedIndex="{Binding SelectedTabIndex}">
-                    <TabItem Header="通常シート">
-                        <StackPanel Margin="10" DataContext="{Binding NormalSheet}">
-                            <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}" Margin="0,0,0,10" TabIndex="4"/>
-                            
-                            <!-- 入力4項目を1枚のカードに統合（2列グリッド） -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="6"
-                                    Background="{StaticResource PanelBackgroundBrush}" Padding="12" Margin="0,5">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
 
-                                    <!-- 日(B) -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,10">
-                                        <Label Content="日(B)" Padding="0,0,0,2"/>
-                                        <Grid>
-                                            <TextBox x:Name="NormalDayTextBox" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="5"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:5"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalDayTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding DayError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding DayError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
+                <!-- LEFT: vehicle + input -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                                    <!-- 有料キロ(D) -->
-                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,10">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Label Content="有料キロ(D)" Padding="0,0,0,2" ToolTip="高速道路・有料道路の走行距離（km）"/>
-                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                        <Grid>
-                                            <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="6"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:120.5"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalYuryoKmTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding YuryoKmError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
+                    <!-- 車両選択：現在の車両名はComboBoxだけで表示し、重複表示しない -->
+                    <TabControl Grid.Row="0" SelectedIndex="{Binding SelectedTabIndex}" Margin="0,0,0,8" Background="Transparent">
+                        <TabItem Header="通常" Style="{StaticResource DarkTabItemStyle}" FontSize="15" FontWeight="SemiBold">
+                            <StackPanel Margin="12,8,12,8" DataContext="{Binding NormalSheet}">
+                                <TextBlock Text="車両選択" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}"
+                                          TabIndex="4" Height="36" FontSize="14"/>
+                            </StackPanel>
+                        </TabItem>
+                        <TabItem Header="東日本" Style="{StaticResource DarkTabItemStyle}" FontSize="15" FontWeight="SemiBold">
+                            <StackPanel Margin="12,8,12,8" DataContext="{Binding EastSheet}">
+                                <TextBlock Text="車両選択" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}"
+                                          TabIndex="10" Height="36" FontSize="14"/>
+                            </StackPanel>
+                        </TabItem>
+                    </TabControl>
 
-                                    <!-- 無料キロ(E) -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Label Content="無料キロ(E)" Padding="0,0,0,2" ToolTip="一般道の走行距離（km）"/>
-                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                        <Grid>
-                                            <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="7"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:10"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=NormalMuryoKmTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding MuryoKmError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
+                    <!-- 通常シート：通常時はスクロールなしで1件登録まで完結する -->
+                    <Border Grid.Row="1" Style="{StaticResource NormalInputPanelStyle}" Padding="12" DataContext="{Binding NormalSheet}">
+                        <StackPanel>
+                            <TextBlock Text="実績入力" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,6"/>
 
-                                    <!-- 深夜料金(H)/深夜時間(K) -->
-                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
-                                        <Label Content="深夜料金(H)" Padding="0,0,0,2" Visibility="{Binding IsFeeMode, Converter={StaticResource BoolToVis}}"/>
-                                        <Label Content="深夜時間(K)" Padding="0,0,0,2" Visibility="{Binding IsFeeMode, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
-                                        <Grid>
-                                            <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastNormalTextBox_KeyDown" TabIndex="8"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:90"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value=""/>
-                                                                    <Condition Binding="{Binding IsFeeMode}" Value="False"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:3000"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <MultiDataTrigger>
-                                                                <MultiDataTrigger.Conditions>
-                                                                    <Condition Binding="{Binding Text, ElementName=NormalLateValueTextBox}" Value=""/>
-                                                                    <Condition Binding="{Binding IsFeeMode}" Value="True"/>
-                                                                </MultiDataTrigger.Conditions>
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </MultiDataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding LateValueError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding LateValueError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <ItemsControl ItemsSource="{Binding FlagItems}" Margin="0,10,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <CheckBox Content="{Binding DisplayName}"
-                                                  IsChecked="{Binding IsChecked}"
-                                                  Margin="5,3"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <!-- 日 / 有料km、無料km / 深夜時間（または深夜料金） -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                            <Border Visibility="{Binding IsFuelTrackedVehicle, Converter={StaticResource BoolToVis}}"
-                                    BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="4"
-                                    Margin="0,10,0,0" Padding="8">
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,7">
+                                    <TextBlock Text="日" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="NormalDayTextBox" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="32" FontSize="15" HorizontalContentAlignment="Left"
+                                             KeyDown="TextBox_KeyDown" TabIndex="5"/>
+                                    <TextBlock Text="{Binding DayError}" Style="{StaticResource ErrorTextStyle}"
+                                               Visibility="{Binding DayError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,7">
+                                    <TextBlock Text="有料km" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="NormalYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="32" FontSize="15" HorizontalContentAlignment="Left"
+                                             KeyDown="TextBox_KeyDown" TabIndex="6"/>
+                                    <TextBlock Text="{Binding YuryoKmError}" Style="{StaticResource ErrorTextStyle}"
+                                               Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="0">
+                                    <TextBlock Text="無料km" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="NormalMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="32" FontSize="15" HorizontalContentAlignment="Left"
+                                             KeyDown="TextBox_KeyDown" TabIndex="7"/>
+                                    <TextBlock Text="{Binding MuryoKmError}" Style="{StaticResource ErrorTextStyle}"
+                                               Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="1" Grid.Column="2">
+                                    <TextBlock Text="{Binding LateInputLabel}" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="32" FontSize="15" HorizontalContentAlignment="Left"
+                                             KeyDown="LastNormalTextBox_KeyDown" TabIndex="8"/>
+                                    <TextBlock Text="{Binding LateValueError}" Style="{StaticResource ErrorTextStyle}"
+                                               Visibility="{Binding LateValueError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- 特殊項目：通常のEnter移動から除外。ショートカットは常時表示 -->
+                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="8" Margin="0,9,0,0">
                                 <StackPanel>
-                                    <CheckBox Content="⛽ 給油あり" IsChecked="{Binding IsFuelChecked}" Margin="5,3" TabIndex="8"/>
-                                    <StackPanel Visibility="{Binding IsFuelChecked, Converter={StaticResource BoolToVis}}" Margin="20,4,0,0">
-                                        <Label Content="給油時Km"/>
-                                        <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}"
-                                                 KeyDown="TextBox_KeyDown" TabIndex="8"/>
-                                        <TextBlock Text="{Binding FuelOdometerKmError}"
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding FuelOdometerKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                        <Label Content="給油㍑数" Margin="0,6,0,0"/>
-                                        <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}"
-                                                 KeyDown="FuelLitersTextBox_KeyDown" TabIndex="8"/>
-                                        <TextBlock Text="{Binding FuelLitersError}"
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding FuelLitersError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
+                                    <TextBlock Text="特殊項目（ショートカット）" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <ItemsControl ItemsSource="{Binding FlagItems}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="1,1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox Grid.Column="0" Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" IsTabStop="False" FontSize="13"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding ShortcutDisplay}" Foreground="{StaticResource SubTextBrush}"
+                                                               FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- 給油対象車両のみ表示。チェック後も同じカード内で入力し、登録を押し下げすぎない -->
+                                    <Border Visibility="{Binding IsFuelTrackedVehicle, Converter={StaticResource BoolToVis}}"
+                                            BorderBrush="Transparent" BorderThickness="0" Margin="0,2,0,0" Padding="0">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <CheckBox Grid.Column="0" Content="給油あり" IsChecked="{Binding IsFuelChecked}" IsTabStop="False" FontSize="13"/>
+                                                <TextBlock Grid.Column="1" Text="" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                                            </Grid>
+
+                                            <Grid Visibility="{Binding IsFuelChecked, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="10"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="給油時距離" Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,0,0,2"/>
+                                                    <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="30" FontSize="14" KeyDown="TextBox_KeyDown" TabIndex="9"/>
+                                                    <TextBlock Text="{Binding FuelOdometerKmError}" Style="{StaticResource ErrorTextStyle}"
+                                                               Visibility="{Binding FuelOdometerKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="リッター" Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,0,0,2"/>
+                                                    <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="30" FontSize="14" KeyDown="TextBox_KeyDown" TabIndex="10"/>
+                                                    <TextBlock Text="{Binding FuelLitersError}" Style="{StaticResource ErrorTextStyle}"
+                                                               Visibility="{Binding FuelLitersError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
-                            <Button Content="登録" Command="{Binding RegisterNormalCommand}" HorizontalAlignment="Stretch" Style="{StaticResource NormalButton}" Height="32" Margin="0,16,0,0" TabIndex="9"/>
+                            <Button Command="{Binding RegisterNormalCommand}" Style="{StaticResource PrimaryToolbarButton}"
+                                    Height="46" Margin="0,9,0,0" TabIndex="11">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="＋" FontSize="23" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                                    <TextBlock Text="登録（Enter）" FontSize="16" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
-                    </TabItem>
-                    
-                    <TabItem Header="東日本シート">
-                        <StackPanel Margin="10" DataContext="{Binding EastSheet}">
-                            <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}" Margin="0,0,0,10" TabIndex="10"/>
-                            
-                            <!-- 入力5項目を1枚のカードに統合（2列グリッド、運輸実績は全幅） -->
-                            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="6"
-                                    Background="{StaticResource PanelBackgroundBrush}" Padding="12" Margin="0,5">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
+                    </Border>
 
-                                    <!-- 延実働車輌数 -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,10">
-                                        <Label Content="延実働車輌数" Padding="0,0,0,2"/>
-                                        <Grid>
-                                            <TextBox x:Name="EastJitsudoTextBox" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="11"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:12"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=EastJitsudoTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding JitsudoError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding JitsudoError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
+                    <!-- 東日本シート：既存項目を維持しつつ、余白だけ圧縮 -->
+                    <Border Grid.Row="1" Style="{StaticResource EastInputPanelStyle}" Padding="12" DataContext="{Binding EastSheet}">
+                        <StackPanel>
+                            <TextBlock Text="実績入力" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                                    <!-- 搬送回数 -->
-                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,10">
-                                        <Label Content="搬送回数" Padding="0,0,0,2"/>
-                                        <Grid>
-                                            <TextBox x:Name="EastHansoTextBox" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="12"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:34"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=EastHansoTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding HansoError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding HansoError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-
-                                    <!-- 有料キロ数 -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,10">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Label Content="有料キロ数" Padding="0,0,0,2"/>
-                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                        <Grid>
-                                            <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="13"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:200.0"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=EastYuryoKmTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding YuryoKmError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-
-                                    <!-- 無料キロ数 -->
-                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,10">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Label Content="無料キロ数" Padding="0,0,0,2"/>
-                                            <TextBlock Text="km" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                        <Grid>
-                                            <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="TextBox_KeyDown" TabIndex="14"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:15"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=EastMuryoKmTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding MuryoKmError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-
-                                    <!-- 運輸実績（金額なので全幅） -->
-                                    <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Label Content="運輸実績" Padding="0,0,0,2"/>
-                                            <TextBlock Text="円" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                        <Grid>
-                                            <TextBox x:Name="EastUnsoTextBox" Text="{Binding Unso, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0" Background="Transparent" KeyDown="LastEastTextBox_KeyDown" TabIndex="15"/>
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource PlaceholderTextBlockStyle}">
-                                                        <Setter Property="Text" Value="例:125000"/>
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=EastUnsoTextBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Grid>
-                                        <TextBlock Text="{Binding UnsoError}" 
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding UnsoError, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            
-                            <DockPanel Margin="0,10,0,0">
-                                <TextBlock Text="{Binding SheetStatus}" VerticalAlignment="Center" Margin="5,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{StaticResource SubTextBrush}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsSheetRegistered}" Value="True">
-                                                    <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </DockPanel>
-                            <Button Content="登録" Command="{Binding RegisterEastCommand}" HorizontalAlignment="Stretch" Style="{StaticResource NormalButton}" Height="32" Margin="0,8,0,0" TabIndex="16"/>
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,7">
+                                    <TextBlock Text="延実働車輌数" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="EastJitsudoTextBox" Text="{Binding Jitsudo, UpdateSourceTrigger=PropertyChanged}" Height="32" FontSize="15" KeyDown="TextBox_KeyDown" TabIndex="12"/>
+                                    <TextBlock Text="{Binding JitsudoError}" Style="{StaticResource ErrorTextStyle}" Visibility="{Binding JitsudoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,7">
+                                    <TextBlock Text="搬送回数" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="EastHansoTextBox" Text="{Binding Hanso, UpdateSourceTrigger=PropertyChanged}" Height="32" FontSize="15" KeyDown="TextBox_KeyDown" TabIndex="13"/>
+                                    <TextBlock Text="{Binding HansoError}" Style="{StaticResource ErrorTextStyle}" Visibility="{Binding HansoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,7">
+                                    <TextBlock Text="有料km" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="EastYuryoKmTextBox" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Height="32" FontSize="15" KeyDown="TextBox_KeyDown" TabIndex="14"/>
+                                    <TextBlock Text="{Binding YuryoKmError}" Style="{StaticResource ErrorTextStyle}" Visibility="{Binding YuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,7">
+                                    <TextBlock Text="無料km" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="EastMuryoKmTextBox" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Height="32" FontSize="15" KeyDown="TextBox_KeyDown" TabIndex="15"/>
+                                    <TextBlock Text="{Binding MuryoKmError}" Style="{StaticResource ErrorTextStyle}" Visibility="{Binding MuryoKmError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+                                    <TextBlock Text="運輸実績" FontSize="13" Margin="0,0,0,2"/>
+                                    <TextBox x:Name="EastUnsoTextBox" Text="{Binding Unso, UpdateSourceTrigger=PropertyChanged}" Height="32" FontSize="15" KeyDown="LastEastTextBox_KeyDown" TabIndex="16"/>
+                                    <TextBlock Text="{Binding UnsoError}" Style="{StaticResource ErrorTextStyle}" Visibility="{Binding UnsoError, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="{Binding SheetStatus}" Foreground="{StaticResource SubTextBrush}" Margin="2,6,0,0"/>
+                            <Button Command="{Binding RegisterEastCommand}" Style="{StaticResource PrimaryToolbarButton}" Height="46" Margin="0,8,0,0" TabIndex="17">
+                                <TextBlock Text="＋ 登録（Enter）" FontSize="16"/>
+                            </Button>
                         </StackPanel>
-                    </TabItem>
-                </TabControl>
-                
-                <Grid Grid.Column="1">
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Setter Property="Visibility" Value="Visible"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedTabIndex}" Value="1">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <DataGrid x:Name="PreviewDataGrid" ItemsSource="{Binding PreviewDataView}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedRow}" SelectionChanged="PreviewDataGrid_SelectionChanged" CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single" RowHeight="32">
-                        <DataGrid.Resources>
-                            <converters:BindingProxy x:Key="Proxy" Data="{Binding}"/>
-                        </DataGrid.Resources>
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="日" Binding="{Binding B_Day}" Width="50"/>
-                            <DataGridTextColumn Header="搬送" Binding="{Binding C_Hanso}" Width="50"/>
-                            <DataGridTextColumn Header="有料km" Binding="{Binding D_YuryoKm, StringFormat={}{0:N0}}" Width="*"/>
-                            <DataGridTextColumn Header="無料km" Binding="{Binding E_MuryoKm, StringFormat={}{0:N0}}" Width="*"/>
-                            <DataGridTextColumn Header="フラグ" Binding="{Binding FlagSummaryText}" Width="100"/>
-                            <DataGridTextColumn Header="給油" Binding="{Binding FuelSummaryText}" Width="110"/>
-                            <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="*" Visibility="{Binding Data.NormalSheet.IsOotsukiSheet, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
-                            <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="*" Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                        <Button Content="選択行を編集" Command="{Binding EditRowCommand}" Margin="0,0,5,0" Style="{StaticResource NormalButton}"/>
-                        <Button Content="選択行を削除" Command="{Binding DeleteRowCommand}" Background="{StaticResource RedBrush}" Style="{StaticResource NormalButton}" Height="25"/>
-                    </StackPanel>
+                    </Border>
                 </Grid>
+
+                <!-- RIGHT: preview -->
+                <Border Grid.Column="2" Style="{StaticResource PanelBorderStyle}" Padding="10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="3,0,3,8">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="▣" FontSize="20" Foreground="{StaticResource AccentBrush}" Margin="0,0,10,0"/>
+                                <TextBlock Text="実績一覧" FontSize="18" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding PreviewData.Count, StringFormat={}  {0}件}" Foreground="{StaticResource SubTextBrush}" FontSize="13" VerticalAlignment="Center" Margin="10,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Command="{Binding EditRowCommand}" Style="{StaticResource EditGridButton}" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="✎" FontSize="18" Margin="0,0,7,0"/>
+                                        <TextBlock Text="編集" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding DeleteRowCommand}" Style="{StaticResource EditGridButton}" Background="#35151b" BorderBrush="{StaticResource RedBrush}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="▣" FontSize="17" Margin="0,0,7,0"/>
+                                        <TextBlock Text="削除" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <DataGrid Grid.Row="1" x:Name="PreviewDataGrid"
+                                  ItemsSource="{Binding PreviewDataView}"
+                                  AutoGenerateColumns="False"
+                                  SelectedItem="{Binding SelectedRow}"
+                                  PreviewKeyDown="PreviewDataGrid_PreviewKeyDown"
+                                  MouseDoubleClick="PreviewDataGrid_MouseDoubleClick"
+                                  CanUserAddRows="False" IsReadOnly="True" SelectionMode="Single"
+                                  RowHeight="34" ColumnHeaderHeight="40" FontSize="13">
+                            <DataGrid.Resources>
+                                <converters:BindingProxy x:Key="Proxy" Data="{Binding}"/>
+                            </DataGrid.Resources>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="日" Binding="{Binding B_Day}" Width="55"/>
+                                <DataGridTextColumn Header="搬送" Binding="{Binding C_Hanso}" Width="60"/>
+                                <DataGridTextColumn Header="有料km" Binding="{Binding D_YuryoKm, StringFormat={}{0:N0}}" Width="*"/>
+                                <DataGridTextColumn Header="無料km" Binding="{Binding E_MuryoKm, StringFormat={}{0:N0}}" Width="*"/>
+                                <DataGridTextColumn Header="フラグ" Binding="{Binding FlagSummaryText}" Width="1.5*"/>
+                                <DataGridTextColumn Header="給油" Binding="{Binding FuelSummaryText}" Width="*"/>
+                                <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="1.2*"
+                                                    Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
+                                <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="1.2*"
+                                                    Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="2" Text="行を選択して Enter＝編集　　Delete＝削除　　ダブルクリック＝編集"
+                                   Foreground="{StaticResource SubTextBrush}" FontSize="11" HorizontalAlignment="Right" Margin="0,8,2,0"/>
+                    </Grid>
+                </Border>
             </Grid>
 
-            <Grid Grid.Row="3" Margin="0,10,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="120"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <TextBox Grid.Row="0" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
-                         VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Disabled"
-                         TextWrapping="Wrap"
-                         Background="{StaticResource PanelBackgroundBrush}"
-                         TextChanged="LogTextBox_TextChanged"/>
-                <DockPanel Grid.Row="1" Margin="0,10,0,0">
-                    <Button Content="転記実行" DockPanel.Dock="Right" Background="{StaticResource GreenBrush}" Command="{Binding TransferCommand}" Style="{StaticResource NormalButton}" Height="32" Width="90" FontWeight="SemiBold"/>
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="実績月報を読み込む" Background="#4f46e5" Command="{Binding LoadGeppoFileCommand}" Style="{StaticResource NormalButton}"/>
-                        <Button Content="入力内容を保存" Background="{StaticResource ButtonSecondaryBgBrush}" Command="{Binding SaveInputCommand}" Margin="5,0,0,0" Style="{StaticResource NormalButton}"/>
-                    </StackPanel>
-                </DockPanel>
-            </Grid>
+            <!-- FOOTER：ステータス左、その他を右下 -->
+            <Grid Grid.Row="3" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource PanelBorderStyle}" Padding="12,8" MinHeight="54" Margin="0,0,12,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="●" Foreground="{StaticResource GreenBrush}" FontSize="23" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox Grid.Column="1" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                                 Height="34" VerticalContentAlignment="Center" Padding="4,2"
+                                 BorderThickness="0" Background="Transparent" Foreground="{StaticResource SubTextBrush}"
+                                 FontSize="11" TextWrapping="NoWrap"/>
+                    </Grid>
+                </Border>
 
+                <Button x:Name="OtherButton" Grid.Column="1" Content="⚙ その他 ▼"
+                        Style="{StaticResource EditGridButton}" Width="150" Height="54"
+                        Background="{StaticResource ButtonSecondaryBgBrush}" FontSize="14"
+                        Click="OtherButton_Click">
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="月切替" Command="{Binding PlacementTarget.DataContext.SwitchSessionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <MenuItem Header="PDF読み込み" Command="{Binding PlacementTarget.DataContext.OpenPdfImportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <MenuItem Header="年度集計" Command="{Binding PlacementTarget.DataContext.OpenVehicleAnnualSummaryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <MenuItem Header="月報統計" Command="{Binding PlacementTarget.DataContext.OpenMonthlyReportDashboardCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <Separator/>
+                            <MenuItem Header="バックアップ" Command="{Binding PlacementTarget.DataContext.CreateBackupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <MenuItem Header="復元" Command="{Binding PlacementTarget.DataContext.RestoreBackupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <MenuItem Header="フォルダ" Command="{Binding PlacementTarget.DataContext.OpenBackupFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <Separator/>
+                            <MenuItem Header="ヘルプ" Command="{Binding PlacementTarget.DataContext.OpenHelpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <MenuItem Header="設定" Command="{Binding PlacementTarget.DataContext.OpenSettingsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                            <Separator/>
+                            <MenuItem Header="クリア" Command="{Binding PlacementTarget.DataContext.ClearInputDataCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

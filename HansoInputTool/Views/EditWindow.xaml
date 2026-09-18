@@ -1,12 +1,12 @@
-﻿<Window x:Class="HansoInputTool.Views.EditWindow"
+<Window x:Class="HansoInputTool.Views.EditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:converters="clr-namespace:HansoInputTool.Converters"
         mc:Ignorable="d"
-        Title="{Binding WindowTitle}" SizeToContent="WidthAndHeight"
-        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+        Title="{Binding WindowTitle}" Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip">
 
     <Window.Resources>
         <converters:BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -18,106 +18,118 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,2,0,0"/>
         </Style>
+
+        <Style x:Key="EditSaveButton" TargetType="Button" BasedOn="{StaticResource NormalButton}">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Background" Value="{StaticResource GreenBrush}"/>
+        </Style>
     </Window.Resources>
 
-    <!-- ↓↓↓ ルート要素をGridに変更し、背景色を強制的に設定 ↓↓↓ -->
     <Grid Background="{StaticResource BgBrush}">
-        <StackPanel Margin="20" MinWidth="300">
-            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,0,10">
-                <Grid>
-                    <StackPanel Margin="5">
-                        <Label Content="日(B)" FontWeight="Bold" Padding="0,0,0,2"/>
-                        <TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0"/>
-                    </StackPanel>
-                    <Label Content="日" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0"/>
-                </Grid>
-            </Border>
-            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,0,10">
-                <Grid>
-                    <StackPanel Margin="5">
-                        <Label Content="有料キロ(D)" FontWeight="Bold" Padding="0,0,0,2"/>
-                        <TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0"/>
-                    </StackPanel>
-                    <Label Content="km" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0"/>
-                </Grid>
-            </Border>
-            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,0,10">
-                <Grid>
-                    <StackPanel Margin="5">
-                        <Label Content="無料キロ(E)" FontWeight="Bold" Padding="0,0,0,2"/>
-                        <TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0"/>
-                    </StackPanel>
-                    <Label Content="km" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0"/>
-                </Grid>
-            </Border>
-            <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3" Margin="0,0,0,10">
-                <Grid>
-                    <StackPanel Margin="5">
-                        <Label Content="深夜料金(H)" FontWeight="Bold" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
-                        <Label Content="深夜時間(K)" FontWeight="Bold" Padding="0,0,0,2" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
-                        <TextBox Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" BorderThickness="0"/>
-                    </StackPanel>
-                    <Label Content="円" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
-                    <Label Content="分" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,5,0" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
-                </Grid>
-            </Border>
-            <ItemsControl ItemsSource="{Binding FlagItems}" Margin="0,10,0,0">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <CheckBox Content="{Binding DisplayName}"
-                                  IsChecked="{Binding IsChecked}"
-                                  Margin="5,3"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="20,18,20,16">
+                <TextBlock Text="実績を編集" FontSize="21" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding WindowTitle}" Foreground="{StaticResource SubTextBrush}" FontSize="12" Margin="0,4,0,18"/>
 
-            <Border Visibility="{Binding IsFuelTrackedVehicle, Converter={StaticResource BoolToVis}}"
-                    BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="2" CornerRadius="3"
-                    Margin="0,10,0,0" Padding="8">
-                <StackPanel>
-                    <TextBlock Text="⛽ 給油記録" FontWeight="Bold" Margin="0,0,0,6"/>
-                    <ItemsControl ItemsSource="{Binding FuelEntries}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
-                                        CornerRadius="3" Margin="0,0,0,6" Padding="6">
-                                    <StackPanel>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <Label Content="給油時Km" Padding="0"/>
-                                                <TextBox Text="{Binding OdometerKm, UpdateSourceTrigger=PropertyChanged}" Padding="5,2" Margin="0,0,0,4"/>
-                                                <Label Content="給油㍑数" Padding="0"/>
-                                                <TextBox Text="{Binding Liters, UpdateSourceTrigger=PropertyChanged}" Padding="5,2"/>
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Content="削除"
-                                                    Command="{Binding DeleteCommand}"
-                                                    Style="{StaticResource NormalButton}"
-                                                    Background="#7f1d1d" Foreground="White"
-                                                    Padding="10,4" VerticalAlignment="Top" Margin="8,0,0,0"/>
-                                        </Grid>
-                                        <TextBlock Text="{Binding ErrorText}"
-                                                   Style="{StaticResource ErrorTextStyle}"
-                                                   Visibility="{Binding ErrorText, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <Button Content="＋ 給油記録を追加" Command="{Binding AddFuelEntryCommand}"
-                            Style="{StaticResource NormalButton}"
-                            Background="{StaticResource ButtonSecondaryBgBrush}"
-                            HorizontalAlignment="Left" Padding="10,4"/>
-                </StackPanel>
-            </Border>
+                <Border Background="{StaticResource PanelBackgroundBrush}"
+                        BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-            <Button Content="保存" HorizontalAlignment="Right" Margin="0,15,0,0"
-                    Command="{Binding SaveCommand}"
-                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
-                    Background="{StaticResource GreenBrush}" Style="{StaticResource NormalButton}"/>
-        </StackPanel>
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
+                            <TextBlock Text="日" FontSize="13" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Height="38" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,10">
+                            <TextBlock Text="有料km" FontSize="13" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Height="38" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0">
+                            <TextBlock Text="無料km" FontSize="13" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Height="38" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="2">
+                            <TextBlock Text="深夜料金" FontSize="13" Margin="0,0,0,5" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="深夜時間" FontSize="13" Margin="0,0,0,5" Visibility="{Binding IsOotsukiSheet, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                            <TextBox Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}" Height="38" FontSize="15"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock Text="特殊項目" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <ItemsControl ItemsSource="{Binding FlagItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="2,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" Content="{Binding DisplayName}" IsChecked="{Binding IsChecked}" IsTabStop="False"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding ShortcutDisplay}" Foreground="{StaticResource SubTextBrush}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Visibility="{Binding IsFuelTrackedVehicle, Converter={StaticResource BoolToVis}}"
+                        BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,10,0,0">
+                    <StackPanel>
+                        <TextBlock Text="給油記録" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <ItemsControl ItemsSource="{Binding FuelEntries}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="7" Margin="0,0,0,7">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="給油時Km" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                                                    <TextBox Text="{Binding OdometerKm, UpdateSourceTrigger=PropertyChanged}" Height="36" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="給油㍑数" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                                                    <TextBox Text="{Binding Liters, UpdateSourceTrigger=PropertyChanged}" Height="36" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <Button Grid.Column="3" Content="削除" Command="{Binding DeleteCommand}"
+                                                        Style="{StaticResource NormalButton}" Background="#35151b" Margin="10,15,0,0" Padding="10,5"/>
+                                            </Grid>
+                                            <TextBlock Text="{Binding ErrorText}" Style="{StaticResource ErrorTextStyle}"
+                                                       Visibility="{Binding ErrorText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Content="＋ 給油記録を追加" Command="{Binding AddFuelEntryCommand}"
+                                Style="{StaticResource NormalButton}" Background="{StaticResource ButtonSecondaryBgBrush}"
+                                HorizontalAlignment="Left" Padding="12,6"/>
+                    </StackPanel>
+                </Border>
+
+                <Button Content="保存" Command="{Binding SaveCommand}"
+                        CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                        Style="{StaticResource EditSaveButton}" Margin="0,12,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>
