@@ -190,6 +190,7 @@ namespace HansoInputTool.ViewModels
         public ICommand OpenPdfImportCommand { get; }
         public ICommand ClearInputDataCommand { get; }
         public ICommand SwitchSessionCommand { get; }
+        public ICommand OpenLateNightCalculatorCommand { get; }
 
         // XAMLバインディング互換のため子VMのコマンドを公開
         public ICommand RegisterNormalCommand => NormalSheet.RegisterCommand;
@@ -221,6 +222,7 @@ namespace HansoInputTool.ViewModels
             OpenPdfImportCommand             = new RelayCommand(_ => OpenPdfImport(),                   _ => !IsBusy);
             ClearInputDataCommand            = new RelayCommand(p => ConfirmAndClearInputData(),        p => !IsBusy);
             SwitchSessionCommand             = new RelayCommand(p => OpenSessionSwitch(),               p => !IsBusy && _dbService != null);
+            OpenLateNightCalculatorCommand   = new RelayCommand(p => OpenLateNightCalculator(),          p => !IsBusy && !string.IsNullOrEmpty(NormalSheet.SelectedNormalSheet));
 
             PreviewDataView = CollectionViewSource.GetDefaultView(PreviewData);
         }

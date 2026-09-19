@@ -169,6 +169,30 @@ namespace HansoInputTool.ViewModels
             new Views.EditWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
         }
 
+        /// <summary>
+        /// 深夜時間計算ポップアップを開く。会社出発時刻・故人宅出発時刻から深夜割増（22:00〜翌5:00）の
+        /// 該当時間・料金を計算し、「反映する」が押されたら現在選択中のシートの深夜欄（LateValue）に書き込む。
+        /// </summary>
+        private void OpenLateNightCalculator()
+        {
+            var sheetName = NormalSheet.SelectedNormalSheet;
+            if (string.IsNullOrEmpty(sheetName)) return;
+
+            string rateCategory = sheetName.Contains("霊柩車") ? "霊柩車" : "寝台車";
+            RateInfo rate = null;
+            if (Rates == null || !Rates.TryGetValue(rateCategory, out rate))
+            {
+                Logger.Warn($"料金カテゴリが見つかりません: {rateCategory}");
+                rate = Rates?.Values.FirstOrDefault();
+            }
+
+            var vm = new LateNightCalculatorViewModel(NormalSheet.IsFeeMode, rate);
+            var result = new Views.LateNightCalculatorWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
+
+            if (result == true)
+                NormalSheet.LateValue = vm.AppliedValue;
+        }
+
         private void DeleteSelectedRow()
         {
             if (SelectedRow == null) return;

@@ -369,7 +369,13 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="2">
-                                    <TextBlock Text="{Binding LateInputLabel}" FontSize="13" Margin="0,0,0,2"/>
+                                    <DockPanel LastChildFill="False" Margin="0,0,0,2">
+                                        <TextBlock Text="{Binding LateInputLabel}" FontSize="13" DockPanel.Dock="Left"/>
+                                        <Button Content="🌙 深夜計算" DockPanel.Dock="Right" Padding="6,1" FontSize="11"
+                                                Style="{StaticResource NormalButton}" Background="{StaticResource ButtonSecondaryBgBrush}"
+                                                ToolTip="会社出発時刻・故人宅出発時刻から深夜時間帯（22:00〜翌5:00）の該当時間・料金を計算します"
+                                                Command="{Binding DataContext.OpenLateNightCalculatorCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                    </DockPanel>
                                     <TextBox x:Name="NormalLateValueTextBox" Text="{Binding LateValue, UpdateSourceTrigger=PropertyChanged}"
                                              Height="32" FontSize="15" HorizontalContentAlignment="Left"
                                              KeyDown="LastNormalTextBox_KeyDown" TabIndex="8"/>
