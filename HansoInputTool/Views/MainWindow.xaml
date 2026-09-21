@@ -546,15 +546,15 @@
                                 <converters:BindingProxy x:Key="Proxy" Data="{Binding}"/>
                             </DataGrid.Resources>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="日" Binding="{Binding B_Day}" Width="55"/>
-                                <DataGridTextColumn Header="搬送" Binding="{Binding C_Hanso}" Width="60"/>
+                                <DataGridTextColumn Header="日" Binding="{Binding B_Day}" Width="48"/>
+                                <DataGridTextColumn Header="搬送" Binding="{Binding C_Hanso}" Width="52"/>
                                 <DataGridTextColumn Header="有料km" Binding="{Binding D_YuryoKm, StringFormat={}{0:N0}}" Width="*"/>
                                 <DataGridTextColumn Header="無料km" Binding="{Binding E_MuryoKm, StringFormat={}{0:N0}}" Width="*"/>
-                                <DataGridTextColumn Header="フラグ" Binding="{Binding FlagSummaryText}" Width="1.5*"/>
-                                <DataGridTextColumn Header="給油" Binding="{Binding FuelSummaryText}" Width="*"/>
-                                <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="1.2*"
+                                <DataGridTextColumn Header="フラグ" Binding="{Binding FlagSummaryText}" Width="1.3*"/>
+                                <DataGridTextColumn Header="給油" Binding="{Binding FuelSummaryText}" Width="2*"/>
+                                <DataGridTextColumn Header="深夜料金(円)" Binding="{Binding H_LateFeeOotsuki}" Width="1.3*"
                                                     Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}}"/>
-                                <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="1.2*"
+                                <DataGridTextColumn Header="深夜時間(分)" Binding="{Binding K_LateMinutes}" Width="1.3*"
                                                     Visibility="{Binding Data.NormalSheet.IsFeeMode, Source={StaticResource Proxy}, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
                             </DataGrid.Columns>
                         </DataGrid>

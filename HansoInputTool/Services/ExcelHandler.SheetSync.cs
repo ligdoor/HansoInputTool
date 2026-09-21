@@ -44,8 +44,18 @@ namespace HansoInputTool.Services
             Logger.Info($"{fileName} のシート同期処理を開始します。");
 
             // 削除
+            // [給油管理表消失バグ対策] 「自動生成された車両として認識され誤って削除リストに
+            // 含まれてしまう」等、呼び出し元のロジックに将来的な不具合が発生した場合でも、
+            // 給油管理表・Template1/Template2（ひな形）・月間集計だけは絶対に削除されないよう、
+            // 削除処理そのものにハードコードの保護を設ける（呼び出し元の判定ミスに依存しない）。
             foreach (var sheetName in sheetsToDelete)
             {
+                if (IsProtectedSheet(sheetName))
+                {
+                    Logger.Warn($"{fileName}: 保護対象シートのため削除をスキップしました -> {sheetName}");
+                    continue;
+                }
+
                 var ws = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == sheetName);
                 if (ws != null) { package.Workbook.Worksheets.Delete(ws); Logger.Info($"{fileName}: シート削除 -> {sheetName}"); }
             }
@@ -290,6 +300,20 @@ namespace HansoInputTool.Services
         #endregion
 
         #region シート分類・命名ヘルパー
+
+        /// <summary>
+        /// [給油管理表消失バグ対策] 削除してはならない特別なシートかどうかを判定する。
+        /// 給油管理表・Template1/Template2（ひな形）・月間集計は、車両シートの自動同期・
+        /// 削除処理の対象になってはならない。呼び出し元の判定結果に関わらず、ここで最終的に防御する。
+        /// </summary>
+        internal static bool IsProtectedSheet(string sheetName)
+        {
+            if (string.IsNullOrWhiteSpace(sheetName)) return false;
+            if (sheetName.Contains("給油管理")) return true;
+            if (sheetName == "月間集計") return true;
+            if (IsTemplateSheet(sheetName)) return true;
+            return false;
+        }
 
         internal (string Branch, string Number) ParseSheetNameToBranchAndNumber(string sheetName)
         {

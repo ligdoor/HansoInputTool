@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -23,8 +25,17 @@ namespace HansoInputTool.ViewModels
                     "上書き確認", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.Cancel) return;
             try
             {
-                File.Copy(dialog.FileName, InputFilePath, true);
-                _excelHandler.Load();
+                // [給油管理表消失バグ対策] 以前はFile.CopyでInput.xlsxを実績月報の内容に丸ごと置き換えていたが、
+                // 実績月報には給油管理表・Template1/Template2・月間集計が含まれないため、これらのシートが
+                // Input.xlsxから消えてしまっていた。現在は同名の通常系・東日本シートのデータ（セルの値）だけを
+                // 転記する方式にし、給油管理表・Template1/Template2・月間集計・登録シートには一切触れない。
+                // [給油情報の復元] 実績月報側の給油管理表に記録が残っていれば読み取り、Excel直接入力時は
+                // ここでInput.xlsx自身の給油管理表へ書き戻す（DB使用時はセッション確定後にDBへ挿入する）。
+                var geppoLogMessages = _excelHandler.ImportFromGeppoFile(dialog.FileName, out var importedFuelRecords);
+                foreach (var msg in geppoLogMessages) Log(msg);
+                if (_dbService == null)
+                    _excelHandler.WriteFuelRecordsToInputSheet(importedFuelRecords);
+                _excelHandler.Save();
 
                 // ファイル名から期・月・R年を解析してUIに反映
                 // 例: "46期 4月 R7 アルス搬送・霊柩車　実績月報.xlsx"
@@ -68,10 +79,35 @@ namespace HansoInputTool.ViewModels
                 }
 
                 // DB使用時: セッション確定後にExcelデータをDBにインポート
+                // [給油情報の復元] ImportFromExcelToDbの内部でDBの搬送データ・給油データが一旦
+                // 全クリアされる（ClearAllData）ため、給油記録の復元は必ずこの後に行う。
+                // 先に給油記録を入れてから呼ぶと、ここで消されてしまう。
                 if (_dbService != null)
                 {
                     _excelHandler.ImportFromExcelToDb(_dbService, _flagService);
                     Log($"[DB] 通常系シートのデータをDBにインポートしました。");
+
+                    // 実績月報から読み取った給油記録をDBへ挿入する。同じ実績月報を誤って2回読み込んでも
+                    // 重複登録されないよう、セッション内の既存レコード（車両・日・Km・㍑が全て一致するもの）
+                    // と重複するものはスキップする。
+                    var existingFuel = _dbService.GetAllFuelRecordsForCurrentSession();
+                    var existingFuelKeys = new HashSet<(string, int, double, double)>(
+                        existingFuel.Select(f => (f.VehicleSheetName, f.Day, f.OdometerKm, f.Liters)));
+
+                    int insertedFuelCount = 0;
+                    foreach (var fuel in importedFuelRecords)
+                    {
+                        var key = (fuel.VehicleSheetName, fuel.Day, fuel.OdometerKm, fuel.Liters);
+                        if (existingFuelKeys.Contains(key)) continue; // 既に同じ内容の記録があるためスキップ
+
+                        _dbService.InsertFuelRecord(fuel.VehicleSheetName, fuel.Day, fuel.OdometerKm, fuel.Liters);
+                        existingFuelKeys.Add(key); // 実績月報内に全く同じ行が複数あった場合の二重挿入も防ぐ
+                        insertedFuelCount++;
+                    }
+                    if (insertedFuelCount > 0)
+                        Log($"[DB] 給油記録{insertedFuelCount}件を復元しました。");
+                    if (importedFuelRecords.Count > insertedFuelCount)
+                        Log($"[DB] 既に登録済みの給油記録{importedFuelRecords.Count - insertedFuelCount}件はスキップしました。");
                 }
 
                 ReloadAllData();

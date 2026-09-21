@@ -64,7 +64,25 @@ namespace HansoInputTool.Services
                 using var wbGeppo = new ExcelPackage(new FileInfo(geppoFilepath));
                 using var wbShukei = new ExcelPackage(new FileInfo(shukeiFilepath));
 
-                var sheetsToProcess = allSheetNames?.Where(s => !s.Contains("登録")).ToList() ?? new List<string>();
+                // [出力側の不要シート削除] Template1/Template2はInput.xlsx側で車両シート追加時に
+                // 使うひな形シートであり、配布用の実績月報には不要。Input.xlsx自体は一切変更せず、
+                // 実績月報の出力ファイル（wbGeppo）側からのみ削除する。給油管理表は実際に給油記録が
+                // 書き込まれるため、ここでは削除しない。
+                foreach (var templateWs in wbGeppo.Workbook.Worksheets
+                             .Where(ws => ExcelHandler.IsTemplateSheet(ws.Name))
+                             .ToList())
+                {
+                    wbGeppo.Workbook.Worksheets.Delete(templateWs);
+                    Logger.Info($"実績月報ファイル: ひな形シートを削除しました -> {templateWs.Name}");
+                }
+
+                // [給油管理表消失バグ対策] 「登録」シートに加えて、給油管理表・Template1/Template2
+                // （ひな形）・月間集計も転記処理（車両シートとしての集計・自動生成判定）の対象から
+                // 明示的に除外する。従来はキーワード不一致により結果的にスキップされる想定だったが、
+                // 判定ロジックの意図しない変更に備え、ここでも明示的に除外しておく。
+                var sheetsToProcess = allSheetNames?
+                    .Where(s => !s.Contains("登録") && !ExcelHandler.IsProtectedSheet(s))
+                    .ToList() ?? new List<string>();
                 int totalSheets = sheetsToProcess.Count;
                 int processedCount = 0;
 

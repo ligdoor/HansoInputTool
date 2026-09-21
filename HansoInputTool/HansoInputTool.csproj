@@ -33,6 +33,9 @@
 	  </Compile>
 	</ItemGroup>
 	<ItemGroup>
+		<None Update="data\annual_results.xlsx">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
 		<None Update="data\column_map.json">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
