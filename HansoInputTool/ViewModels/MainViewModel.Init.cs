@@ -83,12 +83,24 @@ namespace HansoInputTool.ViewModels
                 ReloadAllData();
                 await CheckForUpdate();
 
-                if (_excelHandler.CheckRemainingData())
+                // 「保存」済みの月は意図的にデータを残しているため、起動時のクリア確認は出さない
+                bool currentMonthIsSaved = _dbService != null && _dbService.IsSessionSaved(_dbService.CurrentSessionId);
+                if (!currentMonthIsSaved && _excelHandler.CheckRemainingData())
                 {
                     var result = MessageBox.Show("前回のデータが残っています。\n全ての入力データをクリアして新規に開始しますか？",
                         "データクリア確認", MessageBoxButton.YesNo, MessageBoxImage.Question);
                     if (result == MessageBoxResult.Yes)
-                        ClearInputData(true);
+                    {
+                        try
+                        {
+                            ClearInputData(true);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            // 確定済みなどでクリアがブロックされた場合も、起動処理は止めずに案内だけ出す
+                            MessageBox.Show(ex.Message, "クリアできません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                    }
                 }
 
                 Logger.Info("アプリケーションの初期化が完了しました。");

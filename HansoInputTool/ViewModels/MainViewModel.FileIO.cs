@@ -128,8 +128,42 @@ namespace HansoInputTool.ViewModels
             try
             {
                 _excelHandler.Save();
-                MessageBox.Show("現在の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
-                Log("--- 入力内容を保存しました ---");
+
+                // DB使用時は、表示中の月（期・月・R年）のセッションを「保存済み」にして保護する。
+                // 保存済みの月は、転記終了後の自動クリアや「クリア」でデータが消えなくなる。
+                // 解除したいときは「その他」→「月切替」の「保存解除」から行う。
+                bool protectedBySave = false;
+                if (_dbService != null
+                    && !string.IsNullOrWhiteSpace(Period)
+                    && !string.IsNullOrWhiteSpace(Month)
+                    && !string.IsNullOrWhiteSpace(RNumber))
+                {
+                    protectedBySave = _dbService.SaveSession(_dbService.CurrentSessionId);
+
+                    // 東日本シートの現在値（DBには保存されずExcelのセルにしか無い）も、
+                    // この月の控えとしてDBへ保存しておく。保存済みの月の東日本データが
+                    // 別の月のクリア／編集で失われないようにするため。
+                    var eastValues = _excelHandler.GetAllEastValues();
+                    if (eastValues.Count > 0)
+                        _dbService.SaveEastValues(_dbService.CurrentSessionId, eastValues);
+                }
+
+                if (protectedBySave)
+                {
+                    MessageBox.Show(
+                        $"現在の入力内容を保存しました。\n\n{Period}期 {Month}月 {EraName}{RNumber} のデータは保護され、" +
+                        "転記終了後やクリアを行っても消えません。\n" +
+                        "（解除するには「その他」→「月切替」→「保存解除」）",
+                        "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
+                    Log($"--- 入力内容を保存しました（{Period}期 {Month}月 {EraName}{RNumber} をクリアから保護） ---");
+                }
+                else
+                {
+                    MessageBox.Show("現在の入力内容を保存しました。", "保存完了", MessageBoxButton.OK, MessageBoxImage.Information);
+                    Log(_dbService != null
+                        ? "--- 入力内容を保存しました（期・月・R年が未入力のため、クリア保護は行っていません） ---"
+                        : "--- 入力内容を保存しました ---");
+                }
             }
             catch (Exception ex)
             {

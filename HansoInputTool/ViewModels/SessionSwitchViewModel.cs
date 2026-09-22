@@ -30,6 +30,7 @@ namespace HansoInputTool.ViewModels
         public ICommand DeleteCommand { get; }
         public ICommand ConfirmCommand { get; }
         public ICommand UnconfirmCommand { get; }
+        public ICommand UnsaveCommand { get; }
 
         /// <summary>ダイアログを閉じるためのアクション（Viewからセット）</summary>
         public System.Action<bool?> CloseDialog { get; set; }
@@ -57,7 +58,30 @@ namespace HansoInputTool.ViewModels
                 _ => Unconfirm(),
                 _ => SelectedSession != null && SelectedSession.IsConfirmed);
 
+            UnsaveCommand = new RelayCommand(
+                _ => Unsave(),
+                _ => SelectedSession != null && SelectedSession.IsSaved);
+
             Reload();
+        }
+
+        /// <summary>
+        /// 選択中のセッションの「保存」状態を解除する。解除後は、転記終了後の自動クリアや
+        /// 「クリア」で、その月のデータが消える状態に戻る。
+        /// </summary>
+        private void Unsave()
+        {
+            var result = System.Windows.MessageBox.Show(
+                $"「{SelectedSession.Label}」の保存を解除します。\n解除すると、転記終了後の自動クリアや「クリア」でこの月のデータが消えるようになります。よろしいですか？",
+                "保存解除の確認",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (result != System.Windows.MessageBoxResult.Yes) return;
+
+            _dbService.UnsaveSession(SelectedSession.Id);
+            Reload();
+            CommandManager.InvalidateRequerySuggested();
         }
 
         /// <summary>

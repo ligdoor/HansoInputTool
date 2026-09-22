@@ -129,34 +129,61 @@ namespace HansoInputTool.ViewModels
 
         private void ClearInputData(bool showSuccessMessage)
         {
-            Log("--- 入力データをクリアします ---");
-            if (_dbService != null)
+            // 「保存」済みの月がアクティブな場合は、そのデータには一切触れず、
+            // 新規入力用の空セッションへ切り替えるだけにする（保存データを消さないため）。
+            bool startedBlankSession = false;
+            if (_dbService != null && _dbService.IsSessionSaved(_dbService.CurrentSessionId))
             {
-                _dbService.ClearAllData();
+                Log("--- 保存済みのデータはそのまま残し、新規入力用にクリアします ---");
+                // 東日本シートの現在値（保存済み月のもの）をDBへ控えてから、新規の空セッションへ切替
+                var eastValues = _excelHandler.GetAllEastValues();
+                if (eastValues.Count > 0)
+                    _dbService.SaveEastValues(_dbService.CurrentSessionId, eastValues);
+                _dbService.StartBlankSession();
                 _excelHandler.InvalidateCacheAll();
-                Log("[DB] 全入力データをクリアしました。");
-
-                // [No.10修正] 東日本シートはDBに保存されずExcel側にのみ値が残る。
-                // DB使用時でも ClearData() を呼んで東日本シートのセルを確実にクリアし保存する。
-                foreach (var msg in _excelHandler.ClearData()) Log(msg);
-                _excelHandler.Save();
-                Log("[Excel] 東日本シートのデータをクリアしました。");
+                startedBlankSession = true;
             }
             else
             {
-                foreach (var msg in _excelHandler.ClearData()) Log(msg);
-                _excelHandler.Save();
+                Log("--- 入力データをクリアします ---");
+                if (_dbService != null)
+                {
+                    _dbService.ClearAllData();
+                    _excelHandler.InvalidateCacheAll();
+                    Log("[DB] 全入力データをクリアしました。");
+                }
             }
+
+            // 東日本シートはDBに保存されずExcel側にのみ値が残る。ClearData() で
+            // 東日本シートのセルを確実にクリアして保存する（保存済みだった月の東日本の値は
+            // 事前に SaveEastValues で控え済みのため、この時点で消えても復元できる）。
+            foreach (var msg in _excelHandler.ClearData()) Log(msg);
+            _excelHandler.Save();
+            Log("[Excel] 東日本シートのデータをクリアしました。");
+
             EastSheet.ClearRegisteredSheets();
+
+            if (startedBlankSession)
+            {
+                // 画面上部の期・月・R年も空にして、新しい月を入力できる状態にする
+                Period = Month = RNumber = string.Empty;
+            }
+
             UpdatePreview();
             if (showSuccessMessage)
-                MessageBox.Show("入力データをクリアしました。", "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("入力データをクリアしました。\n（「保存」済みのデータは消えていません。「その他」→「月切替」から確認できます）",
+                    "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void ConfirmAndClearInputData()
         {
-            if (MessageBox.Show("入力中のデータをすべてクリアします。\nこの操作は元に戻せません。よろしいですか？",
-                    "クリア確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            bool isSaved = _dbService != null && _dbService.IsSessionSaved(_dbService.CurrentSessionId);
+
+            string message = isSaved
+                ? "この月のデータは「保存」済みのため消えません。\n新しい月を入力できるよう、画面をクリアします。よろしいですか？"
+                : "入力中のデータをすべてクリアします。\nこの操作は元に戻せません。よろしいですか？";
+
+            if (MessageBox.Show(message, "クリア確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             {
                 try
                 {
@@ -173,6 +200,33 @@ namespace HansoInputTool.ViewModels
         #endregion
 
         #region セッション管理
+
+        /// <summary>
+        /// 東日本シートのデータ（DBには保存されずExcelのセルにしか無い）を、セッション切替に合わせて
+        /// 退避・復元する。切替前のセッションの現在値をDBへ控え、切替後のセッションに控えがあれば
+        /// Excelのセルへ書き戻す。控えが無ければセルは空のままになる。
+        /// </summary>
+        private void SwitchEastData(long fromSessionId, long toSessionId)
+        {
+            if (_dbService == null || fromSessionId == toSessionId) return;
+            try
+            {
+                var current = _excelHandler.GetAllEastValues();
+                if (current.Count > 0 && _dbService.SessionExists(fromSessionId))
+                    _dbService.SaveEastValues(fromSessionId, current);
+
+                _excelHandler.ClearEastValues();
+                var stored = _dbService.GetEastValues(toSessionId);
+                if (stored.Count > 0)
+                    _excelHandler.RestoreEastValues(stored);
+                _excelHandler.Save();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "東日本シートのデータ切替中にエラーが発生しました。");
+                Log("東日本シートのデータ切替でエラーが発生しました。詳細はログを確認してください。");
+            }
+        }
 
         /// <summary>
         /// 画面上部の「期・月・R年」がすべて入力された時点で、その組み合わせに対応するDBセッションへ
@@ -200,6 +254,7 @@ namespace HansoInputTool.ViewModels
             if (_dbService.CurrentSessionId != previousSessionId && _excelHandler != null)
             {
                 // セッションが切り替わった場合は、表示中のデータも切り替え後の内容に合わせて更新する
+                SwitchEastData(previousSessionId, _dbService.CurrentSessionId);
                 _excelHandler.InvalidateCacheAll();
                 EastSheet.ClearRegisteredSheets();
                 UpdatePreview();
@@ -269,6 +324,9 @@ namespace HansoInputTool.ViewModels
 
             // 切替前にいたセッションが0件になっていれば自動的に片付ける
             _dbService.CleanUpEmptySessions();
+
+            if (_dbService.CurrentSessionId != sessionIdBeforeDialog)
+                SwitchEastData(sessionIdBeforeDialog, _dbService.CurrentSessionId);
 
             _excelHandler.InvalidateCacheAll();
             EastSheet.ClearRegisteredSheets();

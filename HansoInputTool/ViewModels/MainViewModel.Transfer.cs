@@ -83,33 +83,22 @@ namespace HansoInputTool.ViewModels
                     }
                 }
 
-                Period = Month = RNumber = string.Empty;
                 progressVM.Complete("2つのファイルの作成が完了しました。");
-                if (_dbService != null)
-                {
-                    try
-                    {
-                        _dbService.ClearAllData();
-                        _excelHandler.InvalidateCacheAll();
-                        EastSheet.ClearRegisteredSheets();
-                        UpdatePreview();
-                        Log("[DB] 転記完了につきDBデータをクリアしました。");
 
-                        // Input.xlsxにも残存データがあるためクリアして保存
-                        foreach (var msg in _excelHandler.ClearData()) Log(msg);
-                        _excelHandler.Save();
-                        Log("[Excel] Input.xlsxのデータをクリアしました。");
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // 転記自体は完了済み。セッションが確定済みのため自動クリアのみスキップする
-                        // （誤操作防止のため意図的な仕様。手動で確定解除すればクリアできる）。
-                        Log("[DB] このセッションは確定済みのため、DBデータの自動クリアはスキップされました。");
-                    }
-                }
-                else
+                // 転記完了後、通常は入力データをクリアして次の月に備える。
+                // ただし「保存」済みの月は、ClearInputData内部の判定によりデータは消さず
+                // 新規入力用の空セッションへ切り替えるだけになる（画面の期・月・R年も自動で空になる）。
+                // 「確定」済みの月は編集自体がブロックされているため、自動クリアをスキップする。
+                try
                 {
                     ClearInputData(false);
+                    Log(_dbService != null ? "[DB] 転記完了につきデータをクリアしました。" : "転記完了につき入力データをクリアしました。");
+                }
+                catch (InvalidOperationException)
+                {
+                    // セッションが「確定」済みのため、自動クリアのみスキップする
+                    // （誤操作防止のため意図的な仕様。手動で確定解除すればクリアできる）。
+                    Log("[DB] このセッションは確定済みのため、データの自動クリアはスキップされました。");
                 }
             }
             catch (Exception ex)

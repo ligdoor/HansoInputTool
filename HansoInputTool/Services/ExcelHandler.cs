@@ -501,6 +501,50 @@ namespace HansoInputTool.Services
         }
 
         /// <summary>
+        /// すべての東日本シートの入力値を読み取って返す（シート名 → 項目名 → 値）。
+        /// 全項目が未入力のシートは含めない。セッションごとの控え（DatabaseService.SaveEastValues）用。
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double?>> GetAllEastValues()
+        {
+            var result = new Dictionary<string, Dictionary<string, double?>>();
+            foreach (var ws in _inputPackage.Workbook.Worksheets)
+            {
+                if (!ws.Name.Contains("東日本")) continue;
+                var values = GetEastSheetValues(ws.Name);
+                if (values != null && values.Values.Any(v => v.HasValue))
+                    result[ws.Name] = values;
+            }
+            return result;
+        }
+
+        /// <summary>すべての東日本シートの入力値（セル）を空にする。</summary>
+        public void ClearEastValues()
+        {
+            var eastMap = _columnMap.EastSheet;
+            foreach (var ws in _inputPackage.Workbook.Worksheets)
+            {
+                if (!ws.Name.Contains("東日本")) continue;
+                ws.Cells[eastMap.Jitsudo].Value     = null;
+                ws.Cells[eastMap.Hanso].Value       = null;
+                ws.Cells[eastMap.YuryoKm].Value     = null;
+                ws.Cells[eastMap.MuryoKm].Value     = null;
+                ws.Cells[eastMap.UnsoJisseki].Value = null;
+            }
+            _dataCache.Clear();
+        }
+
+        /// <summary>GetAllEastValues で控えた値を、東日本シートのセルへ書き戻す。</summary>
+        public void RestoreEastValues(Dictionary<string, Dictionary<string, double?>> valuesBySheet)
+        {
+            foreach (var kv in valuesBySheet)
+            {
+                if (!_inputPackage.Workbook.Worksheets.Any(s => s.Name == kv.Key)) continue;
+                RegisterEastData(kv.Key, kv.Value);
+            }
+            _dataCache.Clear();
+        }
+
+        /// <summary>
         /// フラグ定義の変更をInput.xlsxの全通常シートに反映する。
         /// 追加されたフラグ → 対象列を追加してヘッダーを書く
         /// 削除されたフラグ → 対象列を削除する
@@ -676,8 +720,8 @@ namespace HansoInputTool.Services
 
             if (targetSheets.Count == 0) return;
 
-            // 既存DBデータをクリア
-            dbService.ClearAllData();
+            // 既存DBデータをクリア（上書きはユーザーが確認済みのため、保存済み月でも置き換える）
+            dbService.ClearAllData(ignoreSaved: true);
             Logger.Info($"ExcelからDBへインポート開始: {targetSheets.Count}シート");
 
             // 全シートのデータを収集してBulkInsertで一括登録（トランザクション）
