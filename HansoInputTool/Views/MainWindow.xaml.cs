@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -26,7 +27,25 @@ namespace HansoInputTool.Views
             // ショートカットキー処理
             this.PreviewKeyDown += MainWindow_PreviewKeyDown;
 
+            // SelectedRowが変わったら実績一覧（PreviewDataGrid）をその行までスクロールする。
+            // ※DataGridはSelectedItemをバインディングで変更しても自動ではスクロールしないため、
+            //   明示的にScrollIntoViewを呼ぶ必要がある。
+            viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
             DataContext = viewModel;
+        }
+
+        private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(MainViewModel.SelectedRow)) return;
+            if (sender is not MainViewModel vm || vm.SelectedRow == null) return;
+
+            // ItemsSource側の更新（PreviewData.Clear→Add）とレイアウト確定を待ってからスクロールする。
+            Dispatcher.BeginInvoke(new System.Action(() =>
+            {
+                if (vm.SelectedRow == null) return;
+                PreviewDataGrid.ScrollIntoView(vm.SelectedRow);
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>
