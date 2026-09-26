@@ -264,13 +264,6 @@
                             <TextBlock Text="実績月報を読み込む" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button Command="{Binding OpenMonthlyReportDashboardCommand}" Style="{StaticResource ReportToolbarButton}" Width="145"
-                            ToolTip="月報統計・集計を開く">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Text="▥" FontSize="22" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBlock Text="集計" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -594,7 +587,6 @@
                             <MenuItem Header="月切替" Command="{Binding PlacementTarget.DataContext.SwitchSessionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                             <MenuItem Header="PDF読み込み" Command="{Binding PlacementTarget.DataContext.OpenPdfImportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                             <MenuItem Header="年度集計" Command="{Binding PlacementTarget.DataContext.OpenVehicleAnnualSummaryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                            <MenuItem Header="月報統計" Command="{Binding PlacementTarget.DataContext.OpenMonthlyReportDashboardCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                             <Separator/>
                             <MenuItem Header="バックアップ" Command="{Binding PlacementTarget.DataContext.CreateBackupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                             <MenuItem Header="復元" Command="{Binding PlacementTarget.DataContext.RestoreBackupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>

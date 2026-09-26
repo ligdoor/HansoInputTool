@@ -185,7 +185,6 @@ namespace HansoInputTool.ViewModels
         public ICommand TransferCommand { get; }
         public ICommand OnLoadedCommand { get; }
         public ICommand OnClosingCommand { get; }
-        public ICommand OpenMonthlyReportDashboardCommand { get; }
         public ICommand OpenVehicleAnnualSummaryCommand { get; }
         public ICommand OpenPdfImportCommand { get; }
         public ICommand ClearInputDataCommand { get; }
@@ -217,7 +216,6 @@ namespace HansoInputTool.ViewModels
             TransferCommand                  = new RelayCommand(async p => await StartTransfer(),       p => !IsBusy);
             OnLoadedCommand                  = new RelayCommand(async p => await OnWindowLoaded());
             OnClosingCommand                 = new RelayCommand(p => { });
-            OpenMonthlyReportDashboardCommand = new RelayCommand(_ => OpenWindow<MonthlyReportDashboardWindow>("月報統計ダッシュボード"));
             OpenVehicleAnnualSummaryCommand  = new RelayCommand(_ => OpenWindow<VehicleAnnualSummaryWindow>("車両別年度集計"));
             OpenPdfImportCommand             = new RelayCommand(_ => OpenPdfImport(),                   _ => !IsBusy);
             ClearInputDataCommand            = new RelayCommand(p => ConfirmAndClearInputData(),        p => !IsBusy);
