@@ -70,25 +70,47 @@
                                     <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="対象" Width="155">
+                            <GridViewColumn Header="対象" Width="175">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Label}" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="AI読取車両：{Binding VehicleNumber}" Foreground="{StaticResource SubTextBrush}" FontSize="10"/>
+                                        <TextBlock Text="対象日報" Foreground="{StaticResource SubTextBrush}" FontSize="10"/>
+                                        <TextBlock Text="{Binding Label}" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,1,0,3"/>
+                                        <TextBlock Text="AI読取車両" Foreground="{StaticResource SubTextBrush}" FontSize="10"/>
+                                        <TextBlock Text="{Binding VehicleNumber}" Foreground="{StaticResource TextBrush}" FontSize="11"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="日" Width="70">
-                                <GridViewColumn.CellTemplate><DataTemplate><TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Width="55" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/></DataTemplate></GridViewColumn.CellTemplate>
+                            <GridViewColumn Header="日" Width="78">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="日付（日）" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Width="58" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="有料km" Width="90">
-                                <GridViewColumn.CellTemplate><DataTemplate><TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="75" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/></DataTemplate></GridViewColumn.CellTemplate>
+                            <GridViewColumn Header="有料km" Width="100">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="有料キロ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="78" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="無料km" Width="90">
-                                <GridViewColumn.CellTemplate><DataTemplate><TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="75" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/></DataTemplate></GridViewColumn.CellTemplate>
+                            <GridViewColumn Header="無料km" Width="100">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="無料キロ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="78" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="深夜(分)" Width="90">
-                                <GridViewColumn.CellTemplate><DataTemplate><TextBox Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" Width="75" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/></DataTemplate></GridViewColumn.CellTemplate>
+                            <GridViewColumn Header="深夜" Width="110">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="深夜時間（分）" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" Width="78" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
                             <GridViewColumn Header="状態" Width="190">
                                 <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{StaticResource SubTextBrush}" FontSize="11"/></DataTemplate></GridViewColumn.CellTemplate>
