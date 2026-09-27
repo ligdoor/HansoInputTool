@@ -17,7 +17,7 @@ namespace HansoInputTool.Views
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
-            ApiKey = ApiKeyBox.Text?.Trim();
+            ApiKey = ApiKeyBox.Password?.Trim();
             if (string.IsNullOrWhiteSpace(ApiKey))
             {
                 MessageBox.Show("APIキーを入力してください。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);

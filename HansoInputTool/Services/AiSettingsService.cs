@@ -11,12 +11,15 @@ namespace HansoInputTool.Services
 {
     /// <summary>
     /// PDF解析で使用するAIプロバイダー設定を保存・読み込みします。
-    /// APIキーはWindows DPAPIで暗号化して保存します。
+    /// APIキーはWindows DPAPIで暗号化し、AI設定管理パスワードはPBKDF2ハッシュで保存します。
     /// </summary>
     public class AiSettingsService
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("HansoInputTool_AiSettings_v1");
+        private const int PasswordIterations = 120_000;
+        private const int SaltSize = 16;
+        private const int HashSize = 32;
         private readonly string _filePath;
 
         public AiSettingsService(string filePath)
@@ -67,14 +70,14 @@ namespace HansoInputTool.Services
         public void Save(AiSettings settings)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath));
+            var directory = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
 
-            var obj = new JObject
-            {
-                ["provider"] = settings.Provider ?? "Anthropic",
-                ["model"] = settings.Model ?? "",
-                ["endpoint"] = settings.Endpoint ?? ""
-            };
+            var obj = LoadRawObject();
+            obj["provider"] = settings.Provider ?? "Anthropic";
+            obj["model"] = settings.Model ?? "";
+            obj["endpoint"] = settings.Endpoint ?? "";
 
             if (!string.IsNullOrWhiteSpace(settings.ApiKey))
             {
@@ -82,7 +85,102 @@ namespace HansoInputTool.Services
                     Encoding.UTF8.GetBytes(settings.ApiKey), Entropy, DataProtectionScope.LocalMachine);
                 obj["api_key"] = Convert.ToBase64String(encrypted);
             }
+            else
+            {
+                obj.Remove("api_key");
+            }
 
+            // 旧形式のキーは保存時に残さない
+            obj.Remove("claude_api_key");
+            WriteRawObject(obj);
+        }
+
+        public bool HasAdminPassword()
+        {
+            try
+            {
+                var obj = LoadRawObject();
+                return !string.IsNullOrWhiteSpace(obj["admin_password_hash"]?.ToString())
+                    && !string.IsNullOrWhiteSpace(obj["admin_password_salt"]?.ToString());
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public void SetAdminPassword(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
+                throw new ArgumentException("AI設定管理パスワードは6文字以上で設定してください。", nameof(password));
+
+            var salt = RandomNumberGenerator.GetBytes(SaltSize);
+            var hash = DerivePasswordHash(password, salt);
+            var obj = LoadRawObject();
+            obj["admin_password_salt"] = Convert.ToBase64String(salt);
+            obj["admin_password_hash"] = Convert.ToBase64String(hash);
+            obj["admin_password_iterations"] = PasswordIterations;
+            WriteRawObject(obj);
+        }
+
+        public bool VerifyAdminPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password)) return false;
+
+            try
+            {
+                var obj = LoadRawObject();
+                var saltText = obj["admin_password_salt"]?.ToString();
+                var hashText = obj["admin_password_hash"]?.ToString();
+                if (string.IsNullOrWhiteSpace(saltText) || string.IsNullOrWhiteSpace(hashText))
+                    return false;
+
+                var iterations = obj["admin_password_iterations"]?.Value<int>() ?? PasswordIterations;
+                if (iterations < 50_000 || iterations > 1_000_000)
+                    iterations = PasswordIterations;
+
+                var salt = Convert.FromBase64String(saltText);
+                var expected = Convert.FromBase64String(hashText);
+                var actual = DerivePasswordHash(password, salt, iterations);
+                return CryptographicOperations.FixedTimeEquals(actual, expected);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "AI設定管理パスワードの検証に失敗しました。");
+                return false;
+            }
+        }
+
+        private static byte[] DerivePasswordHash(string password, byte[] salt, int iterations = PasswordIterations)
+        {
+            return Rfc2898DeriveBytes.Pbkdf2(
+                password,
+                salt,
+                iterations,
+                HashAlgorithmName.SHA256,
+                HashSize);
+        }
+
+        private JObject LoadRawObject()
+        {
+            if (!File.Exists(_filePath))
+                return new JObject();
+
+            try
+            {
+                return JObject.Parse(File.ReadAllText(_filePath));
+            }
+            catch
+            {
+                return new JObject();
+            }
+        }
+
+        private void WriteRawObject(JObject obj)
+        {
+            var directory = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
             File.WriteAllText(_filePath, obj.ToString(Formatting.Indented));
         }
 
@@ -90,7 +188,6 @@ namespace HansoInputTool.Services
         {
             try
             {
-                // 旧版 v2 DPAPI
                 var bytes = ProtectedData.Unprotect(
                     Convert.FromBase64String(value),
                     Encoding.UTF8.GetBytes("HansoInputTool_ApiKey_v2"),

@@ -30,29 +30,15 @@
                    Foreground="{StaticResource SubTextBrush}" Margin="0,0,0,4"/>
 
         <Grid Grid.Row="3" Margin="0,0,0,8">
-            <TextBox x:Name="ApiKeyBox"
+            <PasswordBox x:Name="ApiKeyBox"
                      Background="#172033" Foreground="{StaticResource TextBrush}"
                      BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1"
                      Padding="8,6" FontSize="12"/>
-            <TextBlock Text="APIキーを入力..." IsHitTestVisible="False"
-                       Foreground="#64748b" FontSize="12" Padding="9,7"
-                       VerticalAlignment="Center">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Visibility" Value="Collapsed"/>
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Text, ElementName=ApiKeyBox}" Value="">
-                                <Setter Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
         </Grid>
 
         <TextBlock Grid.Row="4" TextWrapping="Wrap" FontSize="11"
                    Foreground="#64748b">
-            ※ APIキーはローカルの data/api_settings.json に保存されます。
+            ※ APIキーはローカルの data/ai_settings.json に保存されます。
         </TextBlock>
 
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">

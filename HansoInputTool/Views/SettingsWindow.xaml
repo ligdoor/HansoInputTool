@@ -221,26 +221,39 @@
                                         <RowDefinition Height="42"/>
                                         <RowDefinition Height="42"/>
                                         <RowDefinition Height="42"/>
+                                        <RowDefinition Height="42"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="AIプロバイダー" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
-                                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AiProviders}" SelectedItem="{Binding AiProvider, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Background="#172033" Foreground="{StaticResource TextBrush}"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AiProviders}" SelectedItem="{Binding AiProvider, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsAiSettingsUnlocked}" Padding="6,4" Background="#172033" Foreground="{StaticResource TextBrush}"/>
                                     <TextBlock Grid.Row="0" Grid.Column="2" Text="Claude / OpenAI / Gemini から選択できます。" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
 
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="モデル" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" Padding="6,5" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="モデル名は自由に変更できます。" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsAiSettingsUnlocked}" Padding="6,5" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="モデル名の変更には管理認証が必要です。" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
 
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="APIキー" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding AiApiKey, UpdateSourceTrigger=PropertyChanged}" Padding="6,5" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    <Border Grid.Row="2" Grid.Column="1" Background="#172033" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="8,5">
+                                        <TextBlock Text="{Binding AiApiKeyDisplay}" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                                    </Border>
                                     <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <Button Content="APIキー変更" Command="{Binding ChangeAiApiKeyCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" IsEnabled="{Binding IsAiSettingsUnlocked}" Style="{StaticResource NormalButton}" Background="{StaticResource ButtonSecondaryBgBrush}" Padding="10,5" Margin="0,0,6,0"/>
+                                        <Button Content="APIキー表示" Command="{Binding ViewAiApiKeyCommand}" CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}" IsEnabled="{Binding IsAiSettingsUnlocked}" Style="{StaticResource NormalButton}" Background="{StaticResource ButtonSecondaryBgBrush}" Padding="10,5"/>
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="AI設定管理" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
+                                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="AI設定を編集" Command="{Binding UnlockAiSettingsCommand}" Style="{StaticResource NormalButton}" Background="{StaticResource AccentBrush}" Padding="12,5"/>
+                                        <TextBlock Text="{Binding AiSecurityStatus}" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
                                         <Button Content="接続テスト" Command="{Binding TestAiConnectionCommand}" Style="{StaticResource NormalButton}" Background="{StaticResource ButtonSecondaryBgBrush}" Padding="12,5"/>
                                         <TextBlock Text="{Binding AiStatus}" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                     </StackPanel>
 
-                                    <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,6,0,0">
-                                        <TextBlock Text="APIキーはWindows DPAPIで暗号化してローカル保存します。PDF日報は選択したAIサービスへ送信されます。" Foreground="{StaticResource SubTextBrush}" FontSize="11" TextWrapping="Wrap"/>
+                                    <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,6,0,0">
+                                        <TextBlock Text="APIキーは常時マスク表示し、DPAPIで暗号化してローカル保存します。変更・表示・プロバイダー・モデル変更にはAI設定管理パスワードが必要です。表示したAPIキーは30秒後に自動的に閉じます。" Foreground="{StaticResource SubTextBrush}" FontSize="11" TextWrapping="Wrap"/>
                                     </Border>
                                 </Grid>
                             </GroupBox>

@@ -23,6 +23,8 @@ namespace HansoInputTool.ViewModels
         private readonly FlagDefinitionService _flagService;
         private readonly AiSettingsService _aiSettingsService;
         private AiSettings _aiSettings;
+        private bool _loadingAiSettings;
+        private bool _aiSettingsDirty;
 
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ObservableCollection<VehicleSheetViewModel> VehicleSheetList { get; set; }
@@ -72,20 +74,47 @@ namespace HansoInputTool.ViewModels
             set
             {
                 if (!SetProperty(ref _aiProvider, value)) return;
-                if (value?.StartsWith("OpenAI", StringComparison.OrdinalIgnoreCase) == true)
-                    AiModel = "gpt-5-mini";
-                else if (value?.StartsWith("Google", StringComparison.OrdinalIgnoreCase) == true)
-                    AiModel = "gemini-2.5-flash";
-                else
-                    AiModel = "claude-haiku-4-5-20251001";
+                if (!_loadingAiSettings && IsAiSettingsUnlocked)
+                {
+                    if (value?.StartsWith("OpenAI", StringComparison.OrdinalIgnoreCase) == true)
+                        AiModel = "gpt-5-mini";
+                    else if (value?.StartsWith("Google", StringComparison.OrdinalIgnoreCase) == true)
+                        AiModel = "gemini-2.5-flash";
+                    else
+                        AiModel = "claude-haiku-4-5-20251001";
+                    _aiSettingsDirty = true;
+                }
             }
         }
 
         private string _aiModel;
-        public string AiModel { get => _aiModel; set => SetProperty(ref _aiModel, value); }
+        public string AiModel
+        {
+            get => _aiModel;
+            set
+            {
+                if (!SetProperty(ref _aiModel, value)) return;
+                if (!_loadingAiSettings && IsAiSettingsUnlocked)
+                    _aiSettingsDirty = true;
+            }
+        }
 
+        // APIキー本体は画面にバインドしません。AI解析・接続テストでのみ内部利用します。
         private string _aiApiKey;
-        public string AiApiKey { get => _aiApiKey; set => SetProperty(ref _aiApiKey, value); }
+        public string AiApiKey
+        {
+            get => _aiApiKey;
+            private set
+            {
+                if (!SetProperty(ref _aiApiKey, value)) return;
+                OnPropertyChanged(nameof(AiApiKeyDisplay));
+            }
+        }
+
+        // APIキーが未設定の場合は、マスク文字ではなく未設定であることを明示します。
+        public string AiApiKeyDisplay => string.IsNullOrWhiteSpace(AiApiKey)
+            ? "未設定"
+            : "●●●●●●●●●●●●●●●●";
 
         private string _aiStatus = "未確認";
         public string AiStatus { get => _aiStatus; set => SetProperty(ref _aiStatus, value); }
@@ -147,9 +176,11 @@ namespace HansoInputTool.ViewModels
             var aiSettingsPath = Path.Combine(App.DataPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data"), "ai_settings.json");
             _aiSettingsService = new AiSettingsService(aiSettingsPath);
             _aiSettings = _aiSettingsService.Load();
+            _loadingAiSettings = true;
             AiProvider = _aiSettings.Provider == "OpenAI" ? "OpenAI" : _aiSettings.Provider == "Gemini" ? "Google (Gemini)" : "Anthropic (Claude)";
             AiModel = _aiSettings.Model;
             AiApiKey = _aiSettings.ApiKey ?? "";
+            _loadingAiSettings = false;
             AiStatus = string.IsNullOrWhiteSpace(AiApiKey) ? "APIキー未設定" : "保存済み";
             Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
             var currentSheets = _excelHandler.GetVehicleSheetNames();
@@ -206,7 +237,8 @@ namespace HansoInputTool.ViewModels
             SaveCommand          = new RelayCommand(p => SaveSettings(p));
             CancelCommand        = new RelayCommand(p => ((Window)p).Close());
             ResetShortcutsCommand = new RelayCommand(p => ResetShortcuts());
-            TestAiConnectionCommand = new RelayCommand(async _ => await TestAiConnectionAsync(), _ => !string.IsNullOrWhiteSpace(AiApiKey));
+            TestAiConnectionCommand = new RelayCommand(async _ => await TestAiConnectionAsync(), _ => !string.IsNullOrWhiteSpace(_aiSettings?.ApiKey));
+            InitializeAiSecurityCommands();
         }
 
         // 旧コンストラクタ（後方互換性のため）
@@ -243,15 +275,20 @@ namespace HansoInputTool.ViewModels
             {
                 Provider = AiProvider.StartsWith("OpenAI", StringComparison.OrdinalIgnoreCase) ? "OpenAI" : AiProvider.StartsWith("Google", StringComparison.OrdinalIgnoreCase) ? "Gemini" : "Anthropic",
                 Model = AiModel?.Trim(),
-                ApiKey = AiApiKey?.Trim()
+                ApiKey = _aiSettings?.ApiKey?.Trim()
             };
         }
 
         internal void SaveAiSettings()
         {
+            if (!_aiSettingsDirty || !IsAiSettingsUnlocked)
+                return;
+
             var settings = BuildAiSettings();
             _aiSettingsService.Save(settings);
             _aiSettings = settings;
+            AiApiKey = settings.ApiKey ?? "";
+            _aiSettingsDirty = false;
             AiStatus = string.IsNullOrWhiteSpace(settings.ApiKey) ? "APIキー未設定" : "保存済み";
         }
     }
