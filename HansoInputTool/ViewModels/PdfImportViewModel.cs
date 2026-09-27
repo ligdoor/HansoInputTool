@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using HansoInputTool.Services;
+using HansoInputTool.Models;
 using HansoInputTool.ViewModels.Base;
 using Microsoft.Win32;
 
@@ -15,7 +16,7 @@ namespace HansoInputTool.ViewModels
     {
         private readonly NormalSheetViewModel _normalSheet;
         private readonly Action<string> _log;
-        private readonly string _apiKey;
+        private readonly AiSettings _aiSettings;
 
         public ObservableCollection<PdfImportItem> Items { get; } = new();
 
@@ -45,17 +46,21 @@ namespace HansoInputTool.ViewModels
         public ICommand RegisterAllCommand         { get; }
         public ICommand RegisterItemCommand        { get; }
         public ICommand RemoveItemCommand          { get; }
+        public ICommand OpenPageCommand            { get; }
+        public string ProviderName => _aiSettings?.Provider ?? "未設定";
+        public string ModelName => _aiSettings?.Model ?? "";
 
-        public PdfImportViewModel(NormalSheetViewModel normalSheet, Action<string> log, string apiKey)
+        public PdfImportViewModel(NormalSheetViewModel normalSheet, Action<string> log, AiSettings aiSettings)
         {
             _normalSheet = normalSheet;
             _log         = log;
-            _apiKey      = apiKey;
+            _aiSettings  = aiSettings ?? new AiSettings();
 
             SelectAndAnalyzePdfCommand = new RelayCommand(async _ => await SelectAndAnalyzeAsync(), _ => !IsBusy);
             RegisterAllCommand         = new RelayCommand(async _ => await RegisterAllAsync(),       _ => !IsBusy && Items.Any(i => i.CanRegister));
             RegisterItemCommand        = new RelayCommand(async p => await RegisterItemAsync(p as PdfImportItem), p => !IsBusy && (p as PdfImportItem)?.CanRegister == true);
             RemoveItemCommand          = new RelayCommand(p => RemoveItem(p as PdfImportItem), p => p != null && !IsBusy);
+            OpenPageCommand            = new RelayCommand(p => OpenPage(p as PdfImportItem), p => p is PdfImportItem && !IsBusy);
         }
 
         private async Task SelectAndAnalyzeAsync()
@@ -77,7 +82,7 @@ namespace HansoInputTool.ViewModels
                 using var ocrService = new PdfOcrService();
                 var pages = await ocrService.AnalyzeAllPagesAsync(
                     dialog.FileName,
-                    _apiKey,
+                    _aiSettings,
                     (current, total) =>
                     {
                         ProgressCurrent = current;
@@ -174,55 +179,70 @@ namespace HansoInputTool.ViewModels
             Items.Remove(item);
             OnPropertyChanged(nameof(HasItems));
         }
+
+        private void OpenPage(PdfImportItem item)
+        {
+            if (item?.Data?.PagePdfBytes == null || item.Data.PagePdfBytes.Length == 0) return;
+            try
+            {
+                var dir = Path.Combine(Path.GetTempPath(), "HansoInputTool", "PdfReview");
+                Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, $"日報_p{item.Data.PageNumber}_{Guid.NewGuid():N}.pdf");
+                File.WriteAllBytes(path, item.Data.PagePdfBytes);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+                _log?.Invoke($"[PDF確認] ページ{item.Data.PageNumber}を開きました。");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"PDFを開けませんでした。\n\n{ex.Message}", "PDF確認", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
     }
 
     public class PdfImportItem : ObservableObject
     {
         public NippoData Data { get; }
-
-        // 表示ラベル（例: p.1 / 2月27日 / 車両1603）
         public string Label => $"p.{Data.PageNumber}  {(Data.Day.HasValue ? $"{Data.Day}日" : "日付不明")}  車両{Data.VehicleNumber ?? "?"}";
 
-        // 編集可能フィールド
         private string _day;
-        public string Day { get => _day; set => SetProperty(ref _day, value); }
-
+        public string Day { get => _day; set { if (SetProperty(ref _day, value)) RaiseValidation(); } }
         private string _yuryoKm;
-        public string YuryoKm { get => _yuryoKm; set => SetProperty(ref _yuryoKm, value); }
-
+        public string YuryoKm { get => _yuryoKm; set { if (SetProperty(ref _yuryoKm, value)) RaiseValidation(); } }
         private string _muryoKm;
-        public string MuryoKm { get => _muryoKm; set => SetProperty(ref _muryoKm, value); }
-
+        public string MuryoKm { get => _muryoKm; set { if (SetProperty(ref _muryoKm, value)) RaiseValidation(); } }
         private string _shinyaMinutes;
-        public string ShinyaMinutes { get => _shinyaMinutes; set => SetProperty(ref _shinyaMinutes, value); }
-
+        public string ShinyaMinutes { get => _shinyaMinutes; set { if (SetProperty(ref _shinyaMinutes, value)) RaiseValidation(); } }
+        private string _vehicleNumber;
+        public string VehicleNumber { get => _vehicleNumber; set => SetProperty(ref _vehicleNumber, value); }
         private string _statusText;
         public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
-
         private bool _isDone;
-        public bool IsDone { get => _isDone; set { if (SetProperty(ref _isDone, value)) OnPropertyChanged(nameof(CanRegister)); } }
+        public bool IsDone { get => _isDone; set { if (SetProperty(ref _isDone, value)) { OnPropertyChanged(nameof(CanRegister)); OnPropertyChanged(nameof(HasError)); } } }
+        private bool _isConfirmed;
+        public bool IsConfirmed { get => _isConfirmed; set { if (SetProperty(ref _isConfirmed, value)) { OnPropertyChanged(nameof(CanRegister)); CommandManager.InvalidateRequerySuggested(); } } }
 
-        public bool HasError    => string.IsNullOrEmpty(Day) || string.IsNullOrEmpty(YuryoKm) || string.IsNullOrEmpty(MuryoKm);
-        public bool CanRegister => !IsDone && !string.IsNullOrEmpty(Day);
+        public bool HasError => !int.TryParse(Day, out var d) || d <= 0
+            || !double.TryParse(YuryoKm, out _) || !double.TryParse(MuryoKm, out _)
+            || Data.RetryFailed;
+        public bool CanRegister => !IsDone && IsConfirmed && !HasError;
 
         public PdfImportItem(NippoData data)
         {
-            Data          = data;
-            Day           = data.Day?.ToString() ?? "";
-            YuryoKm      = data.YuryoKm?.ToString() ?? "";
-            MuryoKm      = data.MuryoKm?.ToString() ?? "";
-            ShinyaMinutes = (data.ShinyaMinutes.HasValue && data.ShinyaMinutes > 0)
-                            ? data.ShinyaMinutes.ToString() : "";
+            Data = data;
+            Day = data.Day?.ToString() ?? "";
+            YuryoKm = data.YuryoKm?.ToString() ?? "";
+            MuryoKm = data.MuryoKm?.ToString() ?? "";
+            ShinyaMinutes = data.ShinyaMinutes.HasValue ? data.ShinyaMinutes.ToString() : "0";
+            VehicleNumber = data.VehicleNumber ?? "";
+            StatusText = data.RetryFailed
+                ? $"❌ 読み取り失敗: {data.RetryMessage}"
+                : (data.ValidateRequired().isValid ? "⚠️ 未確認" : $"⚠️ 要確認: {data.ValidateRequired().missingFields}");
+        }
 
-            // リトライ全失敗の場合は専用メッセージを表示
-            if (data.RetryFailed)
-            {
-                StatusText = $"❌ 読み取り失敗（リトライ済）: {data.RetryMessage}";
-                return;
-            }
-
-            var (isValid, missing) = data.ValidateRequired();
-            StatusText = isValid ? "✅ 確認してください" : $"⚠️ 要確認: {missing}";
+        private void RaiseValidation()
+        {
+            OnPropertyChanged(nameof(HasError));
+            OnPropertyChanged(nameof(CanRegister));
         }
     }
 }

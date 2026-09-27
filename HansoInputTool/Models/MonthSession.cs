@@ -21,9 +21,6 @@ namespace HansoInputTool.Models
         /// 保存済みの月は、転記終了時の自動クリアや「クリア」でデータが消えない（編集は自由にできる）。
         /// </summary>
         public bool   IsSaved     { get; set; }
-
-        /// <summary>現在アクティブな月かどうか（画面表示用）</summary>
-        public bool   IsCurrent   { get; set; }
         /// <summary>保存した日時（未保存の場合はnull）</summary>
         public string SavedAt     { get; set; }
 

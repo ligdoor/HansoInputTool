@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Versioning;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -193,7 +194,7 @@ namespace HansoInputTool.ViewModels
             {
                 Title  = "出力先を選択",
                 Filter = "Excel ファイル (*.xlsx)|*.xlsx",
-                FileName = $"{GetEraYearLabel(StartYear)}年{StartMonth}月～{GetEraYearLabel(EndYear)}年{EndMonth}月　アルス搬送・霊柩車　年間実績.xlsx",
+                FileName = $"運輸実績_{StartYear}年{StartMonth}月-{EndYear}年{EndMonth}月.xlsx",
                 InitialDirectory = FolderPath
             };
             if (saveDialog.ShowDialog() != true) return;
@@ -266,19 +267,8 @@ namespace HansoInputTool.ViewModels
             }
         }
 
-        private static string GetEraYearLabel(int westernYear)
-        {
-            string eraName = Services.DataSetupService.ReadEraNameFromSettings();
-            int eraStartYear = Services.DataSetupService.ReadEraStartYearFromSettings();
-
-            if (eraStartYear <= 0)
-                return westernYear.ToString();
-
-            int eraYear = westernYear - eraStartYear + 1;
-            return eraYear > 0 ? $"{eraName}{eraYear}" : westernYear.ToString();
-        }
-
         // ---- COM フォルダダイアログ ----
+        [SupportedOSPlatform("windows")]
         private static string ShowFolderBrowserDialog(string title)
         {
             var dialog = (IFileOpenDialog2)new FileOpenDialog2();

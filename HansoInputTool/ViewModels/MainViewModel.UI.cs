@@ -132,17 +132,33 @@ namespace HansoInputTool.ViewModels
 
         private void OpenPdfImport()
         {
-            var apiKey = LoadApiKey();
-            if (string.IsNullOrWhiteSpace(apiKey))
+            var settingsPath = Path.Combine(BaseDataPath, "ai_settings.json");
+            var aiSettingsService = new AiSettingsService(settingsPath);
+            var aiSettings = aiSettingsService.Load();
+
+            // 旧Claude専用設定からの移行
+            if (string.IsNullOrWhiteSpace(aiSettings.ApiKey))
             {
-                var inputDialog = new Views.ApiKeyInputWindow { Owner = Application.Current.MainWindow };
-                if (inputDialog.ShowDialog() != true) return;
-                apiKey = inputDialog.ApiKey;
-                if (!string.IsNullOrWhiteSpace(apiKey))
-                    SaveApiKey(apiKey);
+                var legacyKey = LoadApiKey();
+                if (!string.IsNullOrWhiteSpace(legacyKey))
+                {
+                    aiSettings.Provider = "Anthropic";
+                    aiSettings.Model = string.IsNullOrWhiteSpace(aiSettings.Model) ? "claude-haiku-4-5-20251001" : aiSettings.Model;
+                    aiSettings.ApiKey = legacyKey;
+                    aiSettingsService.Save(aiSettings);
+                }
             }
 
-            var vm = new PdfImportViewModel(NormalSheet, Log, apiKey);
+            if (string.IsNullOrWhiteSpace(aiSettings.ApiKey))
+            {
+                var providerName = aiSettings.Provider == "OpenAI" ? "OpenAI" : aiSettings.Provider == "Gemini" ? "Google (Gemini)" : "Anthropic (Claude)";
+                var inputDialog = new Views.ApiKeyInputWindow(providerName) { Owner = Application.Current.MainWindow };
+                if (inputDialog.ShowDialog() != true) return;
+                aiSettings.ApiKey = inputDialog.ApiKey;
+                aiSettingsService.Save(aiSettings);
+            }
+
+            var vm = new PdfImportViewModel(NormalSheet, Log, aiSettings);
             new Views.PdfImportWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
         }
 

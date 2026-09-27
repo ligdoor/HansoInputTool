@@ -21,6 +21,8 @@ namespace HansoInputTool.ViewModels
         private readonly ShortcutService _shortcutService;
         private readonly BackupService _backupService;
         private readonly FlagDefinitionService _flagService;
+        private readonly AiSettingsService _aiSettingsService;
+        private AiSettings _aiSettings;
 
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ObservableCollection<VehicleSheetViewModel> VehicleSheetList { get; set; }
@@ -60,6 +62,35 @@ namespace HansoInputTool.ViewModels
             get => _maxManualBackupFiles;
             set => SetProperty(ref _maxManualBackupFiles, Math.Max(1, Math.Min(100, value)));
         }
+
+        public ObservableCollection<string> AiProviders { get; } = new() { "Anthropic (Claude)", "OpenAI", "Google (Gemini)" };
+
+        private string _aiProvider;
+        public string AiProvider
+        {
+            get => _aiProvider;
+            set
+            {
+                if (!SetProperty(ref _aiProvider, value)) return;
+                if (value?.StartsWith("OpenAI", StringComparison.OrdinalIgnoreCase) == true)
+                    AiModel = "gpt-5-mini";
+                else if (value?.StartsWith("Google", StringComparison.OrdinalIgnoreCase) == true)
+                    AiModel = "gemini-2.5-flash";
+                else
+                    AiModel = "claude-haiku-4-5-20251001";
+            }
+        }
+
+        private string _aiModel;
+        public string AiModel { get => _aiModel; set => SetProperty(ref _aiModel, value); }
+
+        private string _aiApiKey;
+        public string AiApiKey { get => _aiApiKey; set => SetProperty(ref _aiApiKey, value); }
+
+        private string _aiStatus = "未確認";
+        public string AiStatus { get => _aiStatus; set => SetProperty(ref _aiStatus, value); }
+
+        public ICommand TestAiConnectionCommand { get; }
 
         // 元号設定
         private string _eraName;
@@ -113,6 +144,13 @@ namespace HansoInputTool.ViewModels
             _backupService          = backupService;
             _flagService            = flagService;
             _vehicleSettingsService = vehicleSettingsService;
+            var aiSettingsPath = Path.Combine(App.DataPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data"), "ai_settings.json");
+            _aiSettingsService = new AiSettingsService(aiSettingsPath);
+            _aiSettings = _aiSettingsService.Load();
+            AiProvider = _aiSettings.Provider == "OpenAI" ? "OpenAI" : _aiSettings.Provider == "Gemini" ? "Google (Gemini)" : "Anthropic (Claude)";
+            AiModel = _aiSettings.Model;
+            AiApiKey = _aiSettings.ApiKey ?? "";
+            AiStatus = string.IsNullOrWhiteSpace(AiApiKey) ? "APIキー未設定" : "保存済み";
             Rates = JsonConvert.DeserializeObject<Dictionary<string, RateInfo>>(JsonConvert.SerializeObject(currentRates));
             var currentSheets = _excelHandler.GetVehicleSheetNames();
             VehicleSheetList = new ObservableCollection<VehicleSheetViewModel>(
@@ -168,6 +206,7 @@ namespace HansoInputTool.ViewModels
             SaveCommand          = new RelayCommand(p => SaveSettings(p));
             CancelCommand        = new RelayCommand(p => ((Window)p).Close());
             ResetShortcutsCommand = new RelayCommand(p => ResetShortcuts());
+            TestAiConnectionCommand = new RelayCommand(async _ => await TestAiConnectionAsync(), _ => !string.IsNullOrWhiteSpace(AiApiKey));
         }
 
         // 旧コンストラクタ（後方互換性のため）
@@ -180,5 +219,40 @@ namespace HansoInputTool.ViewModels
         {
         }
 
+
+        private async System.Threading.Tasks.Task TestAiConnectionAsync()
+        {
+            try
+            {
+                AiStatus = "接続確認中...";
+                var settings = BuildAiSettings();
+                await PdfAiAnalyzerFactory.Create(settings.Provider).TestConnectionAsync(settings);
+                AiStatus = "✅ 接続成功";
+                MessageBox.Show($"{settings.Provider} / {settings.Model} への接続に成功しました。", "AI接続テスト", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                AiStatus = "❌ 接続失敗";
+                MessageBox.Show($"AI APIへの接続に失敗しました。\n\n{ex.Message}", "AI接続テスト", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private AiSettings BuildAiSettings()
+        {
+            return new AiSettings
+            {
+                Provider = AiProvider.StartsWith("OpenAI", StringComparison.OrdinalIgnoreCase) ? "OpenAI" : AiProvider.StartsWith("Google", StringComparison.OrdinalIgnoreCase) ? "Gemini" : "Anthropic",
+                Model = AiModel?.Trim(),
+                ApiKey = AiApiKey?.Trim()
+            };
+        }
+
+        internal void SaveAiSettings()
+        {
+            var settings = BuildAiSettings();
+            _aiSettingsService.Save(settings);
+            _aiSettings = settings;
+            AiStatus = string.IsNullOrWhiteSpace(settings.ApiKey) ? "APIキー未設定" : "保存済み";
+        }
     }
 }

@@ -143,6 +143,9 @@ namespace HansoInputTool.ViewModels
                     _mainViewModel.SyncFlagShortcuts();
                 }
 
+                // AI / PDF解析設定の保存
+                SaveAiSettings();
+
                 // 元号設定の保存
                 var saveEra = string.IsNullOrWhiteSpace(EraName) ? "R" : EraName.Trim();
                 Services.DataSetupService.SaveEraNameToSettings(saveEra);

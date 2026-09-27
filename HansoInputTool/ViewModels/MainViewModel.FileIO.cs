@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.Versioning;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -296,6 +297,7 @@ namespace HansoInputTool.ViewModels
 
         #region COM フォルダ選択ダイアログ
 
+        [SupportedOSPlatform("windows")]
         private string ShowFolderBrowserDialog(string title)
         {
             var dialog = (IFileOpenDialog_MV)new FileOpenDialog_MV();

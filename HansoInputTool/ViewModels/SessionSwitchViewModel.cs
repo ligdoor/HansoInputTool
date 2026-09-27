@@ -2,7 +2,6 @@ using System;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
-using System.Linq;
 using HansoInputTool.Models;
 using HansoInputTool.Services;
 using HansoInputTool.ViewModels.Base;
@@ -15,12 +14,6 @@ namespace HansoInputTool.ViewModels
 
         /// <summary>切替候補として表示するセッション一覧（クリア済みで0件のものは自動的に除外される）</summary>
         public ObservableCollection<MonthSession> Sessions { get; } = new();
-
-        /// <summary>現在使用中の月を表示するためのラベル</summary>
-        public string CurrentSessionLabel { get; private set; } = "現在の月：未設定";
-
-        /// <summary>セッション一覧の件数</summary>
-        public string SessionCountText => $"{Sessions.Count}件";
 
         private MonthSession _selectedSession;
         public MonthSession SelectedSession
@@ -135,18 +128,7 @@ namespace HansoInputTool.ViewModels
             _dbService.CleanUpEmptySessions();
             Sessions.Clear();
             foreach (var s in _dbService.GetAllSessions())
-            {
-                s.IsCurrent = s.Id == _dbService.CurrentSessionId;
                 Sessions.Add(s);
-            }
-
-            var current = Sessions.FirstOrDefault(s => s.Id == _dbService.CurrentSessionId);
-            CurrentSessionLabel = current != null
-                ? $"現在の月：{current.Label}（{current.RecordCount}件）"
-                : "現在の月：未設定";
-
-            OnPropertyChanged(nameof(CurrentSessionLabel));
-            OnPropertyChanged(nameof(SessionCountText));
         }
 
         private void Switch()

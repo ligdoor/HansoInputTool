@@ -210,6 +210,41 @@
                                 </Grid>
                             </GroupBox>
 
+                            <GroupBox Header="AI / PDF解析設定" Foreground="{StaticResource TextBrush}" Padding="0" Margin="0,0,0,12">
+                                <Grid Margin="14,10,14,14">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="240"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="42"/>
+                                        <RowDefinition Height="42"/>
+                                        <RowDefinition Height="42"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="AIプロバイダー" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
+                                    <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding AiProviders}" SelectedItem="{Binding AiProvider, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="6,4" Background="#172033" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Claude / OpenAI / Gemini から選択できます。" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="モデル" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" Padding="6,5" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="モデル名は自由に変更できます。" VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
+
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="APIキー" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding AiApiKey, UpdateSourceTrigger=PropertyChanged}" Padding="6,5" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                    <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <Button Content="接続テスト" Command="{Binding TestAiConnectionCommand}" Style="{StaticResource NormalButton}" Background="{StaticResource ButtonSecondaryBgBrush}" Padding="12,5"/>
+                                        <TextBlock Text="{Binding AiStatus}" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    </StackPanel>
+
+                                    <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,6,0,0">
+                                        <TextBlock Text="APIキーはWindows DPAPIで暗号化してローカル保存します。PDF日報は選択したAIサービスへ送信されます。" Foreground="{StaticResource SubTextBrush}" FontSize="11" TextWrapping="Wrap"/>
+                                    </Border>
+                                </Grid>
+                            </GroupBox>
+
                             <Border Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource InputBorderBrush}"
                                     BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
                                 <StackPanel>

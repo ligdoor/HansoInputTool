@@ -3,15 +3,16 @@ using System.Windows;
 namespace HansoInputTool.Views
 {
     /// <summary>
-    /// Claude APIキーを初回入力するシンプルなダイアログ
+    /// AI APIキーを初回入力するシンプルなダイアログ
     /// </summary>
     public partial class ApiKeyInputWindow : Window
     {
         public string ApiKey { get; private set; }
 
-        public ApiKeyInputWindow()
+        public ApiKeyInputWindow(string providerName = "AI")
         {
             InitializeComponent();
+            Title = $"{providerName} APIキーの設定";
         }
 
         private void OkButton_Click(object sender, RoutedEventArgs e)
