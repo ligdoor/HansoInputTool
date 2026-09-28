@@ -64,6 +64,101 @@ namespace HansoInputTool.Services
             return JsonConvert.DeserializeObject<NippoData>(text) ?? new NippoData();
         }
 
+        protected static string BuildFormMarksPrompt(string coreJson) => $@"次の運転日報PDFについて、JSONの既存値を変更せず、帳票の画像を視覚的に確認してフォーム項目だけを読み取ってください。
+「搬送」「移動」の丸は文字列から推測せず、丸の位置で判断します。不明、丸なし、両方ならwork_typeはnull。
+「エンバー」等の手書きがあるかだけを候補として判定し、登録を確定しないでください。
+「給油」の丸、左下の「ガソリン給油数」のリッター、現行様式ならスタンド名の行の「メーター指針」を読み取ってください。旧様式で欄がなければfuel_odometer_kmはnull。別欄の距離で補完しないでください。不明値はnull。
+coreの数値を再解釈したり修正したりせず、次のJSONにこのフォーム情報を追加したJSONだけを返してください。
+core: {coreJson}
+形式: {{""work_type"":""搬送"",""embalming_candidate"":null,""fuel_marked"":false,""fuel_liters"":null,""fuel_odometer_km"":null}}";
+
+        protected static async Task<NippoData> AnalyzeFormMarksAsync(byte[] pdfBytes, AiSettings settings, NippoData coreData)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
+                string prompt = BuildFormMarksPrompt(JsonConvert.SerializeObject(coreData));
+                var base64 = Convert.ToBase64String(pdfBytes);
+                string responseText;
+
+                switch ((settings.Provider ?? "Anthropic").Trim().ToLowerInvariant())
+                {
+                    case "openai":
+                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", settings.ApiKey);
+                        var openAi = new
+                        {
+                            model = settings.Model,
+                            input = new[]
+                            {
+                                new
+                                {
+                                    role = "user",
+                                    content = new object[]
+                                    {
+                                        new { type = "input_file", filename = "nippo.pdf", file_data = "data:application/pdf;base64," + base64 },
+                                        new { type = "input_text", text = prompt }
+                                    }
+                                }
+                            }
+                        };
+                        var openAiResponse = await client.PostAsync("https://api.openai.com/v1/responses", new StringContent(JsonConvert.SerializeObject(openAi), Encoding.UTF8, "application/json"));
+                        var openAiBody = await openAiResponse.Content.ReadAsStringAsync();
+                        if (!openAiResponse.IsSuccessStatusCode) throw new Exception($"OpenAI APIエラー ({openAiResponse.StatusCode}): {openAiBody}");
+                        responseText = JObject.Parse(openAiBody)["output"]?.SelectToken("$..text")?.ToString();
+                        break;
+                    case "gemini":
+                        var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(settings.Model)}:generateContent?key={Uri.EscapeDataString(settings.ApiKey)}";
+                        var gemini = new
+                        {
+                            contents = new[]
+                            {
+                                new
+                                {
+                                    parts = new object[]
+                                    {
+                                        new { text = prompt },
+                                        new { inlineData = new { mimeType = "application/pdf", data = base64 } }
+                                    }
+                                }
+                            }
+                        };
+                        var geminiResponse = await client.PostAsync(endpoint, new StringContent(JsonConvert.SerializeObject(gemini), Encoding.UTF8, "application/json"));
+                        var geminiBody = await geminiResponse.Content.ReadAsStringAsync();
+                        if (!geminiResponse.IsSuccessStatusCode) throw new Exception($"Gemini APIエラー ({geminiResponse.StatusCode}): {geminiBody}");
+                        responseText = JObject.Parse(geminiBody)["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
+                        break;
+                    default:
+                        client.DefaultRequestHeaders.Add("x-api-key", settings.ApiKey);
+                        client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+                        var anthropic = new { model = settings.Model, max_tokens = 512, messages = new[] { new { role = "user", content = new object[] { new { type = "document", source = new { type = "base64", media_type = "application/pdf", data = base64 } }, new { type = "text", text = prompt } } } } };
+                        var anthropicResponse = await client.PostAsync("https://api.anthropic.com/v1/messages", new StringContent(JsonConvert.SerializeObject(anthropic), Encoding.UTF8, "application/json"));
+                        var anthropicBody = await anthropicResponse.Content.ReadAsStringAsync();
+                        if (!anthropicResponse.IsSuccessStatusCode) throw new Exception($"Anthropic APIエラー ({anthropicResponse.StatusCode}): {anthropicBody}");
+                        responseText = JObject.Parse(anthropicBody)["content"]?[0]?["text"]?.ToString();
+                        break;
+                }
+
+                return ParseResult(responseText);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "PDF帳票マーク解析に失敗しました。コア項目の解析結果を保持します。");
+                return new NippoData();
+            }
+        }
+
+        protected static NippoData MergeFormMarks(NippoData core, NippoData marks)
+        {
+            if (core == null) return marks ?? new NippoData();
+            if (marks == null) return core;
+            core.WorkType = marks.WorkType;
+            core.EmbalmingCandidate = marks.EmbalmingCandidate;
+            core.FuelMarked = marks.FuelMarked;
+            core.FuelLiters = marks.FuelLiters;
+            core.FuelOdometerKm = marks.FuelOdometerKm;
+            return core;
+        }
+
         protected static void ValidateSettings(AiSettings settings)
         {
             if (settings == null || string.IsNullOrWhiteSpace(settings.ApiKey))
@@ -99,7 +194,9 @@ namespace HansoInputTool.Services
             var body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode) throw new Exception($"Anthropic APIエラー ({response.StatusCode}): {body}");
             var text = JObject.Parse(body)["content"]?[0]?["text"]?.ToString();
-            return ParseResult(text);
+            var data = ParseResult(text);
+            if (!data.ValidateCoreFields().isValid) return data;
+            return MergeFormMarks(data, await AnalyzeFormMarksAsync(pdfBytes, settings, data));
         }
 
         public override async Task TestConnectionAsync(AiSettings settings)
@@ -140,7 +237,9 @@ namespace HansoInputTool.Services
             if (!response.IsSuccessStatusCode) throw new Exception($"OpenAI APIエラー ({response.StatusCode}): {body}");
             var json = JObject.Parse(body);
             var text = json["output"]?.SelectToken("$..text")?.ToString();
-            return ParseResult(text);
+            var data = ParseResult(text);
+            if (!data.ValidateCoreFields().isValid) return data;
+            return MergeFormMarks(data, await AnalyzeFormMarksAsync(pdfBytes, settings, data));
         }
 
         public override async Task TestConnectionAsync(AiSettings settings)
@@ -176,7 +275,9 @@ namespace HansoInputTool.Services
             var body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode) throw new Exception($"Gemini APIエラー ({response.StatusCode}): {body}");
             var text = JObject.Parse(body)["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString();
-            return ParseResult(text);
+            var data = ParseResult(text);
+            if (!data.ValidateCoreFields().isValid) return data;
+            return MergeFormMarks(data, await AnalyzeFormMarksAsync(pdfBytes, settings, data));
         }
 
         public override async Task TestConnectionAsync(AiSettings settings)

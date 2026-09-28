@@ -660,7 +660,9 @@ namespace HansoInputTool.Services
             Dictionary<string, double?> values, Dictionary<string, bool> flagStates, bool isOotsuki)
         {
             double? yuryoVal = values.GetValueOrDefault("有料キロ(D)");
-            int hansoVal     = (yuryoVal.HasValue && yuryoVal > 0) ? 1 : 0;
+            int hansoVal     = values.GetValueOrDefault("搬送回数") is double explicitHanso
+                ? (int)explicitHanso
+                : (yuryoVal.HasValue && yuryoVal > 0) ? 1 : 0;
 
             ws.Cells[row, map.Day].Value        = values.GetValueOrDefault("日(B)");
             ws.Cells[row, map.HansoCount].Value = hansoVal;

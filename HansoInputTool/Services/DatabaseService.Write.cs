@@ -38,7 +38,9 @@ namespace HansoInputTool.Services
             ";
 
             double? yuryo = values.GetValueOrDefault("有料キロ(D)");
-            int hanso = (yuryo.HasValue && yuryo > 0) ? 1 : 0;
+            int hanso = values.GetValueOrDefault("搬送回数") is double explicitHanso
+                ? (int)explicitHanso
+                : (yuryo.HasValue && yuryo > 0) ? 1 : 0;
 
             cmd.Parameters.AddWithValue("$session", CurrentSessionId);
             cmd.Parameters.AddWithValue("$sheet",   sheetName);
@@ -85,7 +87,9 @@ namespace HansoInputTool.Services
                     ";
 
                     double? yuryo = values.GetValueOrDefault("有料キロ(D)");
-                    int hanso = (yuryo.HasValue && yuryo > 0) ? 1 : 0;
+                    int hanso = values.GetValueOrDefault("搬送回数") is double explicitHanso
+                        ? (int)explicitHanso
+                        : (yuryo.HasValue && yuryo > 0) ? 1 : 0;
 
                     cmd.Parameters.AddWithValue("$session", CurrentSessionId);
                     cmd.Parameters.AddWithValue("$sheet",   sheetName);
@@ -141,7 +145,9 @@ namespace HansoInputTool.Services
             ";
 
             double? yuryo = values.GetValueOrDefault("有料キロ(D)");
-            int hanso = (yuryo.HasValue && yuryo > 0) ? 1 : 0;
+            int hanso = values.GetValueOrDefault("搬送回数") is double explicitHanso
+                ? (int)explicitHanso
+                : (yuryo.HasValue && yuryo > 0) ? 1 : 0;
 
             cmd.Parameters.AddWithValue("$id",      id);
             cmd.Parameters.AddWithValue("$sheet",   sheetName);

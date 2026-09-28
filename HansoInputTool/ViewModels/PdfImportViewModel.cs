@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using HansoInputTool.Services;
-using HansoInputTool.Models;
 using HansoInputTool.ViewModels.Base;
+using HansoInputTool.Models;
 using Microsoft.Win32;
 
 namespace HansoInputTool.ViewModels
@@ -19,6 +19,7 @@ namespace HansoInputTool.ViewModels
         private readonly AiSettings _aiSettings;
 
         public ObservableCollection<PdfImportItem> Items { get; } = new();
+        public ObservableCollection<string> VehicleSheets { get; } = new();
 
         private bool _isBusy;
         public bool IsBusy
@@ -55,6 +56,7 @@ namespace HansoInputTool.ViewModels
             _normalSheet = normalSheet;
             _log         = log;
             _aiSettings  = aiSettings ?? new AiSettings();
+            foreach (var sheet in _normalSheet.NormalSheets) VehicleSheets.Add(sheet);
 
             SelectAndAnalyzePdfCommand = new RelayCommand(async _ => await SelectAndAnalyzeAsync(), _ => !IsBusy);
             RegisterAllCommand         = new RelayCommand(async _ => await RegisterAllAsync(),       _ => !IsBusy && Items.Any(i => i.CanRegister));
@@ -92,15 +94,19 @@ namespace HansoInputTool.ViewModels
 
                 foreach (var data in pages)
                 {
-                    var item = new PdfImportItem(data);
+                    var item = new PdfImportItem(data, _normalSheet.NormalSheets.ToList());
+                    item.PropertyChanged += (_, e) =>
+                    {
+                        if (e.PropertyName == nameof(PdfImportItem.HasError)
+                            || e.PropertyName == nameof(PdfImportItem.IsConfirmed)
+                            || e.PropertyName == nameof(PdfImportItem.IsDone))
+                            RefreshResultSummary();
+                    };
                     Items.Add(item);
                 }
 
                 OnPropertyChanged(nameof(HasItems));
-                var errorCount = Items.Count(i => i.HasError);
-                StatusMessage = errorCount > 0
-                    ? $"解析完了: {Items.Count}件（うち{errorCount}件要確認）"
-                    : $"解析完了: {Items.Count}件 — 内容を確認して登録してください";
+                RefreshResultSummary();
 
                 _log?.Invoke($"[PDF読込] {Path.GetFileName(dialog.FileName)}: {pages.Count}ページ解析完了");
             }
@@ -150,20 +156,27 @@ namespace HansoInputTool.ViewModels
                 _normalSheet.Day       = item.Day;
                 _normalSheet.YuryoKm  = item.YuryoKm;
                 _normalSheet.MuryoKm  = item.MuryoKm;
-                _normalSheet.LateValue = string.IsNullOrEmpty(item.ShinyaMinutes) ? "0" : item.ShinyaMinutes;
+                _normalSheet.LateValue = item.ShinyaMinutes;
+                _normalSheet.SelectedNormalSheet = item.MatchedVehicle;
+                _normalSheet.HansoCountOverride = item.WorkType == "搬送" ? 1 : 0;
+                _normalSheet.IsFuelChecked = item.FuelMarked;
+                _normalSheet.FuelLiters = item.FuelLiters;
+                _normalSheet.FuelOdometerKm = item.FuelOdometerKm;
                 _normalSheet.ResetFlags();
-
-                await Task.Delay(100);
-
-                if (_normalSheet.RegisterCommand.CanExecute(null))
+                if (item.EmbalingConfirmed)
                 {
-                    _normalSheet.RegisterCommand.Execute(null);
-                    await Task.Delay(300);
+                    var embalmingFlag = _normalSheet.FlagItems.FirstOrDefault(f => f.Id == "embalming" || f.DisplayName.Contains("エンバー") || f.DisplayName.Contains("エンバーミング"));
+                    if (embalmingFlag != null) embalmingFlag.IsChecked = true;
                 }
 
-                item.IsDone     = true;
-                item.StatusText = $"✅ 登録済み";
-                return true;
+                if (await _normalSheet.RegisterPdfImportAsync())
+                {
+                    item.IsDone = true;
+                    item.StatusText = "✅ 登録済み";
+                    return true;
+                }
+                item.StatusText = "❌ 登録されませんでした。入力内容や確認メッセージを確認してください";
+                return false;
             }
             catch (Exception ex)
             {
@@ -173,11 +186,21 @@ namespace HansoInputTool.ViewModels
             }
         }
 
+        private void RefreshResultSummary()
+        {
+            int needsFix = Items.Count(i => i.HasError);
+            int unconfirmed = Items.Count(i => !i.IsConfirmed);
+            int registered = Items.Count(i => i.IsDone);
+            int readFailures = Items.Count(i => i.Data.RetryFailed && i.HasCoreError);
+            StatusMessage = $"解析: {Items.Count}件 / AI読取失敗: {readFailures}件 / 要修正: {needsFix}件 / 未確認: {unconfirmed}件 / 登録済: {registered}件";
+        }
+
         private void RemoveItem(PdfImportItem item)
         {
             if (item == null) return;
             Items.Remove(item);
             OnPropertyChanged(nameof(HasItems));
+            RefreshResultSummary();
         }
 
         private void OpenPage(PdfImportItem item)
@@ -214,35 +237,130 @@ namespace HansoInputTool.ViewModels
         public string ShinyaMinutes { get => _shinyaMinutes; set { if (SetProperty(ref _shinyaMinutes, value)) RaiseValidation(); } }
         private string _vehicleNumber;
         public string VehicleNumber { get => _vehicleNumber; set => SetProperty(ref _vehicleNumber, value); }
+        private string _matchedVehicle;
+        public string MatchedVehicle { get => _matchedVehicle; set { if (SetProperty(ref _matchedVehicle, value)) { OnPropertyChanged(nameof(HasVehicleMatch)); OnPropertyChanged(nameof(VehicleMatchText)); RaiseValidation(); } } }
+        public bool HasVehicleMatch => !string.IsNullOrEmpty(MatchedVehicle);
+        public string VehicleMatchText => HasVehicleMatch ? $"登録先: {MatchedVehicle}" : "登録先が一意に特定できません";
+        private string _workType;
+        public string WorkType { get => _workType; set { if (SetProperty(ref _workType, value)) RaiseValidation(); } }
+        private bool _embalingConfirmed;
+        public bool EmbalingConfirmed { get => _embalingConfirmed; set => SetProperty(ref _embalingConfirmed, value); }
+        private bool _fuelMarked;
+        public bool FuelMarked { get => _fuelMarked; set { if (SetProperty(ref _fuelMarked, value)) RaiseValidation(); } }
+        private string _fuelMarkStatus;
+        public string FuelMarkStatus
+        {
+            get => _fuelMarkStatus;
+            set
+            {
+                if (SetProperty(ref _fuelMarkStatus, value))
+                {
+                    var marked = value == "給油あり";
+                    if (_fuelMarked != marked)
+                    {
+                        _fuelMarked = marked;
+                        OnPropertyChanged(nameof(FuelMarked));
+                    }
+                    RaiseValidation();
+                }
+            }
+        }
+        public string[] FuelMarkOptions { get; } = new[] { "未判定", "給油あり", "給油なし" };
+        private string _fuelLiters;
+        public string FuelLiters { get => _fuelLiters; set { if (SetProperty(ref _fuelLiters, value)) RaiseValidation(); } }
+        private string _fuelOdometerKm;
+        public string FuelOdometerKm { get => _fuelOdometerKm; set { if (SetProperty(ref _fuelOdometerKm, value)) RaiseValidation(); } }
         private string _statusText;
-        public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
+        public string StatusText
+        {
+            get
+            {
+                if (IsDone) return _statusText ?? "✅ 登録済み";
+                if (_statusText?.StartsWith("⏳") == true || (_statusText?.StartsWith("❌") == true && !Data.RetryFailed)) return _statusText;
+                var issues = GetValidationIssues();
+                if (issues.Count > 0)
+                {
+                    string prefix = Data.RetryFailed ? $"❌ AI読取失敗（{RetryReason}） / 要修正: " : "⚠ 要修正: ";
+                    return prefix + string.Join("、", issues);
+                }
+                if (!IsConfirmed) return "未確認: 左端の確認にチェック";
+                return Data.RetryFailed ? "⚠ 読取失敗分を手入力で確認済み。登録できます" : "✅ 登録できます";
+            }
+            set
+            {
+                if (SetProperty(ref _statusText, value)) OnPropertyChanged(nameof(StatusText));
+            }
+        }
+        private string RetryReason
+        {
+            get
+            {
+                var message = Data.RetryMessage ?? "";
+                if (message.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("quota", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("429", StringComparison.OrdinalIgnoreCase))
+                    return "API利用上限。時間を置いて再解析";
+                if (message.Contains("ServiceUnavailable", StringComparison.OrdinalIgnoreCase))
+                    return "AI一時障害。時間を置いて再解析";
+                return "応答を取得できません。項目を手入力して確認";
+            }
+        }
+        public string EmbalmingCandidateText => Data.EmbalmingCandidate == true ? "候補検出: エンバー（チェックして確定）" : Data.EmbalmingCandidate == false ? "エンバー記載なし" : "エンバー判定不明（PDFで確認）";
         private bool _isDone;
-        public bool IsDone { get => _isDone; set { if (SetProperty(ref _isDone, value)) { OnPropertyChanged(nameof(CanRegister)); OnPropertyChanged(nameof(HasError)); } } }
+        public bool IsDone { get => _isDone; set { if (SetProperty(ref _isDone, value)) { OnPropertyChanged(nameof(CanRegister)); OnPropertyChanged(nameof(HasError)); OnPropertyChanged(nameof(StatusText)); } } }
         private bool _isConfirmed;
-        public bool IsConfirmed { get => _isConfirmed; set { if (SetProperty(ref _isConfirmed, value)) { OnPropertyChanged(nameof(CanRegister)); CommandManager.InvalidateRequerySuggested(); } } }
+        public bool IsConfirmed { get => _isConfirmed; set { if (SetProperty(ref _isConfirmed, value)) { OnPropertyChanged(nameof(CanRegister)); OnPropertyChanged(nameof(StatusText)); CommandManager.InvalidateRequerySuggested(); } } }
 
-        public bool HasError => !int.TryParse(Day, out var d) || d <= 0
-            || !double.TryParse(YuryoKm, out _) || !double.TryParse(MuryoKm, out _)
-            || Data.RetryFailed;
+        public bool HasError => GetValidationIssues().Count > 0;
+        public bool HasCoreError => !int.TryParse(Day, out var d) || d <= 0
+            || !double.TryParse(YuryoKm, out _) || !double.TryParse(MuryoKm, out _);
         public bool CanRegister => !IsDone && IsConfirmed && !HasError;
 
-        public PdfImportItem(NippoData data)
+        private List<string> GetValidationIssues()
+        {
+            var issues = new List<string>();
+            if (!int.TryParse(Day, out var d) || d <= 0) issues.Add("日付");
+            if (!double.TryParse(YuryoKm, out _)) issues.Add("有料km");
+            if (!double.TryParse(MuryoKm, out _)) issues.Add("無料km");
+            if (Data.RetryFailed && HasCoreError) issues.Insert(0, "コア項目を手入力");
+            if (!int.TryParse(ShinyaMinutes, out var shinya) || shinya < 0) issues.Add("深夜分");
+            if (WorkType != "搬送" && WorkType != "移動") issues.Add("搬送/移動");
+            if (!HasVehicleMatch) issues.Add("登録車両");
+            if (FuelMarkStatus != "給油あり" && FuelMarkStatus != "給油なし") issues.Add("給油の有無");
+            if (FuelMarked && (!double.TryParse(FuelLiters, out var liters) || liters <= 0)) issues.Add("給油リッター");
+            if (FuelMarked && (!double.TryParse(FuelOdometerKm, out var km) || km <= 0)) issues.Add("給油時距離");
+            return issues;
+        }
+
+        public PdfImportItem(NippoData data, List<string> vehicleSheets)
         {
             Data = data;
+            vehicleSheets ??= new List<string>();
             Day = data.Day?.ToString() ?? "";
             YuryoKm = data.YuryoKm?.ToString() ?? "";
             MuryoKm = data.MuryoKm?.ToString() ?? "";
-            ShinyaMinutes = data.ShinyaMinutes.HasValue ? data.ShinyaMinutes.ToString() : "0";
+            ShinyaMinutes = data.ShinyaMinutes?.ToString() ?? "";
             VehicleNumber = data.VehicleNumber ?? "";
-            StatusText = data.RetryFailed
-                ? $"❌ 読み取り失敗: {data.RetryMessage}"
-                : (data.ValidateRequired().isValid ? "⚠️ 未確認" : $"⚠️ 要確認: {data.ValidateRequired().missingFields}");
+            WorkType = data.WorkType ?? "";
+            EmbalingConfirmed = false;
+            FuelMarked = data.FuelMarked == true;
+            FuelMarkStatus = data.FuelMarked == true ? "給油あり" : data.FuelMarked == false ? "給油なし" : "未判定";
+            FuelLiters = data.FuelLiters?.ToString() ?? "";
+            FuelOdometerKm = data.FuelOdometerKm?.ToString() ?? "";
+            var digits = new string((data.VehicleNumber ?? "").Where(char.IsDigit).ToArray());
+            var matches = string.IsNullOrWhiteSpace(digits) ? new List<string>() : vehicleSheets.Where(s => new string(s.Where(char.IsDigit).ToArray()).EndsWith(digits, StringComparison.Ordinal)).ToList();
+            MatchedVehicle = matches.Count == 1 ? matches[0] : null;
+            StatusText = data.RetryFailed ? $"❌ 読み取り失敗: {data.RetryMessage}" : null;
         }
 
         private void RaiseValidation()
         {
+            if (_statusText?.StartsWith("❌") == true && !Data.RetryFailed) _statusText = null;
             OnPropertyChanged(nameof(HasError));
+            OnPropertyChanged(nameof(HasCoreError));
             OnPropertyChanged(nameof(CanRegister));
+            OnPropertyChanged(nameof(StatusText));
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 }

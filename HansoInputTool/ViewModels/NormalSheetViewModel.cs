@@ -97,6 +97,15 @@ namespace HansoInputTool.ViewModels
             set { if (SetProperty(ref _lateValue, value)) ValidateInput(); }
         }
 
+        // PDF日報取込など、帳票上で確認済みの搬送/移動を登録する場合に指定する。
+        // nullなら従来どおり有料キロから搬送回数を判定する。
+        private int? _hansoCountOverride;
+        public int? HansoCountOverride
+        {
+            get => _hansoCountOverride;
+            set => SetProperty(ref _hansoCountOverride, value);
+        }
+
         #endregion
 
         #region 給油入力（給油管理対象車両のみ）
@@ -219,9 +228,12 @@ namespace HansoInputTool.ViewModels
             _validationService = validationService;
             _inputValidator = new InputValidator(validationService);
             RegisterCommand = new RelayCommand(
-                async p => await RegisterAsync(),
+                async p => { await RegisterAsync(); },
                 p => !HasValidationErrors);
         }
+
+        /// <summary>PDF確認画面から登録結果を受け取れるようにする。</summary>
+        public Task<bool> RegisterPdfImportAsync() => RegisterAsync();
 
         public void RefreshFeeMode()
         {
@@ -305,37 +317,38 @@ namespace HansoInputTool.ViewModels
 
         #region 登録処理
 
-        private async Task RegisterAsync()
+        private async Task<bool> RegisterAsync()
         {
             if (string.IsNullOrEmpty(SelectedNormalSheet))
             {
                 MessageBox.Show("通常シートが選択されていません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                return false;
             }
             if (string.IsNullOrWhiteSpace(Day))
             {
                 MessageBox.Show("日付は必須です。", "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                return false;
             }
 
-            var values = new Dictionary<string, double?>();
-            if (!TryParseValue(Day, "日(B)", out var dayVal)) return;
+                var values = new Dictionary<string, double?>();
+            if (!TryParseValue(Day, "日(B)", out var dayVal)) return false;
             values["日(B)"] = dayVal;
 
-            if (!TryParseValue(YuryoKm, "有料キロ(D)", out var yuryoKmVal)) return;
+            if (!TryParseValue(YuryoKm, "有料キロ(D)", out var yuryoKmVal)) return false;
             values["有料キロ(D)"] = yuryoKmVal.HasValue ? Math.Round(yuryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
+            if (HansoCountOverride.HasValue) values["搬送回数"] = HansoCountOverride.Value;
 
-            if (!TryParseValue(MuryoKm, "無料キロ(E)", out var muryoKmVal)) return;
+            if (!TryParseValue(MuryoKm, "無料キロ(E)", out var muryoKmVal)) return false;
             values["無料キロ(E)"] = muryoKmVal.HasValue ? Math.Round(muryoKmVal.Value, MidpointRounding.AwayFromZero) : null;
 
             if (IsFeeMode)
             {
-                if (!TryParseValue(LateValue, "深夜料金(H)", out var lateVal)) return;
+                if (!TryParseValue(LateValue, "深夜料金(H)", out var lateVal)) return false;
                 values["深夜料金(H)"] = lateVal;
             }
             else
             {
-                if (!TryParseValue(LateValue, "深夜時間(K)", out var lateVal)) return;
+                if (!TryParseValue(LateValue, "深夜時間(K)", out var lateVal)) return false;
                 values["深夜時間(K)"] = lateVal;
             }
 
@@ -346,7 +359,7 @@ namespace HansoInputTool.ViewModels
             {
                 MessageBox.Show($"入力内容にエラーがあります:\n\n{validationResult.GetErrorMessage()}",
                     "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                return false;
             }
 
             if (validationResult.HasWarnings)
@@ -354,7 +367,7 @@ namespace HansoInputTool.ViewModels
                 var confirm = MessageBox.Show(
                     $"以下の警告があります:\n\n{validationResult.GetWarningMessage()}\n\nそのまま登録しますか？",
                     "確認", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (confirm != MessageBoxResult.Yes) return;
+                if (confirm != MessageBoxResult.Yes) return false;
             }
 
             try
@@ -382,6 +395,7 @@ namespace HansoInputTool.ViewModels
                 _log?.Invoke($"[{SelectedNormalSheet}] の {targetRow}行目にデータを登録しました。");
 
                 Day = YuryoKm = MuryoKm = LateValue = string.Empty;
+                HansoCountOverride = null;
                 IsFuelChecked = false;
                 FuelOdometerKm = FuelLiters = string.Empty;
                 ResetFlags();
@@ -389,18 +403,21 @@ namespace HansoInputTool.ViewModels
 
                 await Task.Delay(50);
                 Messenger.Send(new FocusMessage { TargetElementName = "NormalDayTextBox" });
+                return true;
             }
             catch (InvalidOperationException ex)
             {
                 // 確定済みセッションへの登録など、意図的にブロックしている操作
                 _log?.Invoke($"登録ブロック: {ex.Message}");
                 MessageBox.Show(ex.Message, "登録できません", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
             }
             catch (Exception ex)
             {
                 _log?.Invoke($"登録エラー: {ex.Message}");
                 MessageBox.Show("登録エラーが発生しました。\n詳細はログファイルを確認してください。",
                     "登録エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
             }
         }
 
@@ -471,5 +488,3 @@ namespace HansoInputTool.ViewModels
         }
     }
 }
-
-

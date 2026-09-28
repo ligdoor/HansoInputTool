@@ -60,67 +60,95 @@
                 <Grid Grid.Row="0" Margin="4,2,4,8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Text="読み取り結果" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="14"/>
-                    <TextBlock Grid.Column="1" Text="☑ 確認済みの行だけ登録可能" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
+                    <TextBlock Grid.Column="1" Text="左の確認にチェック。未入力項目は状態欄に表示されます" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
                 </Grid>
                 <ListView Grid.Row="1" ItemsSource="{Binding Items}" Background="Transparent" BorderThickness="0">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="確認" Width="58">
+                            <GridViewColumn Header="確認" Width="35">
                                 <GridViewColumn.CellTemplate><DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"/>
+                                    <CheckBox IsChecked="{Binding IsConfirmed, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" ToolTip="内容をPDFと照合して確認済みにする"/>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="対象" Width="175">
+                            <GridViewColumn Header="対象 / 登録先" Width="145">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="対象日報" Foreground="{StaticResource SubTextBrush}" FontSize="10"/>
-                                        <TextBlock Text="{Binding Label}" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,1,0,3"/>
-                                        <TextBlock Text="AI読取車両" Foreground="{StaticResource SubTextBrush}" FontSize="10"/>
+                                        <TextBlock Text="{Binding Label}" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,2"/>
+                                        <TextBlock Text="AI車両番号" Foreground="{StaticResource SubTextBrush}" FontSize="10"/>
                                         <TextBlock Text="{Binding VehicleNumber}" Foreground="{StaticResource TextBrush}" FontSize="11"/>
+                                        <ComboBox ItemsSource="{Binding DataContext.VehicleSheets, RelativeSource={RelativeSource AncestorType=ListView}}" SelectedItem="{Binding MatchedVehicle, UpdateSourceTrigger=PropertyChanged}" Width="135" Margin="0,2,0,0" FontSize="11" ToolTip="照合した登録車両。AI車両番号を確認してください"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="日" Width="78">
+                            <GridViewColumn Header="日" Width="55">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="日付（日）" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Width="58" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBlock Text="日付" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Width="48" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="有料km" Width="100">
+                            <GridViewColumn Header="有料km" Width="72">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
                                         <TextBlock Text="有料キロ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="78" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="62" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="無料km" Width="100">
+                            <GridViewColumn Header="無料km" Width="72">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
                                         <TextBlock Text="無料キロ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="78" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="62" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="深夜" Width="110">
+                            <GridViewColumn Header="深夜" Width="82">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
-                                        <TextBlock Text="深夜時間（分）" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" Width="78" Padding="4,3" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBlock Text="深夜分" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" Width="70" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="状態" Width="190">
-                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{StaticResource SubTextBrush}" FontSize="11"/></DataTemplate></GridViewColumn.CellTemplate>
+                            <GridViewColumn Header="搬送/移動" Width="82">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <ComboBox SelectedValue="{Binding WorkType, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Width="76" FontSize="11">
+                                        <ComboBoxItem Content="搬送"/>
+                                        <ComboBoxItem Content="移動"/>
+                                    </ComboBox>
+                                </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="操作" Width="105">
+                            <GridViewColumn Header="給油" Width="122">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <ComboBox ItemsSource="{Binding FuelMarkOptions}" SelectedItem="{Binding FuelMarkStatus, UpdateSourceTrigger=PropertyChanged}" Width="94" FontSize="11"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                            <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}" Width="47" Padding="2" FontSize="11" ToolTip="ガソリン給油数（L）" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                            <TextBlock Text="L" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="2,0,3,0" FontSize="10"/>
+                                            <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}" Width="65" Padding="2" FontSize="11" ToolTip="メーター指針（km）" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="エンバー" Width="137">
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding EmbalmingCandidateText}" Foreground="{StaticResource SubTextBrush}" FontSize="10" TextWrapping="Wrap"/>
+                                        <CheckBox Content="エンバー登録" IsChecked="{Binding EmbalingConfirmed, UpdateSourceTrigger=PropertyChanged}" Foreground="{StaticResource TextBrush}" FontSize="11"/>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="状態（不足項目）" Width="117">
+                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" FontSize="10"/></DataTemplate></GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="操作" Width="88">
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel Orientation="Horizontal">
-                                        <Button Content="PDF" Command="{Binding DataContext.OpenPageCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" Style="{StaticResource NormalButton}" Background="#334155" Padding="8,4" FontSize="11" Margin="0,0,4,0"/>
-                                        <Button Content="登録" Command="{Binding DataContext.RegisterItemCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" Style="{StaticResource NormalButton}" Background="#16a34a" Padding="8,4" FontSize="11" Margin="0,0,4,0"/>
-                                        <Button Content="削除" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" Style="{StaticResource NormalButton}" Background="#7f1d1d" Padding="8,4" FontSize="11"/>
+                                        <Button Content="PDF" Command="{Binding DataContext.OpenPageCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" Style="{StaticResource NormalButton}" Background="#334155" Padding="2,3" FontSize="9" Margin="0,0,2,0" ToolTip="元の日報ページを開く"/>
+                                        <Button Content="登録" Command="{Binding DataContext.RegisterItemCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" Style="{StaticResource NormalButton}" Background="#16a34a" Padding="2,3" FontSize="9" Margin="0,0,2,0" ToolTip="状態欄が登録可能になり、左の確認にチェックすると登録できます" ToolTipService.ShowOnDisabled="True"/>
+                                        <Button Content="削除" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding}" Style="{StaticResource NormalButton}" Background="#7f1d1d" Padding="2,3" FontSize="9" ToolTip="この解析結果を一覧から削除"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>

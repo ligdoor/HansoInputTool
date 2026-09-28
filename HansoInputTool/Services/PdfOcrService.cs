@@ -26,6 +26,7 @@ namespace HansoInputTool.Services
             var results = new List<NippoData>();
             var pageBytes = SplitPdfToPages(pdfPath);
             var analyzer = PdfAiAnalyzerFactory.Create(settings.Provider);
+            string quotaError = null;
             Logger.Info($"PDF分割完了: {pageBytes.Count}ページ ({Path.GetFileName(pdfPath)}) / Provider={settings.Provider} / Model={settings.Model}");
 
             for (int i = 0; i < pageBytes.Count; i++)
@@ -33,7 +34,11 @@ namespace HansoInputTool.Services
                 onProgress?.Invoke(i + 1, pageBytes.Count);
                 Logger.Info($"ページ {i + 1}/{pageBytes.Count} を解析中...");
 
-                var data = await AnalyzeWithRetryAsync(analyzer, pageBytes[i], settings, i + 1);
+                var data = quotaError == null
+                    ? await AnalyzeWithRetryAsync(analyzer, pageBytes[i], settings, i + 1)
+                    : new NippoData { RetryFailed = true, RetryMessage = quotaError };
+                if (quotaError == null && data.RetryFailed && IsQuotaError(data.RetryMessage))
+                    quotaError = data.RetryMessage;
                 data.PdfPath = pdfPath;
                 data.PdfFileName = Path.GetFileName(pdfPath);
                 data.PageNumber = i + 1;
@@ -54,7 +59,7 @@ namespace HansoInputTool.Services
                 try
                 {
                     var data = await analyzer.AnalyzeAsync(pdfBytes, settings);
-                    var (isValid, missing) = data.ValidateRequired();
+                    var (isValid, missing) = data.ValidateCoreFields();
                     if (isValid) return data;
                     lastException = new Exception($"必須項目が読み取れませんでした（不足: {missing}）");
                     Logger.Warn($"ページ{pageNumber} 試行{attempt}: {lastException.Message}");
@@ -63,6 +68,7 @@ namespace HansoInputTool.Services
                 {
                     lastException = ex;
                     Logger.Warn($"ページ{pageNumber} 試行{attempt}: {ex.Message}");
+                    if (IsQuotaError(ex.Message)) break;
                 }
                 if (attempt <= MaxRetryCount) await Task.Delay(RetryDelayMs);
             }
@@ -70,6 +76,12 @@ namespace HansoInputTool.Services
             Logger.Error($"ページ{pageNumber}: リトライ失敗: {lastException?.Message}");
             return new NippoData { RetryFailed = true, RetryMessage = lastException?.Message ?? "不明なエラー" };
         }
+
+        private static bool IsQuotaError(string message)
+            => !string.IsNullOrWhiteSpace(message)
+               && (message.Contains("TooManyRequests", StringComparison.OrdinalIgnoreCase)
+                   || message.Contains("quota exceeded", StringComparison.OrdinalIgnoreCase)
+                   || message.Contains("429", StringComparison.OrdinalIgnoreCase));
 
         private static List<byte[]> SplitPdfToPages(string pdfPath)
         {
@@ -96,6 +108,11 @@ namespace HansoInputTool.Services
         [Newtonsoft.Json.JsonProperty("muryo_km")] public double? MuryoKm { get; set; }
         [Newtonsoft.Json.JsonProperty("shinya_minutes")] public int? ShinyaMinutes { get; set; }
         [Newtonsoft.Json.JsonProperty("vehicle_number")] public string VehicleNumber { get; set; }
+        [Newtonsoft.Json.JsonProperty("work_type")] public string WorkType { get; set; }
+        [Newtonsoft.Json.JsonProperty("embalming_candidate")] public bool? EmbalmingCandidate { get; set; }
+        [Newtonsoft.Json.JsonProperty("fuel_marked")] public bool? FuelMarked { get; set; }
+        [Newtonsoft.Json.JsonProperty("fuel_liters")] public double? FuelLiters { get; set; }
+        [Newtonsoft.Json.JsonProperty("fuel_odometer_km")] public double? FuelOdometerKm { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string PdfPath { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string PdfFileName { get; set; }
         [Newtonsoft.Json.JsonIgnore] public int PageNumber { get; set; }
@@ -105,6 +122,18 @@ namespace HansoInputTool.Services
         [Newtonsoft.Json.JsonIgnore] public string RetryMessage { get; set; }
 
         public (bool isValid, string missingFields) ValidateRequired()
+        {
+            var missing = new List<string>();
+            if (!Day.HasValue || Day <= 0) missing.Add("日");
+            if (!YuryoKm.HasValue) missing.Add("有料キロ(計)");
+            if (!MuryoKm.HasValue) missing.Add("無料キロ(計)");
+            if (WorkType != "搬送" && WorkType != "移動") missing.Add("搬送/移動の丸");
+            if (!FuelMarked.HasValue) missing.Add("給油の丸");
+            if (FuelMarked == true && (!FuelLiters.HasValue || !FuelOdometerKm.HasValue)) missing.Add("給油リッター/給油時距離");
+            return (missing.Count == 0, string.Join(", ", missing));
+        }
+
+        public (bool isValid, string missingFields) ValidateCoreFields()
         {
             var missing = new List<string>();
             if (!Day.HasValue || Day <= 0) missing.Add("日");
