@@ -109,10 +109,24 @@ namespace HansoInputTool.Services
                     unso        REAL,
                     PRIMARY KEY (session_id, sheet_name)
                 );
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_at    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+                    user_name   TEXT NOT NULL,
+                    action      TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    session_id  INTEGER,
+                    sheet_name  TEXT,
+                    record_id   INTEGER,
+                    day         INTEGER,
+                    before_json TEXT,
+                    after_json  TEXT
+                );
                 CREATE INDEX IF NOT EXISTS idx_sheet_name ON transport_records(sheet_name);
                 CREATE INDEX IF NOT EXISTS idx_session_id ON transport_records(session_id);
                 CREATE INDEX IF NOT EXISTS idx_fuel_sheet_session ON fuel_records(sheet_name, session_id);
                 CREATE INDEX IF NOT EXISTS idx_fuel_transport_record ON fuel_records(transport_record_id);
+                CREATE INDEX IF NOT EXISTS idx_audit_log_event_at ON audit_log(event_at DESC, id DESC);
             ";
             cmd.ExecuteNonQuery();
 
@@ -202,6 +216,14 @@ namespace HansoInputTool.Services
         {
             _connection?.Close();
             _connection?.Dispose();
+        }
+
+        /// <summary>Create a transactionally consistent SQLite snapshot for backup.</summary>
+        public void BackupTo(string destinationPath)
+        {
+            using var destination = new SqliteConnection($"Data Source={destinationPath}");
+            destination.Open();
+            _connection.BackupDatabase(destination);
         }
 
         #endregion

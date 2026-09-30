@@ -743,7 +743,7 @@
                                 <Border Grid.Column="0" Background="{StaticResource PanelBackgroundBrush}" BorderBrush="{StaticResource InputBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                                     <StackPanel>
                                         <TextBlock Text="自動バックアップ" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
-                                        <TextBlock Text="起動時に自動作成するバックアップ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,3,0,14"/>
+                                        <TextBlock Text="起動時・終了時・データ消去前に自動作成するバックアップ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,3,0,14" TextWrapping="Wrap"/>
                                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="保持件数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/><TextBox Grid.Column="1" Text="{Binding MaxAutoBackupFiles, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/><TextBlock Grid.Column="2" Text="件" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource SubTextBrush}"/></Grid>
                                         <TextBlock Text="最大50件" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,8,0,0"/>
                                     </StackPanel>

@@ -28,7 +28,28 @@ namespace HansoInputTool.ViewModels
             var day = row.B_Day.Value;
             var yuryoKm = row.D_YuryoKm ?? 0;
             var muryoKm = row.E_MuryoKm ?? 0;
-            var lateMinutes = row.K_LateMinutes ?? 0;
+            bool hasLateValueInWrongMode = isOotsuki
+                ? row.K_LateMinutes.HasValue
+                : row.H_LateFeeOotsuki.HasValue;
+
+            if (hasLateValueInWrongMode)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Error,
+                    SheetName = sheetName,
+                    Day = day,
+                    Message = isOotsuki
+                        ? $"{day}日目: 車両設定は深夜料金ですが、深夜時間欄に値があります"
+                        : $"{day}日目: 車両設定は深夜時間ですが、深夜料金欄に値があります",
+                    Icon = "❌"
+                });
+            }
+
+            double lateValue = isOotsuki
+                ? row.H_LateFeeOotsuki.GetValueOrDefault()
+                : row.K_LateMinutes.GetValueOrDefault();
+            string lateFieldName = isOotsuki ? "深夜料金" : "深夜時間";
 
             // エラーチェック
             if (yuryoKm < 1 && row.C_Hanso > 0)
@@ -68,14 +89,58 @@ namespace HansoInputTool.ViewModels
                 });
             }
 
-            if (!isOotsuki && lateMinutes > 180)
+            if (lateValue < 0)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Error,
+                    SheetName = sheetName,
+                    Day = day,
+                    Message = $"{day}日目: {lateFieldName}が0未満です({lateValue})",
+                    Icon = "❌"
+                });
+            }
+            else if (isOotsuki && lateValue > 50000)
             {
                 issues.Add(new ValidationIssue
                 {
                     Severity = IssueSeverity.Warning,
                     SheetName = sheetName,
                     Day = day,
-                    Message = $"{day}日目: 深夜時間が3時間を超えています({lateMinutes}分)",
+                    Message = $"{day}日目: 深夜料金が50,000円を超えています({lateValue:N0}円)",
+                    Icon = "⚠️"
+                });
+            }
+            else if (!isOotsuki && lateValue > 1440)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Error,
+                    SheetName = sheetName,
+                    Day = day,
+                    Message = $"{day}日目: 深夜時間が24時間を超えています({lateValue}分)",
+                    Icon = "❌"
+                });
+            }
+            else if (!isOotsuki && lateValue > 720)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Warning,
+                    SheetName = sheetName,
+                    Day = day,
+                    Message = $"{day}日目: 深夜時間が12時間を超えています({lateValue}分)",
+                    Icon = "⚠️"
+                });
+            }
+            else if (!isOotsuki && lateValue > 180)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Severity = IssueSeverity.Warning,
+                    SheetName = sheetName,
+                    Day = day,
+                    Message = $"{day}日目: 深夜時間が3時間を超えています({lateValue}分)",
                     Icon = "⚠️"
                 });
             }

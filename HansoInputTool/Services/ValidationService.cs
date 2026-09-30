@@ -83,6 +83,13 @@ namespace HansoInputTool.Services
             // [深夜料金バグ修正] 車両設定（深夜入力方式）を優先し、未指定時のみ「大月」判定にフォールバックする
             bool feeMode = isFeeMode ?? sheetName.Contains("大月");
 
+            // 設定された入力方式と反対側の深夜項目に値が入っていれば、転記時の取り違えを防ぐ。
+            // 未入力は深夜運行がなかった正常な状態として扱う。
+            if (feeMode && values.TryGetValue("深夜時間(K)", out var unexpectedMinutes) && unexpectedMinutes.HasValue)
+                result.AddError("深夜時間", "この車両は深夜料金入力設定です。深夜時間欄ではなく車両設定を確認してください");
+            if (!feeMode && values.TryGetValue("深夜料金(H)", out var unexpectedFee) && unexpectedFee.HasValue)
+                result.AddError("深夜料金", "この車両は深夜時間入力設定です。深夜料金欄ではなく車両設定を確認してください");
+
             // 深夜時間の検証（時間入力モードの車両のみ）
             if (!feeMode && values.ContainsKey("深夜時間(K)") && values["深夜時間(K)"].HasValue)
             {

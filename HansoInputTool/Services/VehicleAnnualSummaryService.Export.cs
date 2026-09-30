@@ -116,13 +116,74 @@ namespace HansoInputTool.Services
 
             WriteTotalRowFormulas(summaryWs, totalDataRow, DataStartRow, totalDataRow - 1);
 
+            // ---- 月別推移シート（各車両の実績を月ごとに一覧化） ----
+            var trendWs = pkg.Workbook.Worksheets["月別推移"];
+            if (trendWs != null)
+                pkg.Workbook.Worksheets.Delete(trendWs);
+            trendWs = pkg.Workbook.Worksheets.Add("月別推移");
+            WriteMonthlyTrendSheet(trendWs, allData, selectedVehicles, months);
+
             // ひな形として使った「Template」シートは出力には不要なので削除し、
             // 「年間実績」はタブの一番最後に配置する（複製した月次シートは複製順のまま先頭側に並ぶ）。
             pkg.Workbook.Worksheets.Delete(templateWs);
             pkg.Workbook.Worksheets.MoveToEnd("年間実績");
+            pkg.Workbook.Worksheets.MoveToEnd("月別推移");
 
             pkg.SaveAs(new FileInfo(outputPath));
             Logger.Info($"年間実績Excel出力完了: {outputPath}（月次シート{monthlySheetNames.Count}枚＋年間実績、車両{vehicleCount}台）");
+        }
+
+        private static void WriteMonthlyTrendSheet(
+            ExcelWorksheet ws,
+            List<MonthlyRecord> allData,
+            List<VehicleEntry> selectedVehicles,
+            List<(int Year, int Month)> months)
+        {
+            string[] headers = { "年月", "支社", "車両番号", "延実働車輌数", "搬送回数", "有料km", "無料km", "総走行km", "運輸実績" };
+            for (int col = 0; col < headers.Length; col++)
+                ws.Cells[1, col + 1].Value = headers[col];
+
+            using (var header = ws.Cells[1, 1, 1, headers.Length])
+            {
+                header.Style.Font.Bold = true;
+                header.Style.Font.Color.SetColor(System.Drawing.Color.White);
+                header.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                header.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(31, 78, 121));
+            }
+
+            int row = 2;
+            foreach (var (year, month) in months)
+            {
+                foreach (var vehicle in selectedVehicles)
+                {
+                    var record = allData.FirstOrDefault(d =>
+                        d.VehicleKey == vehicle.Key && d.Year == year && d.Month == month);
+
+                    ws.Cells[row, 1].Value = $"{year}/{month:00}";
+                    ws.Cells[row, 2].Value = vehicle.ShishaName;
+                    ws.Cells[row, 3].Value = int.TryParse(vehicle.VehicleNo, out int vn) ? (object)vn : vehicle.VehicleNo;
+                    ws.Cells[row, 4].Value = record?.JitsudouSuu ?? 0;
+                    ws.Cells[row, 5].Value = record?.Hanso ?? 0;
+                    ws.Cells[row, 6].Value = record?.YuryoKm ?? 0;
+                    ws.Cells[row, 7].Value = record?.MuryoKm ?? 0;
+                    ws.Cells[row, 8].Formula = $"SUM(F{row}:G{row})";
+                    ws.Cells[row, 9].Value = record?.Unshu ?? 0;
+                    row++;
+                }
+            }
+
+            if (row > 2)
+            {
+                var table = ws.Tables.Add(ws.Cells[1, 1, row - 1, headers.Length], "MonthlyTrend");
+                table.TableStyle = OfficeOpenXml.Table.TableStyles.Medium2;
+                ws.Cells[1, 1, row - 1, headers.Length].AutoFitColumns();
+                ws.Column(1).Width = 11;
+                ws.Column(2).Width = 22;
+                ws.Column(3).Width = 12;
+                for (int col = 4; col <= 9; col++)
+                    ws.Column(col).Style.Numberformat.Format = "#,##0.##";
+                ws.View.FreezePanes(2, 1);
+            }
         }
 
         /// <summary>

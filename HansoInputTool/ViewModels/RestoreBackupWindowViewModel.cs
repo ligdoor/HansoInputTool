@@ -15,6 +15,7 @@ namespace HansoInputTool.ViewModels
 
         public ObservableCollection<BackupInfo> InputBackups { get; }
         public ObservableCollection<BackupInfo> TemplateBackups { get; }
+        public ObservableCollection<BackupInfo> DatabaseBackups { get; }
 
         private BackupInfo _selectedInputBackup;
         public BackupInfo SelectedInputBackup
@@ -28,6 +29,13 @@ namespace HansoInputTool.ViewModels
         {
             get => _selectedTemplateBackup;
             set => SetProperty(ref _selectedTemplateBackup, value);
+        }
+
+        private BackupInfo _selectedDatabaseBackup;
+        public BackupInfo SelectedDatabaseBackup
+        {
+            get => _selectedDatabaseBackup;
+            set => SetProperty(ref _selectedDatabaseBackup, value);
         }
 
         public ICommand RestoreCommand { get; }
@@ -49,6 +57,8 @@ namespace HansoInputTool.ViewModels
                 _backupService.GetAvailableBackups("Input"));
             TemplateBackups = new ObservableCollection<BackupInfo>(
                 _backupService.GetAvailableBackups("Template"));
+            DatabaseBackups = new ObservableCollection<BackupInfo>(
+                _backupService.GetAvailableBackups("hanso_data"));
 
             RestoreCommand = new RelayCommand(p => RestoreBackup(p));
             OpenBackupFolderCommand = new RelayCommand(p => _backupService.OpenBackupFolder());
@@ -57,7 +67,7 @@ namespace HansoInputTool.ViewModels
 
         private void RestoreBackup(object parameter)
         {
-            if (SelectedInputBackup == null && SelectedTemplateBackup == null)
+            if (SelectedInputBackup == null && SelectedTemplateBackup == null && SelectedDatabaseBackup == null)
             {
                 MessageBox.Show("復元するバックアップを選択してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -81,6 +91,11 @@ namespace HansoInputTool.ViewModels
             if (SelectedTemplateBackup != null)
             {
                 success &= _backupService.RestoreFromBackup(SelectedTemplateBackup.FilePath, _templateFilePath);
+            }
+
+            if (SelectedDatabaseBackup != null)
+            {
+                success &= _mainViewModel.RestoreDatabaseBackup(SelectedDatabaseBackup.FilePath, _backupService);
             }
 
             if (success)

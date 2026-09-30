@@ -85,6 +85,7 @@ namespace HansoInputTool.ViewModels
                 // 先に給油記録を入れてから呼ぶと、ここで消されてしまう。
                 if (_dbService != null)
                 {
+                    BackupDatabaseBeforeDataChange();
                     _excelHandler.ImportFromExcelToDb(_dbService, _flagService);
                     Log($"[DB] 通常系シートのデータをDBにインポートしました。");
 
@@ -184,10 +185,16 @@ namespace HansoInputTool.ViewModels
             {
                 var inputBackup    = _backupService.CreateManualBackup(InputFilePath,    "手動保存");
                 var templateBackup = _backupService.CreateManualBackup(TemplateFilePath, "手動保存");
-                if (inputBackup != null && templateBackup != null)
+                var databaseBackup = _dbService != null && File.Exists(DatabaseFilePath)
+                    ? _backupService.CreateManualDatabaseBackup(_dbService, DatabaseFilePath, "手動保存")
+                    : null;
+                bool databaseBackupRequired = _dbService != null && File.Exists(DatabaseFilePath);
+                if (inputBackup != null && templateBackup != null && (!databaseBackupRequired || databaseBackup != null))
                 {
                     MessageBox.Show(
-                        $"バックアップを作成しました。\n\nInput.xlsx: {Path.GetFileName(inputBackup)}\nTemplate.xlsx: {Path.GetFileName(templateBackup)}\n\n保存場所: backupsフォルダ",
+                        $"バックアップを作成しました。\n\nInput.xlsx: {Path.GetFileName(inputBackup)}\nTemplate.xlsx: {Path.GetFileName(templateBackup)}" +
+                        (databaseBackup != null ? $"\nデータベース: {Path.GetFileName(databaseBackup)}" : "") +
+                        "\n\n保存場所: backupsフォルダ",
                         "バックアップ完了", MessageBoxButton.OK, MessageBoxImage.Information);
                     Log("手動バックアップを作成しました。");
                 }

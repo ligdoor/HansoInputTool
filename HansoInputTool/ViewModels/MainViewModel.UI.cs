@@ -130,6 +130,18 @@ namespace HansoInputTool.ViewModels
             new Views.SettingsWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
         }
 
+        private void OpenAuditHistory()
+        {
+            if (_dbService == null)
+            {
+                MessageBox.Show("履歴を表示するデータベースが利用できません。", "履歴", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var vm = new AuditHistoryViewModel(_dbService);
+            new Views.AuditHistoryWindow(vm) { Owner = Application.Current.MainWindow }.ShowDialog();
+        }
+
         private void OpenPdfImport()
         {
             var settingsPath = Path.Combine(BaseDataPath, "ai_settings.json");

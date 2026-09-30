@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NLog;
 
 namespace HansoInputTool.Services
@@ -10,15 +12,59 @@ namespace HansoInputTool.Services
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly string _backupDir;
+        private readonly string _settingsPath;
         // バックアップ保持数（設定画面から変更可能）
         public int MaxBackupFiles { get; set; } = 10;
         public int MaxManualBackupFiles { get; set; } = 20;
 
-        public BackupService()
+        public BackupService(string settingsPath = null)
         {
             _backupDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "backups");
+            _settingsPath = settingsPath;
             Directory.CreateDirectory(_backupDir);
+            LoadRetentionSettings();
             Logger.Info($"バックアップディレクトリ: {_backupDir}");
+        }
+
+        public void SetRetentionLimits(int automatic, int manual)
+        {
+            MaxBackupFiles = Math.Clamp(automatic, 1, 50);
+            MaxManualBackupFiles = Math.Clamp(manual, 1, 100);
+            SaveRetentionSettings();
+        }
+
+        private void LoadRetentionSettings()
+        {
+            if (string.IsNullOrWhiteSpace(_settingsPath) || !File.Exists(_settingsPath)) return;
+            try
+            {
+                var settings = JObject.Parse(File.ReadAllText(_settingsPath));
+                MaxBackupFiles = Math.Clamp((int?)settings["MaxAutoBackupFiles"] ?? MaxBackupFiles, 1, 50);
+                MaxManualBackupFiles = Math.Clamp((int?)settings["MaxManualBackupFiles"] ?? MaxManualBackupFiles, 1, 100);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "バックアップ保持数を読み込めませんでした。既定値を使用します。");
+            }
+        }
+
+        private void SaveRetentionSettings()
+        {
+            if (string.IsNullOrWhiteSpace(_settingsPath)) return;
+            try
+            {
+                var settings = File.Exists(_settingsPath)
+                    ? JObject.Parse(File.ReadAllText(_settingsPath))
+                    : new JObject();
+                settings["MaxAutoBackupFiles"] = MaxBackupFiles;
+                settings["MaxManualBackupFiles"] = MaxManualBackupFiles;
+                Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath));
+                File.WriteAllText(_settingsPath, settings.ToString(Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "バックアップ保持数を保存できませんでした。");
+            }
         }
 
         /// <summary>
@@ -41,7 +87,7 @@ namespace HansoInputTool.Services
                 var machineName = Environment.MachineName.Length > 8
                     ? Environment.MachineName.Substring(0, 8)
                     : Environment.MachineName;
-                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
                 var backupFileName = $"{fileName}_{timestamp}_{machineName}{extension}";
                 var backupPath = Path.Combine(_backupDir, backupFileName);
 
@@ -91,7 +137,7 @@ namespace HansoInputTool.Services
                 var machineName = Environment.MachineName.Length > 8
                     ? Environment.MachineName.Substring(0, 8)
                     : Environment.MachineName;
-                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
                 var descSuffix = string.IsNullOrWhiteSpace(description) ? "" : $"_{description}";
                 var backupFileName = $"{fileName}_{timestamp}_{machineName}{descSuffix}_manual{extension}";
                 var backupPath = Path.Combine(_backupDir, backupFileName);
@@ -108,6 +154,58 @@ namespace HansoInputTool.Services
             {
                 Logger.Error(ex, $"手動バックアップの作成中にエラーが発生しました: {filePath}");
                 return null;
+            }
+        }
+
+        /// <summary>Creates a consistent manual snapshot of the live SQLite database.</summary>
+        public string CreateManualDatabaseBackup(DatabaseService databaseService, string databasePath, string description = "")
+        {
+            return CreateDatabaseSnapshotBackup(databaseService, databasePath, manual: true, description);
+        }
+
+        /// <summary>Creates a consistent automatic snapshot of the live SQLite database.</summary>
+        public string CreateAutoDatabaseBackup(DatabaseService databaseService, string databasePath)
+        {
+            return CreateDatabaseSnapshotBackup(databaseService, databasePath, manual: false, "");
+        }
+
+        private string CreateDatabaseSnapshotBackup(DatabaseService databaseService, string databasePath, bool manual, string description)
+        {
+            string snapshotPath = Path.Combine(Path.GetTempPath(), $"hanso_{Guid.NewGuid():N}.db");
+            try
+            {
+                if (databaseService == null || !File.Exists(databasePath)) return null;
+                databaseService.BackupTo(snapshotPath);
+
+                var fileName = Path.GetFileNameWithoutExtension(databasePath);
+                var extension = Path.GetExtension(databasePath);
+                var machineName = Environment.MachineName.Length > 8
+                    ? Environment.MachineName.Substring(0, 8)
+                    : Environment.MachineName;
+                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
+                var descSuffix = manual && !string.IsNullOrWhiteSpace(description) ? $"_{description}" : "";
+                var manualSuffix = manual ? "_manual" : "";
+                var backupFileName = $"{fileName}_{timestamp}_{machineName}{descSuffix}{manualSuffix}{extension}";
+                var backupPath = Path.Combine(_backupDir, backupFileName);
+
+                File.Copy(snapshotPath, backupPath, true);
+                if (manual) CleanOldManualBackups(fileName, extension);
+                else CleanOldBackups(fileName, extension);
+                Logger.Info($"SQLite{(manual ? "手動" : "自動")}バックアップを作成しました: {backupFileName}");
+                return backupPath;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, $"SQLite手動バックアップの作成に失敗しました: {databasePath}");
+                return null;
+            }
+            finally
+            {
+                if (File.Exists(snapshotPath))
+                {
+                    try { File.Delete(snapshotPath); }
+                    catch (Exception ex) { Logger.Warn(ex, "一時DBスナップショットを削除できませんでした"); }
+                }
             }
         }
 
@@ -169,8 +267,11 @@ namespace HansoInputTool.Services
         {
             try
             {
-                var pattern = $"{baseFileName}_*.xlsx";
-                var backups = Directory.GetFiles(_backupDir, pattern)
+                var prefix = $"{baseFileName}_";
+                var backups = Directory.GetFiles(_backupDir, $"{baseFileName}_*")
+                    .Where(f => Path.GetFileName(f).StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    .Where(f => string.Equals(Path.GetExtension(f), ".xlsx", StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(Path.GetExtension(f), ".db", StringComparison.OrdinalIgnoreCase))
                     .Select(f => new BackupInfo
                     {
                         FilePath = f,

@@ -97,8 +97,7 @@ namespace HansoInputTool.ViewModels
                 // バックアップ保持数を反映
                 if (_backupService != null)
                 {
-                    _backupService.MaxBackupFiles       = MaxAutoBackupFiles;
-                    _backupService.MaxManualBackupFiles = MaxManualBackupFiles;
+                    _backupService.SetRetentionLimits(MaxAutoBackupFiles, MaxManualBackupFiles);
                 }
 
                 // フラグ設定の保存

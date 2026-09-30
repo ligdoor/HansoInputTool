@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using HansoInputTool.Models;
+using HansoInputTool.Services;
 
 namespace HansoInputTool.ViewModels
 {
@@ -80,8 +82,7 @@ namespace HansoInputTool.ViewModels
         public void UpdateFuelRecord(string sheetName, long fuelId, long transportRecordId, int day, double odometerKm, double liters)
         {
             if (_dbService == null) throw new InvalidOperationException("給油記録の更新にはデータベースモードが必要です。");
-            _dbService.DeleteFuelRecord(fuelId);
-            _dbService.InsertFuelRecord(sheetName, day, odometerKm, liters, transportRecordId);
+            _dbService.UpdateFuelRecord(fuelId, sheetName, transportRecordId, day, odometerKm, liters);
             _excelHandler.InvalidateCache(sheetName);
             UpdatePreview();
             Log($"[{sheetName}] {day}日の給油記録を更新しました。");
@@ -127,6 +128,54 @@ namespace HansoInputTool.ViewModels
             MessageBox.Show("データを再読み込みしました。", "復元完了", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        public bool RestoreDatabaseBackup(string backupPath, BackupService backupService)
+        {
+            try
+            {
+                _dbService?.Dispose();
+                _dbService = null;
+                _excelHandler.DbService = null;
+
+                bool restored = backupService.RestoreFromBackup(backupPath, DatabaseFilePath);
+
+                _dbService = new DatabaseService(DatabaseFilePath)
+                {
+                    VehicleSettingsService = _vehicleSettingsService
+                };
+                _excelHandler.DbService = _dbService;
+
+                if (!string.IsNullOrWhiteSpace(Period) && !string.IsNullOrWhiteSpace(Month) && !string.IsNullOrWhiteSpace(RNumber))
+                    _dbService.GetOrCreateSession(Period, Month, RNumber);
+
+                _excelHandler.ClearEastValues();
+                var eastValues = _dbService.GetEastValues(_dbService.CurrentSessionId);
+                if (eastValues.Count > 0) _excelHandler.RestoreEastValues(eastValues);
+                _excelHandler.Save();
+                _excelHandler.InvalidateCacheAll();
+                return restored;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "データベースのバックアップ復元に失敗しました。");
+                try
+                {
+                    if (_dbService == null)
+                    {
+                        _dbService = new DatabaseService(DatabaseFilePath)
+                        {
+                            VehicleSettingsService = _vehicleSettingsService
+                        };
+                        _excelHandler.DbService = _dbService;
+                    }
+                }
+                catch (Exception reopenException)
+                {
+                    Logger.Error(reopenException, "復元後にデータベースを再接続できませんでした。");
+                }
+                return false;
+            }
+        }
+
         private void ClearInputData(bool showSuccessMessage)
         {
             // 「保存」済みの月がアクティブな場合は、そのデータには一切触れず、
@@ -148,6 +197,7 @@ namespace HansoInputTool.ViewModels
                 Log("--- 入力データをクリアします ---");
                 if (_dbService != null)
                 {
+                    BackupDatabaseBeforeDataChange();
                     _dbService.ClearAllData();
                     _excelHandler.InvalidateCacheAll();
                     Log("[DB] 全入力データをクリアしました。");
@@ -173,6 +223,15 @@ namespace HansoInputTool.ViewModels
             if (showSuccessMessage)
                 MessageBox.Show("入力データをクリアしました。\n（「保存」済みのデータは消えていません。「その他」→「月切替」から確認できます）",
                     "クリア完了", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void BackupDatabaseBeforeDataChange()
+        {
+            if (File.Exists(InputFilePath)) _backupService.CreateBackup(InputFilePath);
+            if (_dbService == null || !File.Exists(DatabaseFilePath)) return;
+            var backupPath = _backupService.CreateAutoDatabaseBackup(_dbService, DatabaseFilePath);
+            if (backupPath == null)
+                Logger.Warn("データ変更前の自動DBバックアップを作成できませんでした。");
         }
 
         private void ConfirmAndClearInputData()
@@ -209,6 +268,7 @@ namespace HansoInputTool.ViewModels
         private void SwitchEastData(long fromSessionId, long toSessionId)
         {
             if (_dbService == null || fromSessionId == toSessionId) return;
+            BackupDatabaseBeforeDataChange();
             try
             {
                 var current = _excelHandler.GetAllEastValues();

@@ -186,6 +186,7 @@ namespace HansoInputTool.ViewModels
         public ICommand OnLoadedCommand { get; }
         public ICommand OnClosingCommand { get; }
         public ICommand OpenVehicleAnnualSummaryCommand { get; }
+        public ICommand OpenAuditHistoryCommand { get; }
         public ICommand OpenPdfImportCommand { get; }
         public ICommand ClearInputDataCommand { get; }
         public ICommand SwitchSessionCommand { get; }
@@ -199,7 +200,7 @@ namespace HansoInputTool.ViewModels
 
         public MainViewModel()
         {
-            _backupService = new BackupService();
+            _backupService = new BackupService(Path.Combine(BaseDataPath, "backup_settings.json"));
             _validationService = new ValidationService();
             NormalSheet = new NormalSheetViewModel(_validationService);
             EastSheet = new EastSheetViewModel(_validationService);
@@ -215,8 +216,9 @@ namespace HansoInputTool.ViewModels
             SaveInputCommand                 = new RelayCommand(p => SaveInputFile(),                   p => !IsBusy);
             TransferCommand                  = new RelayCommand(async p => await StartTransfer(),       p => !IsBusy);
             OnLoadedCommand                  = new RelayCommand(async p => await OnWindowLoaded());
-            OnClosingCommand                 = new RelayCommand(p => { });
+            OnClosingCommand                 = new RelayCommand(_ => BackupDatabaseBeforeDataChange());
             OpenVehicleAnnualSummaryCommand  = new RelayCommand(_ => OpenWindow<VehicleAnnualSummaryWindow>("車両別年度集計"));
+            OpenAuditHistoryCommand          = new RelayCommand(_ => OpenAuditHistory(), _ => !IsBusy);
             OpenPdfImportCommand             = new RelayCommand(_ => OpenPdfImport(),                   _ => !IsBusy);
             ClearInputDataCommand            = new RelayCommand(p => ConfirmAndClearInputData(),        p => !IsBusy);
             SwitchSessionCommand             = new RelayCommand(p => OpenSessionSwitch(),               p => !IsBusy && _dbService != null);
