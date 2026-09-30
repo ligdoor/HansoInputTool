@@ -250,7 +250,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <!-- 現在位置を示すだけのアクティブ表示。既存機能には触れない -->
                     <Button Command="{Binding LoadGeppoFileCommand}" Style="{StaticResource PrimaryToolbarButton}" Width="212"
-                            ToolTip="実績月報を読み込む" RenderTransformOrigin="0.5,0.5" Click="Button_Click_1">
+                            ToolTip="実績月報を読み込む" RenderTransformOrigin="0.5,0.5">
                         <Button.RenderTransform>
                             <TransformGroup>
                                 <ScaleTransform/>

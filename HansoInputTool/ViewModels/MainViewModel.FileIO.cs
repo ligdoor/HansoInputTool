@@ -1,9 +1,7 @@
 using System;
-using System.Runtime.Versioning;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
 using HansoInputTool.Models;
@@ -302,76 +300,5 @@ namespace HansoInputTool.ViewModels
 
         #endregion
 
-        #region COM フォルダ選択ダイアログ
-
-        [SupportedOSPlatform("windows")]
-        private string ShowFolderBrowserDialog(string title)
-        {
-            var dialog = (IFileOpenDialog_MV)new FileOpenDialog_MV();
-            try
-            {
-                dialog.SetOptions(FOS_PICKFOLDERS_MV | FOS_FORCEFILESYSTEM_MV);
-                dialog.SetTitle(title);
-                int hr = dialog.Show(IntPtr.Zero);
-                if (hr < 0) return null;
-                dialog.GetResult(out IShellItem_MV item);
-                item.GetDisplayName(SIGDN_FILESYSPATH_MV, out string path);
-                return path;
-            }
-            finally
-            {
-                Marshal.ReleaseComObject(dialog);
-            }
-        }
-
-        private const uint FOS_PICKFOLDERS_MV    = 0x00000020;
-        private const uint FOS_FORCEFILESYSTEM_MV = 0x00000040;
-        private const uint SIGDN_FILESYSPATH_MV   = 0x80058000;
-
-        [ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
-        private class FileOpenDialog_MV { }
-
-        [ComImport, Guid("42F85136-DB7E-439C-85F1-E4075D135FC8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IFileOpenDialog_MV
-        {
-            [PreserveSig] int Show(IntPtr parent);
-            void SetFileTypes(uint cFileTypes, IntPtr rgFilterSpec);
-            void SetFileTypeIndex(uint iFileType);
-            void GetFileTypeIndex(out uint piFileType);
-            void Advise(IntPtr pfde, out uint pdwCookie);
-            void Unadvise(uint dwCookie);
-            void SetOptions(uint fos);
-            void GetOptions(out uint pfos);
-            void SetDefaultFolder(IShellItem_MV psi);
-            void SetFolder(IShellItem_MV psi);
-            void GetFolder(out IShellItem_MV ppsi);
-            void GetCurrentSelection(out IShellItem_MV ppsi);
-            void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string pszName);
-            void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
-            void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
-            void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string pszText);
-            void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
-            void GetResult(out IShellItem_MV ppsi);
-            void AddPlace(IShellItem_MV psi, int fdap);
-            void SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string pszDefaultExtension);
-            void Close(int hr);
-            void SetClientGuid(ref Guid guid);
-            void ClearClientData();
-            void SetFilter(IntPtr pFilter);
-            void GetResults(out IntPtr ppenum);
-            void GetSelectedItems(out IntPtr ppsai);
-        }
-
-        [ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IShellItem_MV
-        {
-            void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv);
-            void GetParent(out IShellItem_MV ppsi);
-            void GetDisplayName(uint sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
-            void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
-            void Compare(IShellItem_MV psi, uint hint, out int piOrder);
-        }
-
-        #endregion
     }
 }

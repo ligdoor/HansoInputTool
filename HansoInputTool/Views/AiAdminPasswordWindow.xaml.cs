@@ -20,8 +20,6 @@ namespace HansoInputTool.Views
             }
         }
 
-        private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e) { }
-
         private void OkButton_Click(object sender, RoutedEventArgs e)
         {
             var password = PasswordBox.Password;

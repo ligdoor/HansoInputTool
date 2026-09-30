@@ -28,11 +28,6 @@
 		<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Compile Update="Models\ColumnMapping.cs">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Compile>
-	</ItemGroup>
-	<ItemGroup>
 		<None Update="data\annual_results.xlsx">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>

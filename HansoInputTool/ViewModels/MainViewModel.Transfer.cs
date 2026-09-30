@@ -24,7 +24,7 @@ namespace HansoInputTool.ViewModels
             new Views.TransferConfirmationWindow(confirmVM) { Owner = Application.Current.MainWindow }.ShowDialog();
             if (!shouldContinue) { Log("転記処理がキャンセルされました。"); return; }
 
-            string outputDir = ShowFolderBrowserDialog("出力先のベースフォルダを選択してください");
+            string outputDir = FolderPickerService.ShowFolderBrowserDialog("出力先のベースフォルダを選択してください");
             if (outputDir == null) { Log("フォルダ選択がキャンセルされました。"); return; }
 
             IsBusy = true;
