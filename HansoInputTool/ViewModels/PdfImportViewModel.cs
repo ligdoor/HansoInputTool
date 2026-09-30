@@ -241,6 +241,7 @@ namespace HansoInputTool.ViewModels
         public string MatchedVehicle { get => _matchedVehicle; set { if (SetProperty(ref _matchedVehicle, value)) { OnPropertyChanged(nameof(HasVehicleMatch)); OnPropertyChanged(nameof(VehicleMatchText)); RaiseValidation(); } } }
         public bool HasVehicleMatch => !string.IsNullOrEmpty(MatchedVehicle);
         public string VehicleMatchText => HasVehicleMatch ? $"登録先: {MatchedVehicle}" : "登録先が一意に特定できません";
+        private string _vehicleMatchIssue;
         private string _workType;
         public string WorkType { get => _workType; set { if (SetProperty(ref _workType, value)) RaiseValidation(); } }
         private bool _embalingConfirmed;
@@ -270,6 +271,36 @@ namespace HansoInputTool.ViewModels
         public string FuelLiters { get => _fuelLiters; set { if (SetProperty(ref _fuelLiters, value)) RaiseValidation(); } }
         private string _fuelOdometerKm;
         public string FuelOdometerKm { get => _fuelOdometerKm; set { if (SetProperty(ref _fuelOdometerKm, value)) RaiseValidation(); } }
+        private static readonly (string Key, string Label)[] ConfidenceFields =
+        {
+            ("day", "日付"), ("yuryo_km", "有料km"), ("muryo_km", "無料km"),
+            ("shinya_minutes", "深夜分"), ("vehicle_number", "車両番号"), ("work_type", "搬送/移動"),
+            ("embalming_candidate", "エンバー"), ("fuel_marked", "給油の丸"),
+            ("fuel_liters", "給油リッター"), ("fuel_odometer_km", "給油時距離")
+        };
+        public string ConfidenceSummary
+        {
+            get
+            {
+                var values = ConfidenceFields
+                    .Select(confidenceField => Data.Confidence != null && Data.Confidence.TryGetValue(confidenceField.Key, out var value)
+                        ? value?.Trim().ToLowerInvariant()
+                        : null)
+                    .ToList();
+                if (values.Any(value => value == "low")) return "AI自己評価: 低";
+                if (values.Any(value => value == "medium")) return "AI自己評価: 中";
+                if (values.All(value => value == "high")) return "AI自己評価: 高";
+                return values.Any(value => value == "high") ? "AI自己評価: 一部未評価" : "AI自己評価: 未取得";
+            }
+        }
+        public string ConfidenceDetail => "AIが自己評価した読み取り確信度（参考値）: " + string.Join("、", ConfidenceFields.Select(confidenceField =>
+        {
+            var value = Data.Confidence != null && Data.Confidence.TryGetValue(confidenceField.Key, out var confidence)
+                ? confidence?.Trim().ToLowerInvariant()
+                : null;
+            var label = value == "high" ? "高" : value == "medium" ? "中" : value == "low" ? "低" : "未取得";
+            return $"{confidenceField.Label} {label}";
+        }));
         private string _statusText;
         public string StatusText
         {
@@ -319,16 +350,16 @@ namespace HansoInputTool.ViewModels
         private List<string> GetValidationIssues()
         {
             var issues = new List<string>();
-            if (!int.TryParse(Day, out var d) || d <= 0) issues.Add("日付");
-            if (!double.TryParse(YuryoKm, out _)) issues.Add("有料km");
-            if (!double.TryParse(MuryoKm, out _)) issues.Add("無料km");
-            if (Data.RetryFailed && HasCoreError) issues.Insert(0, "コア項目を手入力");
-            if (!int.TryParse(ShinyaMinutes, out var shinya) || shinya < 0) issues.Add("深夜分");
-            if (WorkType != "搬送" && WorkType != "移動") issues.Add("搬送/移動");
-            if (!HasVehicleMatch) issues.Add("登録車両");
-            if (FuelMarkStatus != "給油あり" && FuelMarkStatus != "給油なし") issues.Add("給油の有無");
-            if (FuelMarked && (!double.TryParse(FuelLiters, out var liters) || liters <= 0)) issues.Add("給油リッター");
-            if (FuelMarked && (!double.TryParse(FuelOdometerKm, out var km) || km <= 0)) issues.Add("給油時距離");
+            if (!int.TryParse(Day, out var d) || d <= 0) issues.Add("日付: AIが値を特定できません");
+            if (!double.TryParse(YuryoKm, out _)) issues.Add("有料km: 合計欄を読み取れません");
+            if (!double.TryParse(MuryoKm, out _)) issues.Add("無料km: 合計欄を読み取れません");
+            if (Data.RetryFailed && HasCoreError) issues.Insert(0, "AI読取失敗: PDFと照合して手入力してください");
+            if (!int.TryParse(ShinyaMinutes, out var shinya) || shinya < 0) issues.Add("深夜分: 値を判定できません");
+            if (WorkType != "搬送" && WorkType != "移動") issues.Add("搬送/移動: 丸の位置を判定できません");
+            if (!HasVehicleMatch) issues.Add(_vehicleMatchIssue ?? "登録車両を選択してください");
+            if (FuelMarkStatus != "給油あり" && FuelMarkStatus != "給油なし") issues.Add("給油: 丸の有無を判定できません");
+            if (FuelMarked && (!double.TryParse(FuelLiters, out var liters) || liters <= 0)) issues.Add("給油リッター: ガソリン給油数を読み取れません");
+            if (FuelMarked && (!double.TryParse(FuelOdometerKm, out var km) || km <= 0)) issues.Add("給油時距離: メーター指針を確認できません（旧様式の可能性あり）");
             return issues;
         }
 
@@ -349,6 +380,9 @@ namespace HansoInputTool.ViewModels
             FuelOdometerKm = data.FuelOdometerKm?.ToString() ?? "";
             var digits = new string((data.VehicleNumber ?? "").Where(char.IsDigit).ToArray());
             var matches = string.IsNullOrWhiteSpace(digits) ? new List<string>() : vehicleSheets.Where(s => new string(s.Where(char.IsDigit).ToArray()).EndsWith(digits, StringComparison.Ordinal)).ToList();
+            _vehicleMatchIssue = matches.Count == 0
+                ? string.IsNullOrWhiteSpace(digits) ? "AI車両番号を読み取れません" : $"車両番号{digits}に一致する登録車両がありません"
+                : matches.Count > 1 ? $"車両番号{digits}に一致する登録候補が複数あります" : null;
             MatchedVehicle = matches.Count == 1 ? matches[0] : null;
             StatusText = data.RetryFailed ? $"❌ 読み取り失敗: {data.RetryMessage}" : null;
         }

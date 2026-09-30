@@ -37,8 +37,11 @@ namespace HansoInputTool.Services
                 var data = quotaError == null
                     ? await AnalyzeWithRetryAsync(analyzer, pageBytes[i], settings, i + 1)
                     : new NippoData { RetryFailed = true, RetryMessage = quotaError };
-                if (quotaError == null && data.RetryFailed && IsQuotaError(data.RetryMessage))
-                    quotaError = data.RetryMessage;
+                if (quotaError == null)
+                {
+                    if (data.RetryFailed && IsQuotaError(data.RetryMessage))
+                        quotaError = data.RetryMessage;
+                }
                 data.PdfPath = pdfPath;
                 data.PdfFileName = Path.GetFileName(pdfPath);
                 data.PageNumber = i + 1;
@@ -113,6 +116,7 @@ namespace HansoInputTool.Services
         [Newtonsoft.Json.JsonProperty("fuel_marked")] public bool? FuelMarked { get; set; }
         [Newtonsoft.Json.JsonProperty("fuel_liters")] public double? FuelLiters { get; set; }
         [Newtonsoft.Json.JsonProperty("fuel_odometer_km")] public double? FuelOdometerKm { get; set; }
+        [Newtonsoft.Json.JsonProperty("confidence")] public Dictionary<string, string> Confidence { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string PdfPath { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string PdfFileName { get; set; }
         [Newtonsoft.Json.JsonIgnore] public int PageNumber { get; set; }

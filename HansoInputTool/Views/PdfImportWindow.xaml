@@ -63,6 +63,12 @@
                     <TextBlock Grid.Column="1" Text="左の確認にチェック。未入力項目は状態欄に表示されます" Foreground="{StaticResource SubTextBrush}" FontSize="11"/>
                 </Grid>
                 <ListView Grid.Row="1" ItemsSource="{Binding Items}" Background="Transparent" BorderThickness="0">
+                    <ListView.Resources>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#1e3a5f"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#e6eef8"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#1e3a5f"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#e6eef8"/>
+                    </ListView.Resources>
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="確認" Width="35">
@@ -141,7 +147,12 @@
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
                             <GridViewColumn Header="状態（不足項目）" Width="117">
-                                <GridViewColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" FontSize="10"/></DataTemplate></GridViewColumn.CellTemplate>
+                                <GridViewColumn.CellTemplate><DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ConfidenceSummary}" ToolTip="{Binding ConfidenceDetail}" TextWrapping="Wrap" Foreground="{StaticResource SubTextBrush}" FontSize="9" Margin="0,0,0,2"/>
+                                        <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" FontSize="10"/>
+                                    </StackPanel>
+                                </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
                             <GridViewColumn Header="操作" Width="88">
                                 <GridViewColumn.CellTemplate><DataTemplate>
@@ -159,8 +170,23 @@
                             <Setter Property="Background" Value="Transparent"/>
                             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
                             <Setter Property="Padding" Value="4,5"/>
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <Border x:Name="RowBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True">
+                                            <GridViewRowPresenter Content="{TemplateBinding Content}" Columns="{Binding View.Columns, RelativeSource={RelativeSource AncestorType={x:Type ListView}}}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
                             <Style.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#172033"/></Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#1e3a5f"/>
+                                    <Setter Property="BorderBrush" Value="#60a5fa"/>
+                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                </Trigger>
                             </Style.Triggers>
                         </Style>
                     </ListView.ItemContainerStyle>
