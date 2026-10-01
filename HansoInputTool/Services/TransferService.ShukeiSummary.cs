@@ -174,8 +174,8 @@ namespace HansoInputTool.Services
                         summarySheet.Cells[currentRow, 2].Value = branch;
                         summarySheet.Cells[currentRow, 3].Value = number;
 
-                        summarySheet.Cells[currentRow, 4].Formula  = $"{safeSheetName}!E4";
-                        summarySheet.Cells[currentRow, 5].Formula  = $"{safeSheetName}!G4";
+                        summarySheet.Cells[currentRow, 4].Formula  = $"{safeSheetName}!D4";
+                        summarySheet.Cells[currentRow, 5].Formula  = $"{safeSheetName}!E4";
                         summarySheet.Cells[currentRow, 6].Formula  = $"IFERROR(E{currentRow}/D{currentRow},0)";
                         summarySheet.Cells[currentRow, 7].Formula  = $"{safeSheetName}!G4";
                         summarySheet.Cells[currentRow, 8].Formula  = $"{safeSheetName}!H4";
