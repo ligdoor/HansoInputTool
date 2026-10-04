@@ -162,21 +162,24 @@
                     </StackPanel>
                     <Button Grid.Column="1" Content="全選択" Width="76" Height="30"
                             Style="{StaticResource NormalButton}"
-                            Command="{Binding SelectAllCommand}" Margin="0,0,6,0"/>
+                            Command="{Binding SelectAllCommand}" IsEnabled="{Binding IsNotBusy}" Margin="0,0,6,0"/>
                     <Button Grid.Column="2" Content="全解除" Width="76" Height="30"
                             Background="{StaticResource ButtonSecondaryBgBrush}"
                             Style="{StaticResource NormalButton}"
-                            Command="{Binding DeselectAllCommand}"/>
+                            Command="{Binding DeselectAllCommand}" IsEnabled="{Binding IsNotBusy}"/>
                 </Grid>
 
                 <Button Grid.Row="1" Content="車両を読み込む"
                         Height="36" Margin="0,14,0,12"
                         FontSize="13" FontWeight="SemiBold"
                         Style="{StaticResource NormalButton}"
-                        Command="{Binding ScanVehiclesCommand}"/>
+                        Command="{Binding ScanVehiclesCommand}"
+                        IsEnabled="{Binding CanScanVehicles}"/>
 
                 <Border Grid.Row="2" Background="#0B1426" BorderBrush="#263B5C" BorderThickness="1" CornerRadius="5">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" IsEnabled="{Binding IsNotBusy}"
+                                      Visibility="{Binding HasVehicles, Converter={StaticResource BoolToVis}}">
                         <ItemsControl ItemsSource="{Binding Vehicles}" Margin="10,8">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -202,7 +205,14 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </ScrollViewer>
+                        </ScrollViewer>
+                        <TextBlock Text="{Binding VehicleListMessage}"
+                                   Foreground="{StaticResource SubTextBrush}" FontSize="12"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Margin="20"
+                                   Visibility="{Binding HasVehicles, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"/>
+                    </Grid>
                 </Border>
             </Grid>
         </Border>
@@ -246,12 +256,13 @@
                            FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"/>
             </Border>
 
-            <Button Grid.Column="1" Content="Excelへ出力"
+                    <Button Grid.Column="1" Content="Excelへ出力"
                     Width="150" Height="44"
                     FontSize="14" FontWeight="SemiBold"
                     Background="{StaticResource GreenBrush}"
                     Style="{StaticResource NormalButton}"
-                    Command="{Binding ExecuteCommand}"/>
+                    Command="{Binding ExecuteCommand}"
+                    IsEnabled="{Binding CanExecuteSummary}"/>
         </Grid>
     </Grid>
 </Window>

@@ -103,7 +103,8 @@ namespace HansoInputTool.Services
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"フォルダの作成に失敗しました。\n{ex.Message}",
+                Logger.Error(ex, "データフォルダの作成に失敗しました。");
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "データフォルダの作成"),
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                 return null;
             }

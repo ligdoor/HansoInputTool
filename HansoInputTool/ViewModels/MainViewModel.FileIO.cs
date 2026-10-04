@@ -118,7 +118,7 @@ namespace HansoInputTool.ViewModels
             catch (Exception ex)
             {
                 Logger.Error(ex, "実績月報ファイルの読み込み中にエラーが発生しました。");
-                MessageBox.Show("ファイルの読み込みに失敗しました。\n詳細はログファイルを確認してください。",
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "実績月報の読み込み"),
                     "読み込みエラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -168,7 +168,7 @@ namespace HansoInputTool.ViewModels
             catch (Exception ex)
             {
                 Logger.Error(ex, "入力内容の保存中にエラーが発生しました。");
-                MessageBox.Show("保存に失敗しました。\n詳細はログファイルを確認してください。",
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "入力内容の保存"),
                     "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -204,7 +204,7 @@ namespace HansoInputTool.ViewModels
             catch (Exception ex)
             {
                 Logger.Error(ex, "手動バックアップの作成中にエラーが発生しました");
-                MessageBox.Show("バックアップの作成に失敗しました。\n詳細はログファイルを確認してください。",
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "バックアップの作成"),
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }

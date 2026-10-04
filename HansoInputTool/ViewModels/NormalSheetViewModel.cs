@@ -415,7 +415,7 @@ namespace HansoInputTool.ViewModels
             catch (Exception ex)
             {
                 _log?.Invoke($"登録エラー: {ex.Message}");
-                MessageBox.Show("登録エラーが発生しました。\n詳細はログファイルを確認してください。",
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "入力内容の登録"),
                     "登録エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }

@@ -27,7 +27,11 @@ namespace HansoInputTool.ViewModels
         public string FolderPath
         {
             get => _folderPath;
-            set => SetProperty(ref _folderPath, value);
+            set
+            {
+                if (SetProperty(ref _folderPath, value))
+                    InvalidateVehicleList("集計フォルダが変更されました。車両を読み込み直してください。");
+            }
         }
 
         private int _startYear = DateTime.Today.Month >= 5
@@ -35,14 +39,22 @@ namespace HansoInputTool.ViewModels
         public int StartYear
         {
             get => _startYear;
-            set => SetProperty(ref _startYear, value);
+            set
+            {
+                if (SetProperty(ref _startYear, value))
+                    InvalidateVehicleList("集計期間が変更されました。車両を読み込み直してください。");
+            }
         }
 
         private int _startMonth = 5;
         public int StartMonth
         {
             get => _startMonth;
-            set => SetProperty(ref _startMonth, value);
+            set
+            {
+                if (SetProperty(ref _startMonth, value))
+                    InvalidateVehicleList("集計期間が変更されました。車両を読み込み直してください。");
+            }
         }
 
         private int _endYear = DateTime.Today.Month >= 5
@@ -50,14 +62,22 @@ namespace HansoInputTool.ViewModels
         public int EndYear
         {
             get => _endYear;
-            set => SetProperty(ref _endYear, value);
+            set
+            {
+                if (SetProperty(ref _endYear, value))
+                    InvalidateVehicleList("集計期間が変更されました。車両を読み込み直してください。");
+            }
         }
 
         private int _endMonth = 4;
         public int EndMonth
         {
             get => _endMonth;
-            set => SetProperty(ref _endMonth, value);
+            set
+            {
+                if (SetProperty(ref _endMonth, value))
+                    InvalidateVehicleList("集計期間が変更されました。車両を読み込み直してください。");
+            }
         }
 
         // ── 車両チェックリスト ──
@@ -90,6 +110,16 @@ namespace HansoInputTool.ViewModels
         }
         public bool IsNotBusy => !_isBusy;
 
+        private bool _isScanComplete;
+        public bool IsScanComplete
+        {
+            get => _isScanComplete;
+            private set => SetProperty(ref _isScanComplete, value);
+        }
+        public string VehicleListMessage => IsScanComplete
+            ? "対象期間の車両は見つかりませんでした。フォルダや期間を確認してください。"
+            : "フォルダと期間を指定して「車両を読み込む」を押してください。";
+
         // ── コマンド ──
         public ICommand SelectFolderCommand    { get; }
         public ICommand ScanVehiclesCommand    { get; }
@@ -102,7 +132,7 @@ namespace HansoInputTool.ViewModels
             SelectFolderCommand = new RelayCommand(_ => SelectFolder());
             ScanVehiclesCommand = new RelayCommand(
                 _ => ScanVehicles(),
-                _ => IsNotBusy && !string.IsNullOrEmpty(FolderPath));
+                _ => IsNotBusy && !string.IsNullOrEmpty(FolderPath) && IsValidPeriod);
             SelectAllCommand    = new RelayCommand(
                 _ => { foreach (var v in Vehicles) v.IsChecked = true; },
                 _ => Vehicles.Count > 0);
@@ -111,7 +141,25 @@ namespace HansoInputTool.ViewModels
                 _ => Vehicles.Count > 0);
             ExecuteCommand = new RelayCommand(
                 _ => Execute(),
-                _ => IsNotBusy && Vehicles.Any(v => v.IsChecked));
+                _ => IsNotBusy && IsScanComplete && Vehicles.Any(v => v.IsChecked));
+        }
+
+        public bool IsValidPeriod => StartMonth is >= 1 and <= 12 &&
+            EndMonth is >= 1 and <= 12 && StartYear >= 1 && EndYear >= 1 &&
+            StartYear * 100L + StartMonth <= EndYear * 100L + EndMonth;
+        public bool CanScanVehicles => IsNotBusy && !string.IsNullOrWhiteSpace(FolderPath) && IsValidPeriod;
+        public bool CanExecuteSummary => IsNotBusy && IsScanComplete && Vehicles.Any(v => v.IsChecked);
+
+        private void InvalidateVehicleList(string message)
+        {
+            Vehicles.Clear();
+            HasVehicles = false;
+            IsScanComplete = false;
+            OnPropertyChanged(nameof(VehicleListMessage));
+            StatusMessage = message;
+            OnPropertyChanged(nameof(CanScanVehicles));
+            OnPropertyChanged(nameof(CanExecuteSummary));
+            CommandManager.InvalidateRequerySuggested();
         }
 
         private void SelectFolder()
@@ -120,8 +168,6 @@ namespace HansoInputTool.ViewModels
             if (!string.IsNullOrEmpty(selected))
             {
                 FolderPath = selected;
-                Vehicles.Clear();
-                HasVehicles = false;
                 StatusMessage = $"フォルダ選択済み: {FolderPath}　←「車両を読み込む」を押してください";
             }
         }
@@ -136,6 +182,8 @@ namespace HansoInputTool.ViewModels
             }
 
             IsBusy = true;
+            OnPropertyChanged(nameof(CanScanVehicles));
+            IsScanComplete = false;
             StatusMessage = "Excelファイルを読み込んで車両リストを取得中...";
             Vehicles.Clear();
             HasVehicles = false;
@@ -150,6 +198,9 @@ namespace HansoInputTool.ViewModels
                     Vehicles.Add(new VehicleEntryViewModel(e));
 
                 HasVehicles = Vehicles.Count > 0;
+                IsScanComplete = true;
+                OnPropertyChanged(nameof(CanExecuteSummary));
+                OnPropertyChanged(nameof(VehicleListMessage));
 
                 if (Vehicles.Count == 0)
                     StatusMessage = "対象期間のファイルが見つかりませんでした。";
@@ -164,13 +215,18 @@ namespace HansoInputTool.ViewModels
             }
             catch (Exception ex)
             {
-                StatusMessage = $"エラー: {ex.Message}";
-                MessageBox.Show($"車両の読み込み中にエラーが発生しました。\n\n{ex.Message}",
+                IsScanComplete = false;
+                OnPropertyChanged(nameof(VehicleListMessage));
+                OnPropertyChanged(nameof(CanExecuteSummary));
+                StatusMessage = "車両を読み込めませんでした。画面の案内を確認してください。";
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "車両一覧の読み込み"),
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 IsBusy = false;
+                OnPropertyChanged(nameof(CanScanVehicles));
+                CommandManager.InvalidateRequerySuggested();
             }
         }
 
@@ -199,6 +255,9 @@ namespace HansoInputTool.ViewModels
 
             string outputPath = saveDialog.FileName;
             IsBusy = true;
+            OnPropertyChanged(nameof(CanScanVehicles));
+            OnPropertyChanged(nameof(CanExecuteSummary));
+            OnPropertyChanged(nameof(CanScanVehicles));
             StatusMessage = "集計中...";
 
             try
@@ -255,14 +314,17 @@ namespace HansoInputTool.ViewModels
             }
             catch (Exception ex)
             {
-                StatusMessage = $"エラー: {ex.Message}";
-                MessageBox.Show($"エラーが発生しました。\n\n{ex.Message}",
+                StatusMessage = "集計を完了できませんでした。画面の案内を確認してください。";
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "年度集計"),
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            finally
-            {
-                IsBusy = false;
-            }
+                finally
+                {
+                    IsBusy = false;
+                    OnPropertyChanged(nameof(CanScanVehicles));
+                    OnPropertyChanged(nameof(CanExecuteSummary));
+                    CommandManager.InvalidateRequerySuggested();
+                }
         }
 
     }

@@ -112,9 +112,9 @@ namespace HansoInputTool.ViewModels
             }
             catch (Exception ex)
             {
-                StatusMessage = $"エラー: {ex.Message}";
+                StatusMessage = "PDFを解析できませんでした。画面の案内を確認してください。";
                 _log?.Invoke($"[PDF読込エラー] {ex.Message}");
-                MessageBox.Show($"PDF解析中にエラーが発生しました。\n\n{ex.Message}",
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "PDFの読み込み"),
                     "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
@@ -217,7 +217,8 @@ namespace HansoInputTool.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"PDFを開けませんでした。\n\n{ex.Message}", "PDF確認", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _log?.Invoke($"[PDF確認エラー] {ex.Message}");
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "PDFの表示"), "PDF確認", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }

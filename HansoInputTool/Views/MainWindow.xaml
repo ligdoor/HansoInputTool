@@ -7,8 +7,8 @@
         xmlns:converters="clr-namespace:HansoInputTool.Converters"
         mc:Ignorable="d"
         Title="搬送実績入力ツール"
-        Height="820" Width="1034"
-        MinHeight="700" MinWidth="1050"
+        Height="820" Width="1120"
+        MinHeight="640" MinWidth="980"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -189,7 +189,7 @@
     </i:Interaction.Triggers>
 
     <Grid Background="{StaticResource BgBrush}">
-        <Grid Margin="22,12,22,12">
+        <Grid Margin="16,10,16,10">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -287,8 +287,8 @@
             <!-- MAIN -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="400" MinWidth="370" MaxWidth="430"/>
-                    <ColumnDefinition Width="14"/>
+                    <ColumnDefinition Width="0.9*" MinWidth="300" MaxWidth="430"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 

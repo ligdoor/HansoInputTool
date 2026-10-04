@@ -38,7 +38,12 @@ namespace HansoInputTool
             Logger.Error(e.Exception, "予期せぬUIエラーが発生しました。");
 
             // ユーザーに通知
-            MessageBox.Show("予期せぬエラーが発生しました。アプリケーションを終了します。\n詳細はログファイルを確認してください。", "重大なエラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            var logFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            MessageBox.Show(
+                "予期しない問題が発生したため、アプリを終了します。\n\n" +
+                "入力内容が保存されていない場合は、再起動後に内容をご確認ください。\n" +
+                $"問題が続く場合は、次のフォルダ内の最新ログを管理者へお渡しください。\n{logFolder}",
+                "アプリを終了します", MessageBoxButton.OK, MessageBoxImage.Error);
 
             // 例外を処理済みにし、アプリケーションのクラッシュを防ぐ (場合による)
             e.Handled = true;

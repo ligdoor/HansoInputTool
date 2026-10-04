@@ -206,7 +206,7 @@ namespace HansoInputTool.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"設定の保存中にエラーが発生しました。\n{ex.Message}", "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(UserFriendlyErrorMessage.For(ex, "設定の保存"), "保存エラー", MessageBoxButton.OK, MessageBoxImage.Error);
                 _excelHandler.Load();
             }
         }
