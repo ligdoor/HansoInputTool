@@ -43,7 +43,7 @@
 		<None Update="data\shortcuts.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
-		<None Update="data\readme.pdf">
+		<None Update="data\搬送実績入力ツール取扱説明書.docx">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Update="data\Template.xlsx">

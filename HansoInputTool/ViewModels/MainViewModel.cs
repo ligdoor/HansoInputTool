@@ -35,7 +35,17 @@ namespace HansoInputTool.ViewModels
         private static string CustomFlagsFilePath => Path.Combine(BaseDataPath, "custom_flags.json");
         private static string DatabaseFilePath => Path.Combine(BaseDataPath, "hanso_data.db");
         private static string VehicleSettingsFilePath => Path.Combine(BaseDataPath, "vehicle_settings.json");
-        private static string HelpFilePath => Path.Combine(BaseDataPath, "readme.pdf");
+        private static string HelpFilePath
+        {
+            get
+            {
+                const string helpFileName = "搬送実績入力ツール取扱説明書.docx";
+                var dataFolderHelpPath = Path.Combine(BaseDataPath, helpFileName);
+                return File.Exists(dataFolderHelpPath)
+                    ? dataFolderHelpPath
+                    : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", helpFileName);
+            }
+        }
         private static string ShortcutSettingsFilePath => Path.Combine(BaseDataPath, "shortcuts.json");
 
         #endregion

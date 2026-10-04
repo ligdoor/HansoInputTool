@@ -181,7 +181,7 @@ namespace HansoInputTool.ViewModels
                 if (File.Exists(HelpFilePath))
                 { Process.Start(new ProcessStartInfo(HelpFilePath) { UseShellExecute = true }); Log("ヘルプファイルを開きました。"); }
                 else
-                    MessageBox.Show("ヘルプファイル (readme.pdf) が見つかりません。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("取扱説明書が見つかりません。アプリの data フォルダーを確認してください。", "エラー", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
