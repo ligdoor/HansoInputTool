@@ -187,7 +187,8 @@ namespace HansoInputTool.ViewModels
             VehicleSheetList = new ObservableCollection<VehicleSheetViewModel>(
                 currentSheets.Select(s =>
                 {
-                    var vm = new VehicleSheetViewModel(s);
+                    var tab = _mainViewModel?.SheetTabResolver?.GetTab(s);
+                    var vm = new VehicleSheetViewModel(s, tab?.Id, tab?.IsTotalMode ?? false);
                     if (_vehicleSettingsService != null)
                     {
                         vm.LateInputMode = _vehicleSettingsService.IsFeeMode(s) ? "fee" : "time";
@@ -239,6 +240,7 @@ namespace HansoInputTool.ViewModels
             ResetShortcutsCommand = new RelayCommand(p => ResetShortcuts());
             TestAiConnectionCommand = new RelayCommand(async _ => await TestAiConnectionAsync(), _ => !string.IsNullOrWhiteSpace(_aiSettings?.ApiKey));
             InitializeAiSecurityCommands();
+            InitializeTabs();
         }
 
         // 旧コンストラクタ（後方互換性のため）

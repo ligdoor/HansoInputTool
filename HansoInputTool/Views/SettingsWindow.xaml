@@ -121,6 +121,12 @@
                             <TextBlock Text="車両設定" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
                         </StackPanel>
                     </ListBoxItem>
+                    <ListBoxItem Tag="7">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="▤" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                            <TextBlock Text="入力タブ" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </ListBoxItem>
                     <ListBoxItem Tag="3">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="￥" FontSize="18" Width="30" VerticalAlignment="Center"/>
@@ -457,6 +463,20 @@
                                             <TextBlock Text="選択した車両の登録内容を編集します。"
                                                        Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,3,0,12"/>
 
+                                            <!-- 所属する入力タブ（メイン画面のどのタブに表示するか） -->
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="所属タブ" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                                <ComboBox Grid.Column="1"
+                                                          ItemsSource="{Binding DataContext.TabList, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          DisplayMemberPath="Name"
+                                                          SelectedValuePath="Id"
+                                                          SelectedValue="{Binding TabId, Mode=TwoWay}"/>
+                                            </Grid>
+
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="100"/>
@@ -762,6 +782,153 @@
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
+                </TabItem>
+                <!-- 入力タブ管理（メイン画面の入力タブの追加・名前変更・入力方式・並び替え・削除） -->
+                <TabItem Header="入力タブ">
+                    <Grid Margin="10,4,14,10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                            <TextBlock Text="入力タブ" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock Text="メイン画面の入力タブを管理します。タブごとに入力方式（日別入力／月合計入力）を選べます。車両は［車両シート管理］で所属タブを選びます。"
+                                       Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="280"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- タブ一覧（上から順にメイン画面へ並ぶ） -->
+                            <Border Grid.Column="0"
+                                    Background="{StaticResource PanelBackgroundBrush}"
+                                    BorderBrush="{StaticResource InputBorderBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="10">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Text="タブ一覧（表示順）" FontSize="14" FontWeight="SemiBold" Margin="2,0,2,8"/>
+
+                                    <ListView Grid.Row="1"
+                                              ItemsSource="{Binding TabList}"
+                                              SelectedItem="{Binding SelectedTabItem}"
+                                              Background="Transparent"
+                                              BorderThickness="1"
+                                              BorderBrush="{StaticResource InputBorderBrush}"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,2">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                    <TextBlock Foreground="{StaticResource SubTextBrush}" FontSize="11">
+                                                        <Run Text="{Binding InputModeDisplay, Mode=OneWay}"/>
+                                                        <Run Text="　"/>
+                                                        <Run Text="{Binding VehicleCount, Mode=OneWay}"/>
+                                                        <Run Text="台"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+
+                                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Content="▲ 上へ" Command="{Binding MoveTabUpCommand}"
+                                                    Style="{StaticResource NormalButton}" Margin="0,0,5,0"/>
+                                            <Button Grid.Column="1" Content="▼ 下へ" Command="{Binding MoveTabDownCommand}"
+                                                    Style="{StaticResource NormalButton}" Margin="5,0,0,0"/>
+                                        </Grid>
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Content="＋ タブを追加" Command="{Binding AddTabCommand}"
+                                                    Style="{StaticResource NormalButton}" Margin="0,0,5,0"/>
+                                            <Button Grid.Column="1" Content="削除" Command="{Binding DeleteTabCommand}"
+                                                    Background="{StaticResource RedBrush}"
+                                                    Style="{StaticResource NormalButton}" Margin="5,0,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- タブ詳細 -->
+                            <Grid Grid.Column="2">
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedTabItem}" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+
+                                <Border Background="{StaticResource PanelBackgroundBrush}"
+                                        BorderBrush="{StaticResource InputBorderBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="14" VerticalAlignment="Top">
+                                    <StackPanel DataContext="{Binding SelectedTabItem}">
+                                        <TextBlock Text="タブ詳細" FontSize="14" FontWeight="SemiBold"/>
+                                        <TextBlock Text="選択したタブの名前と入力方式を編集します。"
+                                                   Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,3,0,12"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="タブ名" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,12"/>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="入力方式" VerticalAlignment="Top" FontWeight="SemiBold"/>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" IsEnabled="{Binding CanChangeInputMode}">
+                                                <RadioButton Content="日別入力（日・距離など、日にちごとに入力）" GroupName="TabInputModeGroup"
+                                                             IsChecked="{Binding IsDailyChecked}" Margin="0,0,0,6"/>
+                                                <RadioButton Content="月合計入力（総距離など、月の合計を入力）" GroupName="TabInputModeGroup"
+                                                             IsChecked="{Binding IsTotalChecked}"/>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="1" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"
+                                                       Foreground="{StaticResource SubTextBrush}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="※ 入力方式は、車両が1台も所属していないタブだけ変更できます。"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CanChangeInputMode}" Value="False">
+                                                                <Setter Property="Text" Value="※ 車両が所属しているタブのため、入力方式は変更できません（Excelシートの形式が違うため）。"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Grid>
                 </TabItem>
             </TabControl>
         </Grid>

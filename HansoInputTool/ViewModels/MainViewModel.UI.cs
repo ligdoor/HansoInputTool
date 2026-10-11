@@ -33,12 +33,15 @@ namespace HansoInputTool.ViewModels
             switch (actionName)
             {
                 case "Save":         return TryExecute(SaveInputCommand);
-                case "Register":     return SelectedTabIndex == 0 ? TryExecute(RegisterNormalCommand) : TryExecute(RegisterEastCommand);
+                case "Register":     return IsTotalTabSelected ? TryExecute(RegisterEastCommand) : TryExecute(RegisterNormalCommand);
                 case "NextSheet":    MoveSheet(+1); return true;
                 case "PrevSheet":    MoveSheet(-1); return true;
                 case "Transfer":     return TryExecute(TransferCommand);
                 case "OpenSettings": return TryExecute(OpenSettingsCommand);
-                case "SwitchTab":    SelectedTabIndex = (SelectedTabIndex + 1) % 2; return true;
+                case "SwitchTab":
+                    if (InputTabs.Count > 0)
+                        SelectedTab = InputTabs[(InputTabs.IndexOf(SelectedTab) + 1) % InputTabs.Count];
+                    return true;
                 case "EditRow":      return TryExecute(EditRowCommand);
                 case "DeleteRow":    return TryExecute(DeleteRowCommand);
                 case "CreateBackup": return TryExecute(CreateBackupCommand);
@@ -91,7 +94,7 @@ namespace HansoInputTool.ViewModels
 
         private void MoveSheet(int direction)
         {
-            if (SelectedTabIndex == 0)
+            if (!IsTotalTabSelected)
                 MoveInCollection(NormalSheet.NormalSheets, NormalSheet.SelectedNormalSheet, s => NormalSheet.SelectedNormalSheet = s, direction);
             else
                 MoveInCollection(EastSheet.EastSheets, EastSheet.SelectedEastSheet, s => EastSheet.SelectedEastSheet = s, direction);

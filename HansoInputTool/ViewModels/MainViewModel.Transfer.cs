@@ -56,7 +56,7 @@ namespace HansoInputTool.ViewModels
                 await transferService.ExecuteAsync(
                     InputFilePath, TemplateFilePath, outputDir,
                     period, month, rNum, _allSheetNames, Rates, _columnMap, progress, _flagService, _dbService, EraName,
-                    _vehicleSettingsService);
+                    _vehicleSettingsService, _sheetTabResolver);
 
                 Log("========\n転記完了\n========");
 

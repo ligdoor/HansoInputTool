@@ -44,7 +44,7 @@ namespace HansoInputTool.Services
                 var srcWs = sourcePackage.Workbook.Worksheets.FirstOrDefault(s => s.Name == destWs.Name);
                 if (srcWs == null) continue; // 実績月報側に同名シートが無ければInput.xlsx側はそのまま維持する
 
-                if (destWs.Name.Contains("寝台車") || destWs.Name.Contains("霊柩車") || destWs.Name.Contains("CH"))
+                if (!IsTotalModeSheet(destWs.Name) && (destWs.Name.Contains("寝台車") || destWs.Name.Contains("霊柩車") || destWs.Name.Contains("CH")))
                 {
                     var destTotalRow = FindTotalRow(destWs);
                     var srcTotalRow  = FindTotalRow(srcWs);
@@ -63,7 +63,7 @@ namespace HansoInputTool.Services
 
                     logMessages.Add($"[{destWs.Name}] のデータを実績月報から取り込みました。");
                 }
-                else if (destWs.Name.Contains("東日本"))
+                else if (IsTotalModeSheet(destWs.Name))
                 {
                     CopyCellIfAddressSet(srcWs, destWs, eastMap.Jitsudo);
                     CopyCellIfAddressSet(srcWs, destWs, eastMap.Hanso);

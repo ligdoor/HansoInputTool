@@ -43,6 +43,14 @@ namespace HansoInputTool.ViewModels
         private void AddVehicle()
         {
             var newVehicle = new VehicleSheetViewModel();
+
+            // 新しい車両の所属タブは、選択中の車両と同じタブ（なければ最初の日別入力タブ）にする
+            var defaultTab = TabList.FirstOrDefault(t => t.Id == SelectedVehicle?.TabId)
+                             ?? TabList.FirstOrDefault(t => !t.IsTotalMode)
+                             ?? TabList.FirstOrDefault();
+            newVehicle.IsTotalModeTab = defaultTab?.IsTotalMode ?? false;
+            newVehicle.TabId = defaultTab?.Id;
+
             VehicleSheetList.Add(newVehicle);
             SelectedVehicle = newVehicle;
         }

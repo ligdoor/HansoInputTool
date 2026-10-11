@@ -14,6 +14,12 @@ namespace HansoInputTool.Models
 
         /// <summary>この車両が給油管理表への記録対象かどうか（例: CH富士吉田の車両）</summary>
         public bool IsFuelTracked { get; set; } = false;
+
+        /// <summary>
+        /// この車両が所属する入力タブのID（tab_settings.json の Id）。
+        /// 未設定（null）の場合は、従来ルール（名前に「東日本」を含むか）で振り分ける。
+        /// </summary>
+        public string TabId { get; set; } = null;
     }
 
     /// <summary>

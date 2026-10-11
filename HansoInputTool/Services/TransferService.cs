@@ -42,8 +42,12 @@ namespace HansoInputTool.Services
             FlagDefinitionService flagService = null,
             DatabaseService dbService = null,
             string eraName = "R",
-            VehicleSettingsService vehicleSettingsService = null)
+            VehicleSettingsService vehicleSettingsService = null,
+            SheetTabResolver tabResolver = null)
         {
+            // 入力方式（日別／月合計）の判定窓口。未指定の場合は従来の名前判定になる
+            _tabResolver = tabResolver;
+
             await Task.Run(() =>
             {
                 string folderName = $"{period}期 {month}月 {eraName}{rNum} アルス搬送・霊柩車　実績月報";
@@ -166,11 +170,17 @@ namespace HansoInputTool.Services
 
 
         // ===== シート種別の一元判定ヘルパー（続き） =====
-        private static bool IsNormalSheet(string sheetName) =>
-            NormalSheetKeywords.Any(kw => sheetName.Contains(kw));
+        private SheetTabResolver _tabResolver;
 
-        private static bool IsEastSheet(string sheetName) =>
-            EastSheetKeywords.Any(kw => sheetName.Contains(kw));
+        // 日別入力の車両シートか（月合計入力のシートは除く）
+        private bool IsNormalSheet(string sheetName) =>
+            NormalSheetKeywords.Any(kw => sheetName.Contains(kw)) && !IsEastSheet(sheetName);
+
+        // 月合計入力（従来の「東日本」）の車両シートか。resolver があればタブの入力方式で判定する
+        private bool IsEastSheet(string sheetName) =>
+            _tabResolver != null
+                ? _tabResolver.IsTotalMode(sheetName)
+                : EastSheetKeywords.Any(kw => sheetName.Contains(kw));
         // ==========================================
 
         // ===== 実績月報シート内の合計行を検索するヘルパー =====

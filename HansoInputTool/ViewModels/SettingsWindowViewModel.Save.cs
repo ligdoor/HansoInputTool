@@ -35,6 +35,13 @@ namespace HansoInputTool.ViewModels
                 return;
             }
 
+            // 入力タブ・車両の所属タブのチェック
+            if (!ValidateTabs(out string tabError))
+            {
+                MessageBox.Show(tabError, "入力エラー", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             // ショートカットの重複チェック
             if (ShortcutSettingsVM.HasDuplicates(out string duplicateInfo))
             {
@@ -65,7 +72,9 @@ namespace HansoInputTool.ViewModels
 
                 foreach (var vehicleVM in addedVMs)
                 {
-                    string templateSheetName = vehicleVM.Selected事業所カテゴリ == "東日本セレモニー"
+                    // 新しい車両のひな形は、所属タブの入力方式で決める（月合計入力 = Template2、日別入力 = Template1）
+                    var vehicleTab = TabList.First(t => t.Id == vehicleVM.TabId);
+                    string templateSheetName = vehicleTab.IsTotalMode
                         ? "Template2"
                         : "Template1";
 
@@ -79,8 +88,12 @@ namespace HansoInputTool.ViewModels
                     sheetsToAdd.Add((vehicleVM.VehicleTypeName, templateSheetName));
                 }
 
-                _excelHandler.SyncAllVehicleSheets(sheetsToDelete, renameMap, sheetsToAdd);
+                _excelHandler.SyncAllVehicleSheets(sheetsToDelete, renameMap, sheetsToAdd, BuildTotalModeSheetNames());
                 _excelHandler.Save();
+
+                // 入力タブの定義と、車両ごとの設定（深夜入力方式・給油管理・所属タブ）を保存する。
+                // Excelの車両シートを変更した直後に保存し、シート構成と設定がずれる時間を作らない。
+                SaveTabsAndVehicleSettings();
 
                 // 料金設定の保存
                 string json = JsonConvert.SerializeObject(Rates, Formatting.Indented);
@@ -185,16 +198,6 @@ namespace HansoInputTool.ViewModels
                 };
                 Services.DataSetupService.SaveColumnMap(cm);
                 _mainViewModel.ReloadColumnMap(cm);
-
-                // 車両ごとの深夜入力方式を保存
-                if (_vehicleSettingsService != null)
-                {
-                    var vs = new Models.VehicleSettings();
-                    foreach (var v in VehicleSheetList)
-                        vs[v.VehicleTypeName] = new Models.VehicleConfig { LateInputMode = v.LateInputMode, IsFuelTracked = v.IsFuelTracked };
-                    _vehicleSettingsService.Save(vs);
-                    _mainViewModel.ReloadVehicleSettings(vs);
-                }
 
                 _mainViewModel.UpdateRatesAndReload(Rates);
 

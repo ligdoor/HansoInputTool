@@ -55,6 +55,14 @@ namespace HansoInputTool.ViewModels
                 // [深夜料金バグ修正] DatabaseService側でも深夜入力方式の判定に使うため注入する
                 _dbService.VehicleSettingsService = _vehicleSettingsService;
 
+                // 入力タブ設定（tab_settings.json）と、シート→タブの判定窓口を初期化
+                _tabSettingsService = new TabSettingsService(TabSettingsFilePath);
+                _sheetTabResolver = new SheetTabResolver(_tabSettingsService, _vehicleSettingsService);
+                _excelHandler.TabResolver = _sheetTabResolver;
+                NormalSheet.SetTabResolver(_sheetTabResolver);
+                EastSheet.SetTabResolver(_sheetTabResolver);
+                InitializeInputTabs();
+
                 // 起動時フラグ自動同期
                 _excelHandler.SyncFlagsOnStartup(_flagService);
                 Log("ショートカット設定を読み込みました。");

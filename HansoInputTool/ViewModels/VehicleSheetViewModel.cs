@@ -102,7 +102,28 @@ namespace HansoInputTool.ViewModels
             private set => SetProperty(ref _vehicleTypeName, value);
         }
 
-        public bool Is車種Visible => Selected事業所カテゴリ != "東日本セレモニー";
+        // 所属する入力タブのID（tab_settings.json の Id）
+        private string _tabId;
+        public string TabId
+        {
+            get => _tabId;
+            set => SetProperty(ref _tabId, value);
+        }
+
+        // 所属タブが月合計入力か。月合計入力の車両は車種（寝台車・霊柩車）を持たない。
+        private bool _isTotalModeTab;
+        public bool IsTotalModeTab
+        {
+            get => _isTotalModeTab;
+            set
+            {
+                if (!SetProperty(ref _isTotalModeTab, value)) return;
+                OnPropertyChanged(nameof(Is車種Visible));
+                UpdateVehicleTypeName();
+            }
+        }
+
+        public bool Is車種Visible => Selected事業所カテゴリ != "東日本セレモニー" && !IsTotalModeTab;
 
         public VehicleSheetViewModel()
         {
@@ -112,11 +133,17 @@ namespace HansoInputTool.ViewModels
             UpdateVehicleTypeName(); // 初期化時に名前を生成
         }
 
-        public VehicleSheetViewModel(string sheetName)
+        public VehicleSheetViewModel(string sheetName, string tabId = null, bool isTotalModeTab = false)
         {
             OriginalSheetName = sheetName;
             VehicleTypeName = sheetName;
+            _tabId = tabId;
+            _isTotalModeTab = isTotalModeTab;
             ParseSheetName(sheetName);
+
+            // 名前の分解・組み立てで元のシート名が変わってしまわないよう、
+            // 利用者が項目を編集するまでは元のシート名をそのまま保つ
+            VehicleTypeName = sheetName;
         }
 
         private void UpdateVehicleTypeName()

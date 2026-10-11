@@ -42,6 +42,23 @@ namespace HansoInputTool.Services
         public DatabaseService DbService { get; set; }
         public VehicleSettingsService VehicleSettingsService { get; set; }
 
+        /// <summary>
+        /// シートの所属タブ（入力方式）を判定する窓口。
+        /// 未設定の場合は従来ルール（名前に「東日本」を含む＝月合計入力）で判定する。
+        /// </summary>
+        public SheetTabResolver TabResolver { get; set; }
+
+        // 設定画面の保存中だけ使う、「月合計入力のタブに所属する（保存後の）シート名」の一覧。
+        // 保存の途中（車両設定ファイルに書く前）でも、新規・名前変更したシートを正しく判定するため。
+        private ISet<string> _totalModeOverrides;
+
+        /// <summary>月合計入力（従来の「東日本」）のシートか</summary>
+        internal bool IsTotalModeSheet(string sheetName)
+            => (_totalModeOverrides?.Contains(sheetName) ?? false)
+               || (TabResolver != null
+                    ? TabResolver.IsTotalMode(sheetName)
+                    : (sheetName?.Contains("東日本") ?? false));
+
         public bool IsFeeMode(string sheetName)
             => VehicleSettingsService?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
 
@@ -82,8 +99,8 @@ namespace HansoInputTool.Services
 
             // 代表シート（最初の通常系シート）のヘッダー行を読んで現状を把握
             var targetSheets = _inputPackage.Workbook.Worksheets
-                .Where(ws => (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車")
-                           || ws.Name.Contains("CH") || IsTemplateSheet(ws.Name))
+                .Where(ws => (((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車")
+                           || ws.Name.Contains("CH")) && !IsTotalModeSheet(ws.Name)) || IsTemplateSheet(ws.Name))
                           && !ws.Name.Contains("登録")
                           && !ws.Name.Contains("給油管理")  // 給油管理表はレイアウトが異なるため対象外
                           && ws.Name != "月間集計")
@@ -256,7 +273,7 @@ namespace HansoInputTool.Services
 
             // DBが注入済みの場合はDBから読み取る
             // ただし東日本シートはDBに保存されないためExcelから読む
-            if (DbService != null && !sheetName.Contains("東日本"))
+            if (DbService != null && !IsTotalModeSheet(sheetName))
             {
                 if (_dataCache.ContainsKey(sheetName)) return _dataCache[sheetName];
                 var flags  = FlagService?.Flags ?? new List<Models.FlagDefinition>().AsReadOnly();
@@ -447,7 +464,7 @@ namespace HansoInputTool.Services
             {
                 if (ws.Name.Contains("給油管理")) continue; // 給油管理表はレイアウトが異なるため対象外
 
-                if (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+                if (!IsTotalModeSheet(ws.Name) && (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH")))
                 {
                     var totalRowIndex = FindTotalRow(ws);
                     if (totalRowIndex != -1)
@@ -464,7 +481,7 @@ namespace HansoInputTool.Services
                         logMessages.Add($"[{ws.Name}] の入力値をクリアしました。");
                     }
                 }
-                else if (ws.Name.Contains("東日本"))
+                else if (IsTotalModeSheet(ws.Name))
                 {
                     ws.Cells[eastMap.Jitsudo].Value     = null;
                     ws.Cells[eastMap.Hanso].Value       = null;
@@ -509,7 +526,7 @@ namespace HansoInputTool.Services
             var result = new Dictionary<string, Dictionary<string, double?>>();
             foreach (var ws in _inputPackage.Workbook.Worksheets)
             {
-                if (!ws.Name.Contains("東日本")) continue;
+                if (!IsTotalModeSheet(ws.Name)) continue;
                 var values = GetEastSheetValues(ws.Name);
                 if (values != null && values.Values.Any(v => v.HasValue))
                     result[ws.Name] = values;
@@ -523,7 +540,7 @@ namespace HansoInputTool.Services
             var eastMap = _columnMap.EastSheet;
             foreach (var ws in _inputPackage.Workbook.Worksheets)
             {
-                if (!ws.Name.Contains("東日本")) continue;
+                if (!IsTotalModeSheet(ws.Name)) continue;
                 ws.Cells[eastMap.Jitsudo].Value     = null;
                 ws.Cells[eastMap.Hanso].Value       = null;
                 ws.Cells[eastMap.YuryoKm].Value     = null;
@@ -575,9 +592,9 @@ namespace HansoInputTool.Services
                 .Where(ws => !ws.Name.Contains("登録")
                           && ws.Name != "月間集計"
                           && !ws.Name.Contains("給油管理")  // 給油管理表はレイアウトが異なるため対象外
-                          && (ws.Name.Contains("寝台車")
+                          && (((ws.Name.Contains("寝台車")
                            || ws.Name.Contains("霊柩車")
-                           || ws.Name.Contains("CH")
+                           || ws.Name.Contains("CH")) && !IsTotalModeSheet(ws.Name))
                            || IsTemplateSheet(ws.Name)))  // Template1 を含む
                 .ToList();
 
@@ -646,6 +663,7 @@ namespace HansoInputTool.Services
             var map = _columnMap.NormalSheet;
             foreach (var ws in _inputPackage.Workbook.Worksheets)
                 if ((ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+                    && !IsTotalModeSheet(ws.Name)
                     && !ws.Name.Contains("給油管理")
                     && ws.Cells[3, map.Day].Value != null)
                     return true;
@@ -715,6 +733,7 @@ namespace HansoInputTool.Services
             // 通常系シートのみ対象（東日本・登録・テンプレート系・給油管理表は除外）
             var targetSheets = _inputPackage.Workbook.Worksheets
                 .Where(ws => (ws.Name.Contains("寝台車") || ws.Name.Contains("霊柩車") || ws.Name.Contains("CH"))
+                          && !IsTotalModeSheet(ws.Name)
                           && !ws.Name.Contains("登録")
                           && !ws.Name.Contains("給油管理")
                           && !IsTemplateSheet(ws.Name))

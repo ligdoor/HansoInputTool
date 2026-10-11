@@ -35,6 +35,7 @@ namespace HansoInputTool.ViewModels
         private static string CustomFlagsFilePath => Path.Combine(BaseDataPath, "custom_flags.json");
         private static string DatabaseFilePath => Path.Combine(BaseDataPath, "hanso_data.db");
         private static string VehicleSettingsFilePath => Path.Combine(BaseDataPath, "vehicle_settings.json");
+        private static string TabSettingsFilePath => Path.Combine(BaseDataPath, "tab_settings.json");
         private static string HelpFilePath
         {
             get
@@ -58,6 +59,8 @@ namespace HansoInputTool.ViewModels
         private ExcelHandler _excelHandler;
         private DatabaseService _dbService;
         private VehicleSettingsService _vehicleSettingsService;
+        private TabSettingsService _tabSettingsService;
+        private SheetTabResolver _sheetTabResolver;
         private ColumnMapping _columnMap;
         private List<string> _allSheetNames;
         private FlagDefinitionService _flagService;
@@ -65,6 +68,8 @@ namespace HansoInputTool.ViewModels
         public Dictionary<string, RateInfo> Rates { get; set; }
         public ShortcutService ShortcutService => _shortcutService;
         public FlagDefinitionService FlagService => _flagService;
+        public TabSettingsService TabSettingsService => _tabSettingsService;
+        public SheetTabResolver SheetTabResolver => _sheetTabResolver;
 
         /// <summary>指定シートが深夜料金入力方式（料金モード）かどうかを返す（EditWindow等から利用）</summary>
         public bool IsFeeMode(string sheetName) => _excelHandler?.IsFeeMode(sheetName) ?? sheetName.Contains("大月");
@@ -90,27 +95,136 @@ namespace HansoInputTool.ViewModels
         public string LogText { get => _logText; private set => SetProperty(ref _logText, value); }
         private readonly StringBuilder _logBuilder = new();
 
-        private int _selectedTabIndex;
-        public int SelectedTabIndex
+        /// <summary>メイン画面の入力タブ（tab_settings.json の並び順どおり）</summary>
+        public ObservableCollection<TabDefinition> InputTabs { get; } = new();
+
+        // タブごとに最後に選んでいた車両シートを覚えておく（タブを行き来しても選択が戻る）
+        private readonly Dictionary<string, string> _lastSheetByTab = new();
+
+        private TabDefinition _selectedTab;
+        public TabDefinition SelectedTab
         {
-            get => _selectedTabIndex;
+            get => _selectedTab;
             set
             {
-                if (!SetProperty(ref _selectedTabIndex, value)) return;
+                // タブ一覧の入れ替え中などに TabControl が一時的に null を返しても無視する
+                if (value == null || ReferenceEquals(_selectedTab, value)) return;
 
-                // タブ切替時はプレビューも同じタブの実績だけを表示する。
-                // 東日本タブでは通常タブのプレビューを残さない。
+                RememberSelectedSheet(_selectedTab);
+                _selectedTab = value;
+                OnPropertyChanged(nameof(SelectedTab));
+                OnPropertyChanged(nameof(IsTotalTabSelected));
+
                 if (_excelHandler == null) return;
+                ApplySelectedTab(value);
+            }
+        }
 
-                if (_selectedTabIndex == 0)
+        /// <summary>選択中のタブが月合計入力か（入力パネルの表示切替・登録処理の分岐に使う）</summary>
+        public bool IsTotalTabSelected => _selectedTab?.IsTotalMode == true;
+
+        /// <summary>起動時に、tab_settings.json の内容からタブ一覧を作る（最初のタブを選択状態にする）</summary>
+        private void InitializeInputTabs()
+        {
+            var tabs = _tabSettingsService.Tabs;
+
+            // 各入力方式の車両一覧は、その入力方式で最初のタブを対象にして始める
+            NormalSheet.ActiveTabId = tabs.FirstOrDefault(t => !t.IsTotalMode)?.Id;
+            EastSheet.ActiveTabId   = tabs.FirstOrDefault(t => t.IsTotalMode)?.Id;
+
+            _selectedTab = tabs[0];
+            InputTabs.Clear();
+            foreach (var t in tabs) InputTabs.Add(t);
+            OnPropertyChanged(nameof(SelectedTab));
+            OnPropertyChanged(nameof(IsTotalTabSelected));
+        }
+
+        /// <summary>
+        /// 設定画面での変更（タブの追加・名前変更・並び替え・削除、車両の所属変更）を、
+        /// メイン画面のタブと車両一覧へ反映する。
+        /// </summary>
+        public void ReloadInputTabs()
+        {
+            var latest = _tabSettingsService.Tabs;
+
+            // 削除されたタブを外す
+            foreach (var gone in InputTabs.Where(t => latest.All(n => n.Id != t.Id)).ToList())
+                InputTabs.Remove(gone);
+
+            // 追加・名前/入力方式の更新・並び順の反映（既存のタブは同じオブジェクトを使い続ける）
+            for (int i = 0; i < latest.Count; i++)
+            {
+                var def = latest[i];
+                var existing = InputTabs.FirstOrDefault(t => t.Id == def.Id);
+                if (existing == null)
                 {
-                    UpdatePreview();
+                    InputTabs.Insert(Math.Min(i, InputTabs.Count),
+                        new TabDefinition { Id = def.Id, Name = def.Name, InputMode = def.InputMode });
                 }
                 else
                 {
-                    PreviewData.Clear();
-                    SelectedRow = null;
+                    existing.Name = def.Name;
+                    existing.InputMode = def.InputMode;
+                    int current = InputTabs.IndexOf(existing);
+                    if (current != i) InputTabs.Move(current, i);
                 }
+            }
+
+            // 選択中のタブが無くなっていたら先頭へ
+            if (_selectedTab == null || !InputTabs.Contains(_selectedTab))
+                _selectedTab = InputTabs.FirstOrDefault();
+
+            // 各入力方式の車両一覧の対象タブを、有効なタブに合わせ直す
+            string ValidActive(string current, bool wantTotal)
+                => InputTabs.FirstOrDefault(t => t.Id == current && t.IsTotalMode == wantTotal)?.Id
+                   ?? InputTabs.FirstOrDefault(t => t.IsTotalMode == wantTotal)?.Id;
+
+            var sel = _selectedTab;
+            NormalSheet.ActiveTabId = sel != null && !sel.IsTotalMode ? sel.Id : ValidActive(NormalSheet.ActiveTabId, false);
+            EastSheet.ActiveTabId   = sel != null &&  sel.IsTotalMode ? sel.Id : ValidActive(EastSheet.ActiveTabId, true);
+
+            OnPropertyChanged(nameof(SelectedTab));
+            OnPropertyChanged(nameof(IsTotalTabSelected));
+
+            if (_excelHandler != null)
+            {
+                PopulateSheetCombos();
+                if (!IsTotalTabSelected) UpdatePreview();
+            }
+        }
+
+        private void RememberSelectedSheet(TabDefinition tab)
+        {
+            if (tab == null) return;
+            var current = tab.IsTotalMode ? EastSheet.SelectedEastSheet : NormalSheet.SelectedNormalSheet;
+            if (!string.IsNullOrEmpty(current)) _lastSheetByTab[tab.Id] = current;
+        }
+
+        /// <summary>タブが切り替わったときに、車両一覧とプレビューをそのタブに合わせる</summary>
+        private void ApplySelectedTab(TabDefinition tab)
+        {
+            _lastSheetByTab.TryGetValue(tab.Id, out var remembered);
+
+            if (tab.IsTotalMode)
+            {
+                // 対象タブが変わるときだけ車両一覧を作り直す（2タブ構成のときは従来どおり何もしない）
+                if (EastSheet.ActiveTabId != tab.Id)
+                {
+                    EastSheet.ActiveTabId = tab.Id;
+                    EastSheet.PopulateSheets(_excelHandler.GetVehicleSheetNames(), remembered ?? EastSheet.SelectedEastSheet);
+                }
+                // 月合計入力のタブでは、日別入力のプレビューを残さない
+                PreviewData.Clear();
+                SelectedRow = null;
+            }
+            else
+            {
+                if (NormalSheet.ActiveTabId != tab.Id)
+                {
+                    NormalSheet.ActiveTabId = tab.Id;
+                    NormalSheet.PopulateSheets(_excelHandler.GetVehicleSheetNames(), remembered ?? NormalSheet.SelectedNormalSheet);
+                }
+                UpdatePreview();
             }
         }
 

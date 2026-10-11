@@ -253,10 +253,29 @@ namespace HansoInputTool.ViewModels
             RebuildFlagItems();
         }
 
+        private SheetTabResolver _tabResolver;
+
+        /// <summary>シートの所属タブ（入力方式）を判定する窓口を受け取る</summary>
+        public void SetTabResolver(SheetTabResolver resolver) => _tabResolver = resolver;
+
+        /// <summary>
+        /// いま車両一覧に出す対象の日別入力タブのID。
+        /// 未設定（null）の場合は「月合計入力でないシート」すべてを対象にする。
+        /// </summary>
+        public string ActiveTabId { get; set; }
+
+        private bool BelongsToActiveTab(string sheetName)
+        {
+            if (_tabResolver == null) return !sheetName.Contains("東日本");
+            if (!string.IsNullOrEmpty(ActiveTabId)) return _tabResolver.GetTab(sheetName)?.Id == ActiveTabId;
+            return !_tabResolver.IsTotalMode(sheetName);
+        }
+
         public void PopulateSheets(List<string> allVehicleSheets, string previousSelection)
         {
             NormalSheets.Clear();
-            foreach (var s in allVehicleSheets.Where(s => !s.Contains("東日本")))
+            // 選択中の日別入力タブに所属するシートを一覧にする
+            foreach (var s in allVehicleSheets.Where(BelongsToActiveTab))
                 NormalSheets.Add(s);
 
             SelectedNormalSheet = NormalSheets.Contains(previousSelection)

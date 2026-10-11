@@ -18,16 +18,27 @@ namespace HansoInputTool.Services
         public void SyncAllVehicleSheets(
             List<string> sheetsToDelete,
             Dictionary<string, string> renameMap,
-            List<(string newName, string templateName)> sheetsToAdd)
+            List<(string newName, string templateName)> sheetsToAdd,
+            ISet<string> totalModeSheetNames = null)
         {
-            SyncPackageSheets(_inputPackage,    "Input.xlsx",    sheetsToDelete, renameMap, sheetsToAdd, isInputFile: true);
-            SyncPackageSheets(_templatePackage, "Template.xlsx", sheetsToDelete, renameMap, sheetsToAdd, isInputFile: false);
+            // 月合計入力のタブに所属する車両名（保存後の名前）。新規作成・名前変更の際、
+            // シート名に「東日本」を含まなくても月合計入力のレイアウトとして扱うために使う
+            _totalModeOverrides = totalModeSheetNames;
+            try
+            {
+                SyncPackageSheets(_inputPackage,    "Input.xlsx",    sheetsToDelete, renameMap, sheetsToAdd, isInputFile: true);
+                SyncPackageSheets(_templatePackage, "Template.xlsx", sheetsToDelete, renameMap, sheetsToAdd, isInputFile: false);
 
-            ReorderVehicleSheets(_inputPackage);
-            ReorderVehicleSheets(_templatePackage);
+                ReorderVehicleSheets(_inputPackage);
+                ReorderVehicleSheets(_templatePackage);
 
-            // 月間集計は Input 側のみ更新（Template を破壊しない）
-            UpdateMonthlySummarySheetIfNeeded(_inputPackage);
+                // 月間集計は Input 側のみ更新（Template を破壊しない）
+                UpdateMonthlySummarySheetIfNeeded(_inputPackage);
+            }
+            finally
+            {
+                _totalModeOverrides = null;
+            }
         }
 
         #endregion
@@ -116,6 +127,13 @@ namespace HansoInputTool.Services
 
             try
             {
+                // 月合計入力のタブに所属する新しい車両（名前に「東日本」を含まないもの）は、必ずTemplate2を使う
+                if (IsCustomTotalModeSheet(newName))
+                {
+                    var template2 = package.Workbook.Worksheets.FirstOrDefault(s => s.Name == "Template2");
+                    if (template2 != null) return template2;
+                }
+
                 bool isEastCeremony   = newName.Contains("東日本セレモニー") || templateName.Contains("東日本セレモニー");
                 bool isChFujiYoshida  = newName.Contains("CH富士吉田") || templateName.Contains("CH富士吉田");
                 bool isChOotsuki      = newName.Contains("CH大月") || templateName.Contains("CH大月");
@@ -143,8 +161,35 @@ namespace HansoInputTool.Services
             }
         }
 
+        /// <summary>
+        /// 月合計入力のタブに所属し、かつ名前に「東日本」を含まない車両か。
+        /// （従来の「東日本」系シートは、これまでの処理をそのまま使う）
+        /// </summary>
+        private bool IsCustomTotalModeSheet(string sheetName)
+            => !string.IsNullOrEmpty(sheetName) && !sheetName.Contains("東日本") && IsTotalModeSheet(sheetName);
+
+        /// <summary>
+        /// 月合計入力レイアウト（B4=名称、C4=車輌番号）のシートに、シート名から名称・番号を書き込む。
+        /// 例: 「○○社 3」 → B4=「○○社」、C4=3
+        /// </summary>
+        private static void WriteTotalModeNameCells(ExcelWorksheet ws, string sheetName)
+        {
+            var m = Regex.Match(sheetName, @"\d+$");
+            string label = m.Success ? Regex.Replace(sheetName, @"\s*\d+$", "").Trim() : sheetName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(label)) ws.Cells["B4"].Value = label;
+            if (m.Success && int.TryParse(m.Value, out int n)) ws.Cells["C4"].Value = n;
+        }
+
         private void SetupNewSheetCells(ExcelWorksheet newWs, string newName, string templateName)
         {
+            // 月合計入力のタブの新しい車両：シート名はそのまま使い、B4/C4だけ書き込む
+            if (IsCustomTotalModeSheet(newName))
+            {
+                WriteTotalModeNameCells(newWs, newName);
+                return;
+            }
+
             var (branch, number) = ParseSheetNameToBranchAndNumber(newName);
             if (string.IsNullOrWhiteSpace(branch))
                 branch = ParseSheetNameToBranchAndNumber(templateName).Branch;
@@ -281,6 +326,13 @@ namespace HansoInputTool.Services
                 var m = Regex.Match(sheetName, @"\d+$");
                 if (m.Success && int.TryParse(m.Value, out int n))
                     ws.Cells["C4"].Value = n;
+                return;
+            }
+
+            // 月合計入力のタブの車両（名前に「東日本」を含まない）
+            if (IsCustomTotalModeSheet(sheetName))
+            {
+                WriteTotalModeNameCells(ws, sheetName);
                 return;
             }
 

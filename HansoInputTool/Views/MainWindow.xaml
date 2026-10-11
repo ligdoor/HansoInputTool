@@ -139,7 +139,7 @@
         <Style x:Key="NormalInputPanelStyle" TargetType="Border" BasedOn="{StaticResource PanelBorderStyle}">
             <Setter Property="Visibility" Value="Visible"/>
             <Style.Triggers>
-                <DataTrigger Binding="{Binding DataContext.SelectedTabIndex, RelativeSource={RelativeSource AncestorType=Window}}" Value="1">
+                <DataTrigger Binding="{Binding DataContext.IsTotalTabSelected, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                     <Setter Property="Visibility" Value="Collapsed"/>
                 </DataTrigger>
             </Style.Triggers>
@@ -148,7 +148,7 @@
         <Style x:Key="EastInputPanelStyle" TargetType="Border" BasedOn="{StaticResource PanelBorderStyle}">
             <Setter Property="Visibility" Value="Collapsed"/>
             <Style.Triggers>
-                <DataTrigger Binding="{Binding DataContext.SelectedTabIndex, RelativeSource={RelativeSource AncestorType=Window}}" Value="1">
+                <DataTrigger Binding="{Binding DataContext.IsTotalTabSelected, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                     <Setter Property="Visibility" Value="Visible"/>
                 </DataTrigger>
             </Style.Triggers>
@@ -300,21 +300,59 @@
                     </Grid.RowDefinitions>
 
                     <!-- 車両選択：現在の車両名はComboBoxだけで表示し、重複表示しない -->
-                    <TabControl Grid.Row="0" SelectedIndex="{Binding SelectedTabIndex}" Margin="0,0,0,8" Background="Transparent">
-                        <TabItem Header="通常" Style="{StaticResource DarkTabItemStyle}" FontSize="15" FontWeight="SemiBold">
-                            <StackPanel Margin="12,8,12,8" DataContext="{Binding NormalSheet}">
-                                <TextBlock Text="車両選択" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <ComboBox ItemsSource="{Binding NormalSheets}" SelectedItem="{Binding SelectedNormalSheet}"
-                                          TabIndex="4" Height="36" FontSize="14"/>
-                            </StackPanel>
-                        </TabItem>
-                        <TabItem Header="東日本" Style="{StaticResource DarkTabItemStyle}" FontSize="15" FontWeight="SemiBold">
-                            <StackPanel Margin="12,8,12,8" DataContext="{Binding EastSheet}">
-                                <TextBlock Text="車両選択" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <ComboBox ItemsSource="{Binding EastSheets}" SelectedItem="{Binding SelectedEastSheet}"
-                                          TabIndex="10" Height="36" FontSize="14"/>
-                            </StackPanel>
-                        </TabItem>
+                    <TabControl Grid.Row="0" ItemsSource="{Binding InputTabs}" SelectedItem="{Binding SelectedTab}"
+                                Margin="0,0,0,8" Background="Transparent">
+                        <TabControl.ItemContainerStyle>
+                            <Style TargetType="TabItem" BasedOn="{StaticResource DarkTabItemStyle}">
+                                <Setter Property="FontSize" Value="15"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Style>
+                        </TabControl.ItemContainerStyle>
+                        <!-- タブの見出し：tab_settings.json の Name を表示する -->
+                        <TabControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"/>
+                            </DataTemplate>
+                        </TabControl.ItemTemplate>
+                        <!-- タブの中身：入力方式に応じて、日別入力用／月合計入力用の車両選択を出し分ける -->
+                        <TabControl.ContentTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <StackPanel Margin="12,8,12,8">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsTotalMode}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="車両選択" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                        <ComboBox ItemsSource="{Binding DataContext.NormalSheet.NormalSheets, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  SelectedItem="{Binding DataContext.NormalSheet.SelectedNormalSheet, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                  TabIndex="4" Height="36" FontSize="14"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="12,8,12,8">
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsTotalMode}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="車両選択" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                        <ComboBox ItemsSource="{Binding DataContext.EastSheet.EastSheets, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  SelectedItem="{Binding DataContext.EastSheet.SelectedEastSheet, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
+                                                  TabIndex="10" Height="36" FontSize="14"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </TabControl.ContentTemplate>
                     </TabControl>
 
                     <!-- 通常シート：通常時はスクロールなしで1件登録まで完結する -->
