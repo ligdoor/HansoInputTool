@@ -65,7 +65,7 @@ namespace HansoInputTool.Services
                         if (sname == TargetSheetName || sname.Contains("登録") ||
                             sname == "Template" || sname == "月間集計") continue;
 
-                        bool isKnown = TryParseSheetName(sname, out var shisha, out var vehicleNo);
+                        bool isKnown = TryResolveSheet(sname, out var shisha, out var vehicleNo);
                         if (!isKnown) { shisha = "未分類"; vehicleNo = sname; }
 
                         var key = $"{shisha}_{vehicleNo}";

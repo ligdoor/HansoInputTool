@@ -88,6 +88,9 @@ namespace HansoInputTool.Behaviors
             base.OnAttached();
             if (AssociatedObject != null)
             {
+                // 数値入力欄ではIME（日本語入力）を使わない。変換中の状態や全角数字の混入を、そもそも起こさない。
+                InputMethod.SetIsInputMethodEnabled(AssociatedObject, false);
+
                 AssociatedObject.PreviewTextInput += OnPreviewTextInput;
                 DataObject.AddPastingHandler(AssociatedObject, OnPasting);
             }
@@ -99,13 +102,18 @@ namespace HansoInputTool.Behaviors
             {
                 AssociatedObject.PreviewTextInput -= OnPreviewTextInput;
                 DataObject.RemovePastingHandler(AssociatedObject, OnPasting);
+                AssociatedObject.ClearValue(InputMethod.IsInputMethodEnabledProperty);
             }
             base.OnDetaching();
         }
 
         private void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            if (!char.IsDigit(e.Text, e.Text.Length - 1))
+            // 空の文字列で呼ばれることがある（その場合は何もしない）
+            if (string.IsNullOrEmpty(e.Text)) return;
+
+            // 半角の数字（0〜9）だけを受け付ける。全角数字や文字が混ざっていたら、入力全体を弾く
+            if (!IsAsciiDigits(e.Text))
             {
                 e.Handled = true;
             }
@@ -125,6 +133,13 @@ namespace HansoInputTool.Behaviors
             {
                 e.CancelCommand();
             }
+        }
+
+        private static bool IsAsciiDigits(string text)
+        {
+            foreach (char c in text)
+                if (c < '0' || c > '9') return false;
+            return true;
         }
 
         private static bool IsTextAllowed(string text)

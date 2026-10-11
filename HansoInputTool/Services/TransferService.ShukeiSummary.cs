@@ -36,9 +36,11 @@ namespace HansoInputTool.Services
                         if (branchOrder < 0) branchOrder = BranchOrder.Length; // 不明な支社名は末尾扱い
                         var m = Regex.Match(ws.Name, @"\d+$");
                         int number = m.Success && int.TryParse(m.Value, out var n) ? n : int.MaxValue;
-                        return new { ws.Name, BranchOrder = branchOrder, Number = number };
+                        int tabOrder = _tabResolver?.GetTabOrder(ws.Name) ?? 0;
+                        return new { ws.Name, TabOrder = tabOrder, BranchOrder = branchOrder, Number = number };
                     })
-                    .OrderBy(v => v.BranchOrder)
+                    .OrderBy(v => v.TabOrder)
+                    .ThenBy(v => v.BranchOrder)
                     .ThenBy(v => v.Number)
                     .ThenBy(v => v.Name, StringComparer.Ordinal)
                     .Select(v => v.Name)
@@ -99,9 +101,11 @@ namespace HansoInputTool.Services
                         if (branchOrder < 0) branchOrder = BranchOrder.Length;
                         var m = Regex.Match(name, @"\d+$");
                         int number = m.Success && int.TryParse(m.Value, out var n) ? n : int.MaxValue;
-                        return new { Name = name, BranchOrder = branchOrder, Number = number };
+                        int tabOrder = _tabResolver?.GetTabOrder(name) ?? 0;
+                        return new { Name = name, TabOrder = tabOrder, BranchOrder = branchOrder, Number = number };
                     })
-                    .OrderBy(v => v.BranchOrder)
+                    .OrderBy(v => v.TabOrder)
+                    .ThenBy(v => v.BranchOrder)
                     .ThenBy(v => v.Number)
                     .ThenBy(v => v.Name, StringComparer.Ordinal)
                     .Select(v => v.Name)
@@ -162,7 +166,10 @@ namespace HansoInputTool.Services
                 {
                     string sheetName = allVehicleSheets[i];
                     int currentRow = dataStartRow + i;
-                    string branch = BranchOrder.FirstOrDefault(b => sheetName.Contains(b)) ?? "";
+                    // 従来の営業所名 → 利用者が作ったタブの車両はタブ名 → それ以外は空欄（従来どおり）
+                    string branch = BranchOrder.FirstOrDefault(b => sheetName.Contains(b))
+                                    ?? _tabResolver?.GetCustomGroupLabel(sheetName)
+                                    ?? "";
                     var numMatch = Regex.Match(sheetName, @"\d+$");
                     object number = numMatch.Success && int.TryParse(numMatch.Value, out int num) ? (object)num : null;
 

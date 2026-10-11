@@ -195,14 +195,14 @@
 
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="元号記号" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
                                     <TextBox Grid.Row="0" Grid.Column="1" Width="70" HorizontalAlignment="Left"
-                                             Text="{Binding EraName, UpdateSourceTrigger=PropertyChanged}" MaxLength="3"
+                                             behaviors:NumericInput.Mode="ImeOff" Text="{Binding EraName, UpdateSourceTrigger=PropertyChanged}" MaxLength="3"
                                              ToolTip="例：R（令和）、S（新元号）"/>
                                     <TextBlock Grid.Row="0" Grid.Column="2" Text="例：令和 → R、将来の新元号 → その頭文字"
                                                VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
 
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="元号開始西暦" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
                                     <TextBox Grid.Row="1" Grid.Column="1" Width="70" HorizontalAlignment="Left"
-                                             Text="{Binding EraStartYear, UpdateSourceTrigger=PropertyChanged}" MaxLength="4"
+                                             behaviors:NumericInput.Mode="Integer" Text="{Binding EraStartYear, UpdateSourceTrigger=PropertyChanged}" MaxLength="4"
                                              ToolTip="例：令和→2019"/>
                                     <TextBlock Grid.Row="1" Grid.Column="2" Text="年　年間集計のファイル読み込みにも使用します"
                                                VerticalAlignment="Center" Foreground="{StaticResource SubTextBrush}" Margin="10,0,0,0"/>
@@ -296,31 +296,31 @@
                                         <TextBlock Grid.Row="0" Grid.Column="1" Text="列番号" Foreground="{StaticResource SubTextBrush}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="0" Grid.Column="2" Text="列" Foreground="{StaticResource SubTextBrush}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="1" Text="日" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CmDay, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="1" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmDay, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding CmDayLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="2" Text="搬送回数" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CmHansoCount, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="2" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmHansoCount, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding CmHansoCountLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="3" Text="有料キロ" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CmYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="3" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding CmYuryoKmLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="4" Text="無料キロ" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CmMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="4" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding CmMuryoKmLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="5" Text="基本料金" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding CmKihonFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="5" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmKihonFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="5" Grid.Column="2" Text="{Binding CmKihonFeeLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="6" Text="走行料金" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding CmSokoFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="6" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmSokoFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="6" Grid.Column="2" Text="{Binding CmSokoFeeLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="7" Text="深夜料金" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding CmShinyaFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="7" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmShinyaFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="7" Grid.Column="2" Text="{Binding CmShinyaFeeLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="8" Text="合計料金" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding CmTotalFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="8" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmTotalFee, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="8" Grid.Column="2" Text="{Binding CmTotalFeeLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Row="9" Text="深夜時間（分）" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="9" Grid.Column="1" Text="{Binding CmShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
+                                        <TextBox Grid.Row="9" Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding CmShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="8,4"/>
                                         <TextBlock Grid.Row="9" Grid.Column="2" Text="{Binding CmShinyaMinutesLabel}" Foreground="{StaticResource SubTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Grid>
                                 </StackPanel>
@@ -336,15 +336,15 @@
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/></Grid.RowDefinitions>
                                             <TextBlock Grid.Row="0" Text="延実働車輌数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CmEastJitsudo, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="0" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmEastJitsudo, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="1" Text="搬送回数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CmEastHanso, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="1" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmEastHanso, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="2" Text="有料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CmEastYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="2" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmEastYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="3" Text="無料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CmEastMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="3" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmEastMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="4" Text="運輸実績" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CmEastUnsoJisseki, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="4" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmEastUnsoJisseki, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -356,15 +356,15 @@
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/><RowDefinition Height="38"/></Grid.RowDefinitions>
                                             <TextBlock Grid.Row="0" Text="日数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding CmShukeiDays, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="0" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmShukeiDays, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="1" Text="搬送回数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding CmShukeiHanso, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="1" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmShukeiHanso, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="2" Text="有料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CmShukeiYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="2" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmShukeiYuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="3" Text="無料キロ" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CmShukeiMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="3" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmShukeiMuryoKm, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                             <TextBlock Grid.Row="4" Text="合計" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/>
-                                            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding CmShukeiTotal, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
+                                            <TextBox Grid.Row="4" Grid.Column="1" behaviors:NumericInput.Mode="ImeOff" Text="{Binding CmShukeiTotal, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" Margin="5,4"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -764,7 +764,7 @@
                                     <StackPanel>
                                         <TextBlock Text="自動バックアップ" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
                                         <TextBlock Text="起動時・終了時・データ消去前に自動作成するバックアップ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,3,0,14" TextWrapping="Wrap"/>
-                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="保持件数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/><TextBox Grid.Column="1" Text="{Binding MaxAutoBackupFiles, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/><TextBlock Grid.Column="2" Text="件" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource SubTextBrush}"/></Grid>
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="保持件数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/><TextBox Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding MaxAutoBackupFiles, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/><TextBlock Grid.Column="2" Text="件" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource SubTextBrush}"/></Grid>
                                         <TextBlock Text="最大50件" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,8,0,0"/>
                                     </StackPanel>
                                 </Border>
@@ -772,7 +772,7 @@
                                     <StackPanel>
                                         <TextBlock Text="手動バックアップ" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
                                         <TextBlock Text="手動で作成するバックアップ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,3,0,14"/>
-                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="保持件数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/><TextBox Grid.Column="1" Text="{Binding MaxManualBackupFiles, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/><TextBlock Grid.Column="2" Text="件" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource SubTextBrush}"/></Grid>
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="保持件数" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}"/><TextBox Grid.Column="1" behaviors:NumericInput.Mode="Integer" Text="{Binding MaxManualBackupFiles, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center"/><TextBlock Grid.Column="2" Text="件" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="{StaticResource SubTextBrush}"/></Grid>
                                         <TextBlock Text="最大100件" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,8,0,0"/>
                                     </StackPanel>
                                 </Border>
@@ -794,6 +794,8 @@
                         <StackPanel Grid.Row="0" Margin="0,0,0,10">
                             <TextBlock Text="入力タブ" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
                             <TextBlock Text="メイン画面の入力タブを管理します。タブごとに入力方式（日別入力／月合計入力）を選べます。車両は［車両シート管理］で所属タブを選びます。"
+                                       Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="※ タブの並び順は、実績月報（集計ファイル）や年度集計での車両の並び順にも使われます。利用者が作ったタブの名前は、月間集計の営業所名欄・年度集計の支社名に使われます。"
                                        Foreground="{StaticResource SubTextBrush}" FontSize="11" Margin="0,3,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
 

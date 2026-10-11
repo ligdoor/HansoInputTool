@@ -1,6 +1,7 @@
 <Window x:Class="HansoInputTool.Views.PdfImportWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ni="clr-namespace:HansoInputTool.Behaviors"
         xmlns:converters="clr-namespace:HansoInputTool.Converters"
         Title="PDF日報読み込み・確認"
         Height="700" Width="1120"
@@ -90,7 +91,7 @@
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
                                         <TextBlock Text="日付" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Width="48" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBox ni:NumericInput.Mode="Integer" Text="{Binding Day, UpdateSourceTrigger=PropertyChanged}" Width="48" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -98,7 +99,7 @@
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
                                         <TextBlock Text="有料キロ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="62" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBox ni:NumericInput.Mode="Decimal" Text="{Binding YuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="62" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -106,7 +107,7 @@
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
                                         <TextBlock Text="無料キロ" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="62" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBox ni:NumericInput.Mode="Decimal" Text="{Binding MuryoKm, UpdateSourceTrigger=PropertyChanged}" Width="62" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -114,7 +115,7 @@
                                 <GridViewColumn.CellTemplate><DataTemplate>
                                     <StackPanel>
                                         <TextBlock Text="深夜分" Foreground="{StaticResource SubTextBrush}" FontSize="10" Margin="0,0,0,2"/>
-                                        <TextBox Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" Width="70" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                        <TextBox ni:NumericInput.Mode="Decimal" Text="{Binding ShinyaMinutes, UpdateSourceTrigger=PropertyChanged}" Width="70" Padding="3,2" FontSize="11" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>
                             </GridViewColumn>
@@ -131,9 +132,9 @@
                                     <StackPanel>
                                         <ComboBox ItemsSource="{Binding FuelMarkOptions}" SelectedItem="{Binding FuelMarkStatus, UpdateSourceTrigger=PropertyChanged}" Width="94" FontSize="11"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBox Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}" Width="47" Padding="2" FontSize="11" ToolTip="ガソリン給油数（L）" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                            <TextBox ni:NumericInput.Mode="Decimal" Text="{Binding FuelLiters, UpdateSourceTrigger=PropertyChanged}" Width="47" Padding="2" FontSize="11" ToolTip="ガソリン給油数（L）" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                             <TextBlock Text="L" Foreground="{StaticResource SubTextBrush}" VerticalAlignment="Center" Margin="2,0,3,0" FontSize="10"/>
-                                            <TextBox Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}" Width="65" Padding="2" FontSize="11" ToolTip="メーター指針（km）" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
+                                            <TextBox ni:NumericInput.Mode="Decimal" Text="{Binding FuelOdometerKm, UpdateSourceTrigger=PropertyChanged}" Width="65" Padding="2" FontSize="11" ToolTip="メーター指針（km）" Background="#172033" Foreground="{StaticResource TextBrush}" BorderBrush="{StaticResource InputBorderBrush}"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </DataTemplate></GridViewColumn.CellTemplate>

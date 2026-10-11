@@ -100,7 +100,7 @@ namespace HansoInputTool.Services
                         if (sname == TargetSheetName || sname.Contains("登録") ||
                             sname == "Template" || sname == "月間集計") continue;
 
-                        bool isKnown = TryParseSheetName(sname, out var shisha, out var vehicleNo);
+                        bool isKnown = TryResolveSheet(sname, out var shisha, out var vehicleNo);
 
                         if (!isKnown)
                         {
@@ -134,7 +134,7 @@ namespace HansoInputTool.Services
             // ソート: 既知→未分類、支社順、車番順
             return entries.Values
                 .OrderBy(e => e.IsKnown ? 0 : 1)
-                .ThenBy(e => CategoryOrder.TryGetValue(e.ShishaName, out int c) ? c : 99)
+                .ThenBy(e => GetShishaOrder(e.ShishaName))
                 .ThenBy(e => int.TryParse(e.VehicleNo, out int n) ? n : 0)
                 .ThenBy(e => e.VehicleNo)
                 .ToList();

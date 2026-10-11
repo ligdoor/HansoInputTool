@@ -59,6 +59,7 @@ namespace HansoInputTool.ViewModels
                 _tabSettingsService = new TabSettingsService(TabSettingsFilePath);
                 _sheetTabResolver = new SheetTabResolver(_tabSettingsService, _vehicleSettingsService);
                 _excelHandler.TabResolver = _sheetTabResolver;
+                SheetTabResolver.Current = _sheetTabResolver;
                 NormalSheet.SetTabResolver(_sheetTabResolver);
                 EastSheet.SetTabResolver(_sheetTabResolver);
                 InitializeInputTabs();

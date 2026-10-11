@@ -42,6 +42,25 @@ namespace HansoInputTool.Services
             return double.TryParse(s, out double d) ? d : null;
         }
 
+        /// <summary>
+        /// シート名から支社名・車番を判定する。従来の車両は固定のパターンで、
+        /// 利用者が作ったタブの車両は、タブ名を支社名として扱う。
+        /// </summary>
+        private static bool TryResolveSheet(string sname, out string shisha, out string vehicleNo)
+        {
+            if (TryParseSheetName(sname, out shisha, out vehicleNo)) return true;
+            return SheetTabResolver.Current != null
+                && SheetTabResolver.Current.TryGetCustomGroup(sname, out shisha, out vehicleNo);
+        }
+
+        /// <summary>支社名の並び順。タブの並び順を優先し、不明なものは最後</summary>
+        private static int GetShishaOrder(string shisha)
+        {
+            if (SheetTabResolver.Current != null)
+                return SheetTabResolver.Current.GetGroupOrder(shisha);
+            return CategoryOrder.TryGetValue(shisha, out int c) ? c : 99;
+        }
+
         private static bool TryParseSheetName(string sname, out string shisha, out string vehicleNo)
         {
             shisha = null; vehicleNo = null;
