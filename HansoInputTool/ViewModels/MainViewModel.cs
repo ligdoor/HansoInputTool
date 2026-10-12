@@ -101,6 +101,9 @@ namespace HansoInputTool.ViewModels
         // タブごとに最後に選んでいた車両シートを覚えておく（タブを行き来しても選択が戻る）
         private readonly Dictionary<string, string> _lastSheetByTab = new();
 
+        // 日別入力タブごとの、入力途中の値（日・距離・深夜・給油・フラグ）。別の日別入力タブへ移るときに保存・復元する
+        private readonly Dictionary<string, NormalSheetViewModel.InputDraft> _draftByTab = new();
+
         private TabDefinition _selectedTab;
         public TabDefinition SelectedTab
         {
@@ -221,8 +224,16 @@ namespace HansoInputTool.ViewModels
             {
                 if (NormalSheet.ActiveTabId != tab.Id)
                 {
+                    // 別の日別入力タブへ移る：いまの入力途中の値を元のタブ用に保存し、移動先タブの値を戻す
+                    // （月合計入力のタブを経由しても、入力欄の値は直前の日別入力タブのものとして扱う）
+                    if (!string.IsNullOrEmpty(NormalSheet.ActiveTabId))
+                        _draftByTab[NormalSheet.ActiveTabId] = NormalSheet.CaptureDraft();
+
                     NormalSheet.ActiveTabId = tab.Id;
                     NormalSheet.PopulateSheets(_excelHandler.GetVehicleSheetNames(), remembered ?? NormalSheet.SelectedNormalSheet);
+
+                    _draftByTab.TryGetValue(tab.Id, out var draft);
+                    NormalSheet.RestoreDraft(draft);
                 }
                 UpdatePreview();
             }

@@ -283,6 +283,61 @@ namespace HansoInputTool.ViewModels
                 : NormalSheets.FirstOrDefault();
         }
 
+        #region 入力途中の値の保存・復元（日別入力タブごと）
+
+        /// <summary>日別入力タブ1つ分の「入力途中の値」（登録前に入力欄へ入れている内容）</summary>
+        public sealed class InputDraft
+        {
+            public string Day, YuryoKm, MuryoKm, LateValue, FuelOdometerKm, FuelLiters;
+            public bool IsFuelChecked;
+            public Dictionary<string, bool> Flags;
+
+            public bool IsBlank =>
+                string.IsNullOrEmpty(Day) && string.IsNullOrEmpty(YuryoKm) && string.IsNullOrEmpty(MuryoKm)
+                && string.IsNullOrEmpty(LateValue) && string.IsNullOrEmpty(FuelOdometerKm) && string.IsNullOrEmpty(FuelLiters)
+                && !IsFuelChecked && (Flags == null || !Flags.Values.Any(on => on));
+        }
+
+        /// <summary>いま入力欄にある値を、そのまま取り出す</summary>
+        public InputDraft CaptureDraft() => new InputDraft
+        {
+            Day = _day, YuryoKm = _yuryoKm, MuryoKm = _muryoKm, LateValue = _lateValue,
+            IsFuelChecked = _isFuelChecked, FuelOdometerKm = _fuelOdometerKm, FuelLiters = _fuelLiters,
+            Flags = GetFlagStates(),
+        };
+
+        /// <summary>
+        /// 保存しておいた入力途中の値を入力欄へ戻す。draft が null のときは空欄にする。
+        /// 値を1項目ずつ入れ替えると途中でチェックが走ってしまうため、まとめて入れ替えてから1回だけ判定する。
+        /// </summary>
+        public void RestoreDraft(InputDraft draft)
+        {
+            _day            = draft?.Day ?? string.Empty;
+            _yuryoKm        = draft?.YuryoKm ?? string.Empty;
+            _muryoKm        = draft?.MuryoKm ?? string.Empty;
+            _lateValue      = draft?.LateValue ?? string.Empty;
+            _isFuelChecked  = draft?.IsFuelChecked ?? false;
+            _fuelOdometerKm = draft?.FuelOdometerKm ?? string.Empty;
+            _fuelLiters     = draft?.FuelLiters ?? string.Empty;
+
+            OnPropertyChanged(nameof(Day));
+            OnPropertyChanged(nameof(YuryoKm));
+            OnPropertyChanged(nameof(MuryoKm));
+            OnPropertyChanged(nameof(LateValue));
+            OnPropertyChanged(nameof(IsFuelChecked));
+            OnPropertyChanged(nameof(FuelOdometerKm));
+            OnPropertyChanged(nameof(FuelLiters));
+
+            foreach (var item in FlagItems)
+                item.IsChecked = draft?.Flags != null && draft.Flags.TryGetValue(item.Id, out var on) && on;
+
+            // 空欄ならエラー表示は出さない（登録直後と同じ状態）。入力が残っている場合は、離れたときと同じ判定結果にする
+            if (draft == null || draft.IsBlank) ClearValidationErrors();
+            else ValidateInput();
+        }
+
+        #endregion
+
         #region バリデーション
 
         private void ValidateInput()
